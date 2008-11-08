@@ -1,0 +1,11 @@
+Configuration for each daemon is configured at 3 levels
+
+- Global
+- Per Daemon
+- Per Process
+
+Some parts of config are specific and can't be configured in this kind of
+scope, for example that's the case for SSL settings.
+
+Doc about SSL settings is there : http://php.net/transports
+

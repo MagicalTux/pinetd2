@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Config>
+  <Global>
+    <RemoveMe>Please edit config.xml and remove the line containing this text</RemoveMe>
+    <Name>GiveMeAName</Name>
+    <PidFile>system.pid</PidFile>
+    <Security Strict="0">
+      <Fork/>
+      <Chroot/>
+      <SUID User="nobody" Group="nogroup"/>
+    </Security>
+    <Network>
+      <Bind>
+        <Ip External="127.0.0.1">127.0.0.1</Ip>
+      </Bind>
+    </Network>
+    <Storage>
+      <MySQL Login="root" Password="" Host="localhost" Database="test"/>
+    </Storage>
+  </Global>
+  <Daemons>
+    <FTPd>
+      <AnonymousRoot>/var/ftp</AnonymousRoot>
+      <MaxUsers Anonymous="90%">120</MaxUsers>
+      <Network MaxUsersPerIp="4"/>
+      <Identification Login="test" Password="test"/>
+    </FTPd>
+    <FTPd_SQL>
+      <AnonymousRoot>/var/ftp</AnonymousRoot>
+      <MaxUsers Anonymous="50%">120</MaxUsers>
+      <Network MaxUsersPerIp="4"/>
+      <SQL>
+        <LoginQuery><![CDATA[SELECT password, root FROM users WHERE login = %s]]></LoginQuery>
+      </SQL>
+    </FTPd_SQL>
+    <PMaild>
+      <Mails Path="spool/phpmaild"/>
+      <DefaultDomain>example.com</DefaultDomain>
+      <MTA MaxProcesses="5" StartThreshold="5" MaxAttempt="10" MailMaxLifetime="48"/>
+    </PMaild>
+  </Daemons>
+  <SSL>
+    <Certificate name="main">
+      <Option name="verify_peer" Value="false"/>
+      <Option name="allow_self_signed" Value="true"/>
+      <Option name="local_cert" Value="newkey.pem"/>
+      <Option name="passphrase" Value="" Disabled="1"/>
+    </Certificate>
+    <Certificate name="smtp">
+      <Option name="verify_peer" Value="false"/>
+      <Option name="allow_self_signed" Value="true"/>
+      <Option name="cafile" Value="newkey.pem" Disabled="1"/>
+      <Option name="capath" Value="" Disabled="1"/>
+      <Option name="local_cert" Value="newkey.pem"/>
+      <Option name="passphrase" Value="" Disabled="1"/>
+      <Option name="CN_match" Value="" Disabled="1"/>
+    </Certificate>
+  </SSL>
+  <Processes PortOffset="0">
+    <TCP Port="21" Daemon="FTPd" />
+    <TCP Port="80" Daemon="HTTPd"/>
+    <TCP Port="990" Daemon="FTPd" SSL="main" />
+    <TCP Port="25" Daemon="PMaild" Service="SMTP" />
+    <TCP Port="110" Daemon="PMaild" Service="POP3" />
+    <TCP Port="995" Daemon="PMaild" Service="POP3" SSL="main" />
+    <TCP Port="143" Daemon="PMaild" Service="IMAP4" />
+    <TCP Port="993" Daemon="PMaild" Service="IMAP4" SSL="main" />
+    <Process Daemon="PMaild" Service="MTA"/>
+  </Processes>
+</Config>

@@ -1,0 +1,100 @@
+SimpleFTPd v2.0
+
+This is a simple FTP server which implements most FTP functions. You can
+either login anonymously, or using a login/pass provided in the config file
+to gain write access to the anonymous FTP root (by default, /var/ftp).
+
+It can be easily overloaded to provide different authentification methods,
+systems, etc...
+
+This FTP server supports FXP, but will deny it to Anonymous user. By default a
+FTP server has nothing to do to allow FXP, however forbidding it isn't that
+easy.
+
+The FTPd also support resuming upload/downloads, passive mode (for firewalled
+clients), etc
+
+We support :
+
+QUIT
+ALLO/NOOP
+USER/PASS
+SYST
+TYPE
+PWD
+CDUP
+CWD
+REST (resume upload/download)
+PORT
+PASV (passive mode)
+LIST/NLST
+RETR
+APPE
+STOR
+SITE CHMOD (stub)
+RMD
+RRMD (recursive RMD)
+DELE
+MKD
+SIZE
+RNFR/RNTO
+MODE S
+STRU F
+MDTM
+FEAT
+
+**************
+***** Security: 
+**************
+
+Fork : Highly recommanded as it will allow you to enable Chroot and SUID
+
+SUID : Highly recommanded, this will allow the FTP server to drop its root
+privileges once they are no longer required. This way, logged users will only
+be able to write to files you allow.
+
+Chroot : Also highly recommanded, this will ask the kernel to chroot() the
+current process once forked. This way, even if someone figures out a leak in
+our system. Even if Chroot is disabled, a user will not be able to leave his
+ftp root, however this will just be enforced by the ftpd, which is probably
+not absolute.
+
+************
+***** Config:
+************
+
+<AnonymousRoot>/var/ftp</AnonymousRoot>
+<MaxUsers Anonymous="90%">120</MaxUsers>
+<Network MaxUsersPerIp="4"/>
+<Identification Login="test" Password="test"/>
+<Network>
+  <Bind>
+    <Ip External="127.0.0.1">127.0.0.1</Ip>
+  </Bind>
+</Network>
+
+AnonymousRoot is used to define where anonymous users are jailed. If not
+defined, or if the provided path does not exists, anonymous logins will be
+disabled, however it is much better to set Anonymous="0" in MaxUsers to
+disable the anonymous login.
+
+MaxUsers define the maximum number of users logged in. You can define the
+ratio of anonymous users with the Anonymous property. Anonymous can either be
+an absolute value, or a percentage of total users by adding the symbol %.
+
+In the Network subsection, you can define MaxUsersPerIp, which will limit how
+many connections will be established from a single IP.
+This is useful for denying someone from DoS'ing your FTP service.
+
+Network/Bind/Ip defines where we should listen to, and is directly managed by
+pinetd. The interesting part is the External property, which can be used if
+your FTP server is behind a NAT, but that the NAT router does not handle FTP
+protocol.
+In this case, put your external IP in External="" (the one the user used to
+connect) and when the user want to enable PASV (passive mode), this IP will be
+sent on the control line, allowing the user to connect to the right IP (and
+not the one the server had).
+Note that this will also require from you to forward incoming connections on
+the NAT router. Setting up a DMZ is the best way to achieve that.
+
+
