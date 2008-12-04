@@ -1,6 +1,7 @@
 <?php
 
-namespace Daemon::PMaild::MTA;
+namespace Daemon\PMaild\MTA;
+use pinetd\SQL;
 
 class DNSBL {
 	static private $dnsbl = array(
@@ -24,7 +25,7 @@ class DNSBL {
 		$ip = explode('.', $peer[0]);
 		$rev_ip = $ip[3] . '.' . $ip[2] . '.' . $ip[1] . '.' . $ip[0];
 		// access dnsbl settings
-		$SQL = ::pinetd::SQL::Factory($localConfig['Storage']);
+		$SQL = SQL::Factory($localConfig['Storage']);
 		$DAO_domains = $SQL->DAO('domains', 'domainid');
 		$domain = $DAO_domains[$mail['domainid']];
 

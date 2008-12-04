@@ -1,6 +1,6 @@
 <?php
 
-namespace Daemon::HTTPd;
+namespace Daemon\HTTPd;
 
 class HTTPAnswerError {
 	private $client;
@@ -14,7 +14,7 @@ class HTTPAnswerError {
 	const NOT_FOUND = 404;
 	
 	function __construct($obj) {
-		if (!is_a($obj, 'Daemon::HTTPd::Client')) {
+		if (!is_a($obj, 'Daemon\\HTTPd\\Client')) {
 			throw new Exception('Invalid type of parameter to HTTPErrorClode::__construct()');
 		}
 		$this->client = $obj;

@@ -1,8 +1,9 @@
 <?php
 
-namespace Daemon::PMaild::MTA;
+namespace Daemon\PMaild\MTA;
 
-use pinetd::Logger;
+use pinetd\Logger;
+use pinetd\SQL;
 
 class MailTarget {
 	protected $target;
@@ -15,7 +16,7 @@ class MailTarget {
 		$this->target = $target;
 		$this->from = $from;
 		$this->localConfig = $localConfig;
-		$this->sql = ::pinetd::SQL::Factory($this->localConfig['Storage']);
+		$this->sql = SQL::Factory($this->localConfig['Storage']);
 	}
 
 	function makeUniq($path, $domain=null, $account=null) {
@@ -32,20 +33,20 @@ class MailTarget {
 			$path .= '/' . substr($id, -1) . '/' . substr($id, -2) . '/' . $id;
 		}
 		if (!is_dir($path)) mkdir($path, 0755, true);
-		$path .= '/'.microtime(true).'.'.::gencode(5).getmypid().'.'.$this->localConfig['Name']['_'];
+		$path .= '/'.microtime(true).'.'.gencode(5).getmypid().'.'.$this->localConfig['Name']['_'];
 		return $path;
 	}
 
 	function runProtections(&$txn) {
 		$domain = $this->target['domainbean'];
 		if ($domain->antivirus) {
-			$class = ::relativeclass($this, 'MailFilter::AntiVirus');
+			$class = relativeclass($this, 'MailFilter\\AntiVirus');
 			$antivirus = new $class($domain->antivirus, $domain, $this->localConfig);
 			$res = $antivirus->process($txn);
 			if (!is_null($res)) return $res;
 		}
 		if ($domain->antispam) {
-			$class = ::relativeclass($this, 'MailFilter::AntiSpam');
+			$class = relativeclass($this, 'MailFilter\\AntiSpam');
 			$antispam = new $class($domain->antispam, $domain, $this->localConfig);
 			$res = $antispam->process($txn);
 			if (!is_null($res)) return $res;

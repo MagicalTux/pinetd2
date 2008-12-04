@@ -1,6 +1,8 @@
 <?php
 namespace pinetd;
 
+use pinetd\Logger;
+
 abstract class ProcessChild {
 	protected $IPC = null;
 
@@ -13,9 +15,9 @@ abstract class ProcessChild {
 
 	protected function log($level, $msg) {
 		$class = get_class($this);
-		$class = explode('::', $class);
+		$class = explode('\\', $class);
 		$daemon = $class[1];
-		return ::pinetd::Logger::log($level, '['.$daemon.'/'.$this->peer[0].':'.$this->peer[1].'] '.$msg);
+		return Logger::log($level, '['.$daemon.'/'.$this->peer[0].':'.$this->peer[1].'] '.$msg);
 	}
 
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Daemon::PMaild::MTA::MailFilter;
+namespace Daemon\PMaild\MTA\MailFilter;
 
 class MailFilter {
 	protected $list;

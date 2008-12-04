@@ -1,8 +1,8 @@
 <?php
 
-namespace Daemon::HTTPd;
+namespace Daemon\HTTPd;
 
-class Client extends ::pinetd::TCP::Client {
+class Client extends \pinetd\TCP\Client {
 	protected $header = array();
 	protected $waitlen = 0;
 

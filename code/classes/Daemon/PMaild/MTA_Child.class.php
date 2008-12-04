@@ -1,10 +1,11 @@
 <?php
 
-namespace Daemon::PMaild;
+namespace Daemon\PMaild;
 
-use pinetd::Logger;
+use pinetd\Logger;
+use pinetd\SQL;
 
-class MTA_Child extends pinetd::ProcessChild {
+class MTA_Child extends \pinetd\ProcessChild {
 	protected $sql;
 	protected $localConfig;
 	protected $mail = null;
@@ -13,7 +14,7 @@ class MTA_Child extends pinetd::ProcessChild {
 		$this->IPC = $IPC;
 		$this->IPC->setParent($this);
 		$this->localConfig = $this->IPC->getLocalConfig();
-		$this->sql = ::pinetd::SQL::Factory($this->localConfig['Storage']);
+		$this->sql = SQL\Factory($this->localConfig['Storage']);
 		while(1) {
 			$this->IPC->selectSockets(0);
 			// get a mail for me
@@ -60,7 +61,7 @@ class MTA_Child extends pinetd::ProcessChild {
 	protected function processEmail($mail) {
 		// we got from, we got to, analyze to
 		$file = $this->mailPath($mail->mlid);
-		$target = ::imap_rfc822_parse_adrlist($mail->to, '');
+		$target = imap_rfc822_parse_adrlist($mail->to, '');
 		$host = $target[0]->host;
 		$mx = dns_get_record($host, DNS_MX);
 
@@ -98,7 +99,7 @@ class MTA_Child extends pinetd::ProcessChild {
 		if (($mail->attempt_count > $this->localConfig['MTA']['MaxAttempt']) || ($status[0] == '5')) {
 			// TODO: handle Errors-To header field
 			if (!is_null($mail->from)) {
-				$class = ::relativeclass($this, 'MTA::Mail');
+				$class = relativeclass($this, 'MTA\\Mail');
 				$txn = new $class(null, $this->IPC);
 				$txn->setHelo($this->IPC->getName());
 				$txn->setFrom(''); // no return path for errors
@@ -139,7 +140,7 @@ class MTA_Child extends pinetd::ProcessChild {
 		if ($mail->attempt_count == floor($this->localConfig['MTA']['MaxAttempt']*0.33)) {
 			// this is thirddelivery, may be good to warn user
 			if (!is_null($mail->from)) {
-				$class = ::relativeclass($this, 'MTA::Mail');
+				$class = relativeclass($this, 'MTA\\Mail');
 				$txn = new $class(null, $this->IPC);
 				$txn->setHelo($this->IPC->getName());
 				$txn->setFrom(''); // no return path for errors
@@ -231,7 +232,7 @@ class MTA_Child extends pinetd::ProcessChild {
 		$this->readMxAnswer($sock, 3);
 		$fp = fopen($file, 'r');
 		//
-		$class = ::relativeclass($this, 'MTA::Mail');
+		$class = relativeclass($this, 'MTA\\Mail');
 		$MTA_Mail = new $class(null, $this->IPC);
 		fputs($sock, $MTA_Mail->header('Received', '(PMaild MTA '.getmypid().' on '.$this->IPC->getName().' processing mail to '.$host.'); '.date(DATE_RFC2822)));
 		while(!feof($fp)) {

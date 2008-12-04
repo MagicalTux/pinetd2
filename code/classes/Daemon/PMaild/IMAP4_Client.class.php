@@ -1,8 +1,10 @@
 <?php
 
-namespace Daemon::PMaild;
+namespace Daemon\PMaild;
 
-class IMAP4_Client extends pinetd::TCP::Client {
+use pinetd\SQL;
+
+class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $login = null;
 	protected $info = null;
 	protected $loggedin = false;
@@ -146,7 +148,7 @@ class IMAP4_Client extends pinetd::TCP::Client {
 	}
 
 	protected function identify($pass) { // login in $this->login
-		$class = ::relativeclass($this, 'MTA::Auth');
+		$class = relativeclass($this, 'MTA\\Auth');
 		$auth = new $class($this->localConfig);
 		$this->loggedin = $auth->login($this->login, $pass, 'imap4');
 		if (!$this->loggedin) return false;
@@ -154,7 +156,7 @@ class IMAP4_Client extends pinetd::TCP::Client {
 		$info = $auth->getInfo();
 		$this->info = $info;
 		// link to MySQL
-		$this->sql = ::pinetd::SQL::Factory($this->localConfig['Storage']);
+		$this->sql = SQL::Factory($this->localConfig['Storage']);
 		return true;
 	}
 
@@ -610,7 +612,7 @@ class IMAP4_Client extends pinetd::TCP::Client {
 							case 'm':
 								$tmp = array();
 								foreach($headers[$head] as $h) {
-									$infolist = ::imap_rfc822_parse_adrlist($h->content, '');
+									$infolist = imap_rfc822_parse_adrlist($h->content, '');
 									foreach($infolist as $info) {
 										if ($info->host === '') $info->host = null;
 										$tmp[] = array($info->personal, $info->adl, $info->mailbox, $info->host);

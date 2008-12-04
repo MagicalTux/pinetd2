@@ -1,6 +1,7 @@
 <?php
 
-namespace Daemon::PMaild::MTA;
+namespace Daemon\PMaild\MTA;
+use pinetd\SQL;
 
 class MailSolver {
 	static protected function readAlias($SQL, $alias, $res) {
@@ -37,7 +38,7 @@ class MailSolver {
 		$res['mail_user'] = $user;
 		$res['mail_domain'] = $domainname;
 
-		$SQL = ::pinetd::SQL::Factory($localConfig['Storage']);
+		$SQL = SQL::Factory($localConfig['Storage']);
 
 		$DAO_domains = $SQL->DAO('domains', 'domainid');
 		$domain = $DAO_domains->loadByField(array('domain' => $domainname));

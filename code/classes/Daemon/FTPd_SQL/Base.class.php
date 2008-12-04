@@ -1,13 +1,15 @@
 <?php
-namespace Daemon::FTPd_SQL;
+namespace Daemon\FTPd_SQL;
+use pinetd\Logger;
+use pinetd\SQL;
 
-class Base extends ::Daemon::FTPd::Base {
+class Base extends \Daemon\FTPd\Base {
 	private $sql;
 
 	public function __construct($port, $daemon, &$IPC, $node) {
 		parent::__construct($port, $daemon, &$IPC, $node);
 		// once __construct runs, we have a localConfig
-		$this->sql = ::pinetd::SQL::Factory($this->localConfig['Storage']);
+		$this->sql = SQL\Factory($this->localConfig['Storage']);
 	}
 
 	public function checkAccess($login, $pass, $peer) {
@@ -19,8 +21,8 @@ class Base extends ::Daemon::FTPd::Base {
 		$res = $this->sql->query($query);
 		$res = $this->sql->query($query);
 		if (!$res) {
-			::pinetd::Logger::log(::pinetd::Logger::LOG_ERR, 'login SQL query: ' . $query);
-			::pinetd::Logger::log(::pinetd::Logger::LOG_ERR, 'login SQL query failed: ' . $this->sql->error);
+			Logger::log(Logger::LOG_ERR, 'login SQL query: ' . $query);
+			Logger::log(Logger::LOG_ERR, 'login SQL query failed: ' . $this->sql->error);
 			return false;
 		}
 		$res = $res->fetch_row();
@@ -29,7 +31,7 @@ class Base extends ::Daemon::FTPd::Base {
 
 		if ($pass != $res[0]) return false;
 
-		::pinetd::Logger::log(::pinetd::Logger::LOG_INFO, 'User '.$login.' logging in from '.$peer[0].':'.$peer[1].' ('.$peer[2].')');
+		Logger::log(Logger::LOG_INFO, 'User '.$login.' logging in from '.$peer[0].':'.$peer[1].' ('.$peer[2].')');
 
 		$array = array(
 			'root' => $res[1], // where should we have access

@@ -1,8 +1,8 @@
 <?php
 
-namespace Daemon::PMaild;
+namespace Daemon\PMaild;
 
-class SMTP_Client extends pinetd::TCP::Client {
+class SMTP_Client extends \pinetd\TCP\Client {
 	protected $helo = null;
 
 	function __construct($fd, $peer, $parent, $protocol) {
@@ -16,7 +16,7 @@ class SMTP_Client extends pinetd::TCP::Client {
 
 	function sendBanner() {
 		$this->sendMsg('220 '.$this->IPC->getName().' ESMTP (pmaild v2.0.0; pinetd v'.PINETD_VERSION.')');
-		$class = ::relativeclass($this, 'MTA::Mail');
+		$class = relativeclass($this, 'MTA\\Mail');
 		$this->txn = new $class($this->peer, $this->IPC);
 		return true;
 	}

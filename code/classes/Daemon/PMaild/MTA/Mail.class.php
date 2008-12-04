@@ -1,6 +1,6 @@
 <?php
 
-namespace Daemon::PMaild::MTA;
+namespace Daemon\PMaild\MTA;
 
 class Mail {
 	protected $peer;
@@ -50,7 +50,7 @@ class Mail {
 
 	function setLogin($login, $pass) {
 		// need to check auth
-		$class = ::relativeclass($this, 'Auth');
+		$class = relativeclass($this, 'Auth');
 		$auth = new $class($this->localConfig);
 		if (!$auth->login($login, $pass, 'smtp')) return false;
 		$this->received[] = 'SMTP authenticated user logging in; '.base64_encode($auth->getLogin()).'; '.date(DATE_RFC2822);
@@ -73,7 +73,7 @@ class Mail {
 		// parse mail
 		$pos = strrpos($mail, '@');
 		if ($pos === false) return $this->err('503 5.1.3 Where did you see an email without @ ??');
-		$class = ::relativeclass($this, 'MailSolver');
+		$class = relativeclass($this, 'MailSolver');
 		$mail = $class::solve($mail, $this->localConfig);
 		if (!is_array($mail)) {
 			if (is_string($mail)) return $this->err($mail);
@@ -86,7 +86,7 @@ class Mail {
 			if ($mail['type'] == 'remote') {
 				if (!$this->allowRemote) return $this->err('503 5.1.2 Relaying denied');
 			} else {
-				$class = ::relativeclass($this, 'DNSBL');
+				$class = relativeclass($this, 'DNSBL');
 				$bl = $class::check($this->peer, $mail, $this->localConfig);
 				if ($bl) return $this->err('550 5.1.8 Your host is blacklisted: '.$bl);
 			}
@@ -119,7 +119,7 @@ class Mail {
 		$this->txlog = array();
 		foreach($this->to as $target) {
 			$total++;
-			$class = ::relativeclass($this, 'MailTarget');
+			$class = relativeclass($this, 'MailTarget');
 			$MT = new $class($target, $this->from, $this->localConfig);
 			$err = $MT->process($txn);
 			if (is_null($err)) {

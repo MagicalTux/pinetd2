@@ -1,8 +1,9 @@
 <?php
 
-namespace Daemon::PMaild;
+namespace Daemon\PMaild;
+use pinetd\SQL;
 
-class POP3_Client extends pinetd::TCP::Client {
+class POP3_Client extends \pinetd\TCP\Client {
 	protected $login = null;
 	protected $info = null;
 	protected $loggedin = false;
@@ -31,7 +32,7 @@ class POP3_Client extends pinetd::TCP::Client {
 	}
 
 	protected function identify($pass) { // login in $this->login
-		$class = ::relativeclass($this, 'MTA::Auth');
+		$class = relativeclass($this, 'MTA\Auth');
 		$auth = new $class($this->localConfig);
 		$this->loggedin = $auth->login($this->login, $pass, 'pop3');
 		if (!$this->loggedin) return false;
@@ -39,7 +40,7 @@ class POP3_Client extends pinetd::TCP::Client {
 		$info = $auth->getInfo();
 		$this->info = $info;
 		// link to MySQL
-		$this->sql = ::pinetd::SQL::Factory($this->localConfig['Storage']);
+		$this->sql = SQL::Factory($this->localConfig['Storage']);
 		return true;
 	}
 

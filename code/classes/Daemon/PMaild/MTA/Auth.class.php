@@ -1,8 +1,9 @@
 <?php
 
-namespace Daemon::PMaild::MTA;
+namespace Daemon\PMaild\MTA;
 
-use pinetd::Logger;
+use pinetd\Logger;
+use pinetd\SQL;
 
 class Auth {
 	private $login = null;
@@ -10,7 +11,7 @@ class Auth {
 	private $SQL;
 
 	public function __construct($localConfig) {
-		$this->SQL = ::pinetd::SQL::Factory($localConfig['Storage']);
+		$this->SQL = SQL::Factory($localConfig['Storage']);
 	}
 
 	public function getLogin() {

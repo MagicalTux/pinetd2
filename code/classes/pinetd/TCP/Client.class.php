@@ -17,9 +17,11 @@
  *   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace pinetd::TCP;
+namespace pinetd\TCP;
 
-class Client extends pinetd::ProcessChild {
+use pinetd\Logger;
+
+class Client extends \pinetd\ProcessChild {
 	protected $fd;
 	protected $peer;
 	private $send_end = '';
@@ -32,7 +34,7 @@ class Client extends pinetd::ProcessChild {
 		$this->peer = explode(':', $peer); // ip:port TODO: handle ipv6
 		$this->protocol = $protocol;
 		parent::__construct($parent);
-//		var_dump(stream_filter_register('pinetd.autossl', 'pinetd::TCP::AutoSSL'));
+//		var_dump(stream_filter_register('pinetd.autossl', 'pinetd\\TCP\\AutoSSL'));
 //		var_dump(stream_filter_prepend($this->fd, 'pinetd.autossl', STREAM_FILTER_READ));
 	}
 
@@ -55,14 +57,14 @@ class Client extends pinetd::ProcessChild {
 
 	public function sendMsg($msg) {
 		if (!$this->ok) return false;
-		return ::fwrite($this->fd, $msg . $this->send_end);
+		return fwrite($this->fd, $msg . $this->send_end);
 	}
 
 	public function close() {
-		::pinetd::Logger::log(::pinetd::Logger::LOG_DEBUG, 'Client from '.$this->peer[0].' is being closed');
+		Logger::log(Logger::LOG_DEBUG, 'Client from '.$this->peer[0].' is being closed');
 		$this->ok = false;
 		$this->IPC->killSelf($this->fd);
-		return ::fclose($this->fd);
+		return fclose($this->fd);
 	}
 
 	protected function parseLine($lin) {
@@ -88,7 +90,7 @@ class Client extends pinetd::ProcessChild {
 	public function readData() {
 		$dat = fread($this->fd, 8192);
 		if (($dat === false) || ($dat === '')) {
-			::pinetd::Logger::log(::pinetd::Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
+			Logger::log(Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
 			$this->IPC->killSelf($this->fd);
 			$this->ok = false;
 			return;
@@ -100,7 +102,7 @@ class Client extends pinetd::ProcessChild {
 	public function readLine() {
 		$dat = fread($this->fd, 8192);
 		if (($dat === false) || ($dat === '')) {
-			::pinetd::Logger::log(::pinetd::Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
+			Logger::log(Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
 			$this->IPC->killSelf($this->fd);
 			$this->ok = false;
 			throw new Exception('Client lost');

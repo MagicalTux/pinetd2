@@ -1,10 +1,10 @@
 <?php
 
-namespace Daemon::PMaild::MTA::MailFilter;
+namespace Daemon\PMaild\MTA\MailFilter;
 
-use pinetd::Logger;
+use pinetd\Logger;
 
-class AntiSpam extends Daemon::PMaild::MTA::MailFilter::MailFilter {
+class AntiSpam extends \Daemon\PMaild\MTA\MailFilter\MailFilter {
 	protected function run_spamassassin(&$txn) {
 		$flags = $this->domainFlags();
 		if (isset($txn['spamassassin'])) {

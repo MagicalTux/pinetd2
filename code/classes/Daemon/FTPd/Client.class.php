@@ -4,12 +4,14 @@
  * \brief FTP daemon core file - client side
  */
 
-namespace Daemon::FTPd;
+namespace Daemon\FTPd;
+use pinetd\Logger;
+use pinetd\SUID;
 
 /**
  * \brief Our FTPd client class
  */
-class Client extends pinetd::TCP::Client {
+class Client extends \pinetd\TCP\Client {
 	private $login = null; /*!< login info */
 	private $binary = false; /*!< default = ASCII mode */
 	private $mode = null;
@@ -61,7 +63,7 @@ class Client extends pinetd::TCP::Client {
 	}
 
 	/**
-	 * \brief Check if the provided login/pass pair is correct. This is forwarded to Daemon::FTPd::Base
+	 * \brief Check if the provided login/pass pair is correct. This is forwarded to Daemon\FTPd\Base
 	 */
 	protected function checkAccess($login, $pass) {
 		return $this->IPC->checkAccess($login, $pass, $this->peer);
@@ -173,7 +175,7 @@ class Client extends pinetd::TCP::Client {
 			case 'port':
 				$sock = @stream_socket_client('tcp://'.$this->mode['ip'].':'.$this->mode['port'], $errno, $errstr, 30);
 				if (!$sock) {
-					$this->log(::pinetd::Logger::LOG_WARN, 'Could not connect to peer tcp://'.$this->mode['ip'].':'.$this->mode['port'].' in PORT mode: ['.$errno.'] '.$errstr);
+					$this->log(Logger::LOG_WARN, 'Could not connect to peer tcp://'.$this->mode['ip'].':'.$this->mode['port'].' in PORT mode: ['.$errno.'] '.$errstr);
 					return false;
 				}
 				$this->mode = null;
@@ -187,7 +189,7 @@ class Client extends pinetd::TCP::Client {
 	 */
 	function _cmd_default($argv) {
 		$this->sendMsg('500 Command '.$argv[0].' unknown!!');
-		$this->log(::pinetd::Logger::LOG_DEBUG, 'UNKNOWN COMMAND: '.implode(' ', $argv));
+		$this->log(Logger::LOG_DEBUG, 'UNKNOWN COMMAND: '.implode(' ', $argv));
 	}
 
 	function _cmd_quit() {
@@ -223,11 +225,11 @@ class Client extends pinetd::TCP::Client {
 				return;
 			}
 			$SUID = $this->IPC->canSUID();
-			if ($SUID) $SUID = new ::pinetd::SUID($SUID['User'], $SUID['Group']);
+			if ($SUID) $SUID = new SUID($SUID['User'], $SUID['Group']);
 			if ($this->IPC->canChroot()) {
 				if (!chroot($root)) {
 					$this->sendMsg('500 An error occured while trying to access anonymous root');
-					$this->log(::pinetd::Logger::LOG_ERR, 'chroot() failed for anonymous login in  '.$root);
+					$this->log(Logger::LOG_ERR, 'chroot() failed for anonymous login in  '.$root);
 					return;
 				} else {
 					$this->root = '/';
@@ -238,7 +240,7 @@ class Client extends pinetd::TCP::Client {
 			if ($SUID) {
 				if (!$SUID->setIt()) {
 					$this->sendMsg('500 An error occured while trying to access anonymous root');
-					$this->log(::pinetd::Logger::LOG_ERR, 'setuid()/setgid() failed for anonymous login');
+					$this->log(Logger::LOG_ERR, 'setuid()/setgid() failed for anonymous login');
 					// we most likely already chroot()ed, can't return at this point
 					$this->close();
 					$this->IPC->killSelf($this->fd);
@@ -279,7 +281,7 @@ class Client extends pinetd::TCP::Client {
 		$root = $res['root'];
 		if ((!is_dir($root)) || (!chdir($root))) {
 			$this->sendMsg('500 An error occured, please contact system administrator and try again later');
-			$this->log(::pinetd::Logger::LOG_ERR, 'Could not find/chdir in root '.$root.' while logging in user '.$login);
+			$this->log(Logger::LOG_ERR, 'Could not find/chdir in root '.$root.' while logging in user '.$login);
 			return;
 		}
 		$SUID = $this->IPC->canSUID();
@@ -292,16 +294,16 @@ class Client extends pinetd::TCP::Client {
 			if (is_null($user)) $user = $SUID['User'];
 			if (is_null($group)) $user = $SUID['Group'];
 
-			$SUID = new ::pinetd::SUID($user, $group);
+			$SUID = new SUID($user, $group);
 		} elseif (isset($res['user'])) {
 			$this->sendMsg('500 An error occured, please contact system administrator and try again later');
-			$this->log(::pinetd::Logger::LOG_ERR, 'Could not SUID while SUID is required by underlying auth mechanism while logging in user '.$login);
+			$this->log(Logger::LOG_ERR, 'Could not SUID while SUID is required by underlying auth mechanism while logging in user '.$login);
 			return;
 		}
 		if ($this->IPC->canChroot()) {
 			if (!chroot($root)) {
 				$this->sendMsg('500 An error occured, please contact system administrator and try again later');
-				$this->log(::pinetd::Logger::LOG_ERR, 'chroot() failed for login '.$login.' in '.$root);
+				$this->log(Logger::LOG_ERR, 'chroot() failed for login '.$login.' in '.$root);
 				return;
 			} else {
 				$this->root = '/';
@@ -312,7 +314,7 @@ class Client extends pinetd::TCP::Client {
 		if ($SUID) {
 			if (!$SUID->setIt()) {
 				$this->sendMsg('500 An error occured, please contact system administrator and try again later');
-				$this->log(::pinetd::Logger::LOG_ERR, 'setuid()/setgid() failed for login '.$login);
+				$this->log(Logger::LOG_ERR, 'setuid()/setgid() failed for login '.$login);
 				// we most likely already chroot()ed, can't turn back at this point
 				$this->close();
 				$this->IPC->killSelf($this->fd);
@@ -443,7 +445,7 @@ class Client extends pinetd::TCP::Client {
 		$sock = @stream_socket_server('tcp://'.$real_ip.':0', $errno, $errstr); // thanks god, php made this so easy
 		if (!$sock) {
 			$this->sendMsg('500 Couldn\'t create passive socket');
-			$this->log(::pinetd::Logger::LOG_WARN, 'Could not create FTP PASV socket on tcp://'.$pasv_ip.':0 - ['.$errno.'] '.$errstr);
+			$this->log(Logger::LOG_WARN, 'Could not create FTP PASV socket on tcp://'.$pasv_ip.':0 - ['.$errno.'] '.$errstr);
 			return;
 		}
 		list(, $port) = explode(':', stream_socket_get_name($sock, false)); // fetch auto-assigned port
