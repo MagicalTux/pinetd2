@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PHP_VERSION=php-5.3.0alpha2
+PHP_VERSION=php-5.3.0alpha3
 
 PHP_ARCHIVE="$PHP_VERSION".tar.bz2
 BUILD_ROOT=`pwd`
@@ -14,17 +14,6 @@ if [ ! -d "$PHP_VERSION" ]; then
 	tar xjf "$PHP_ARCHIVE"
 	echo "done"
 fi
-
-### PHP 5.3.0alpha2 PATCH
-if [ ! -f "ssl_fix_5.3.0alpha2.diff" ]; then
-	wget "http://ookoo.org/svn/snip/ssl_test/ssl_fix_5.3.0alpha2.diff"
-fi
-
-if [ ! -f "$PHP_VERSION/.patched" ]; then
-	(cd "$PHP_VERSION"; patch -p1 <../ssl_fix_5.3.0alpha2.diff )
-	touch "$PHP_VERSION/.patched"
-fi
-### END PATCH
 
 cd "$PHP_VERSION"
 
