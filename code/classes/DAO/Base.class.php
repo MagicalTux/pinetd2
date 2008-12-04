@@ -1,8 +1,10 @@
 <?php
 
 namespace DAO;
+use \ArrayAccess;
+use \Exception;
 
-abstract class Base extends ArrayObject {
+abstract class Base implements ArrayAccess {
 	// DAO objects are singletons
 	protected $table = null;
 	protected $key = null;
@@ -77,6 +79,14 @@ abstract class Base extends ArrayObject {
 
 	public function offsetGet($id) {
 		return $this->loadFromId($id);
+	}
+
+	public function offsetSet($id, $val) {
+		throw new Exception('Can\'t directly set value for a primary key!');
+	}
+
+	public function offsetUnset($id) {
+		throw new Exception('Not implemented yet'); // TODO: implement deletion by primary key
 	}
 }
 

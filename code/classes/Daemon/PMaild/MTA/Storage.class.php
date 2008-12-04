@@ -1,5 +1,5 @@
 <?php
-namespace Daemon::PMaild::MTA;
+namespace Daemon\PMaild\MTA;
 
 class Storage {
 	static private $global_tables = array(

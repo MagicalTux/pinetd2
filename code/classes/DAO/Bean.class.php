@@ -1,8 +1,10 @@
 <?php
 
 namespace DAO;
+use \ArrayAccess;
+use \Exception;
 
-class Bean extends ArrayObject {
+class Bean implements ArrayAccess {
 	private $properties = array();
 	private $prop_change = array();
 	private $parent;
@@ -27,6 +29,14 @@ class Bean extends ArrayObject {
 
 	public function offsetGet($prop) {
 		return $this->__get($prop);
+	}
+
+	public function offsetExists($prop) {
+		return (bool)($this->__get($prop));
+	}
+
+	public function offsetUnset($prop) {
+		throw new Exception('Not allowed to unset database fields!');
 	}
 
 	public function __set($prop, $val) {
