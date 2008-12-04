@@ -135,7 +135,7 @@ class Core {
 			if (!isset($good_keys[$key])) unset($daemon[$key]);
 		}
 		if (!$daemon['Service']) $daemon['Service'] = 'Process';
-		$class = 'Daemon::'.$daemon['Daemon'].'::'.$daemon['Service'];
+		$class = 'Daemon\\'.$daemon['Daemon'].'\\'.$daemon['Service'];
 		if ((isset($this->config->Global->Security->Fork)) && PINETD_CAN_FORK) {
 			// prepare an IPC
 			$pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
@@ -198,7 +198,7 @@ class Core {
 			if (!isset($good_keys[$key])) unset($daemon[$key]);
 		}
 		if (!$daemon['Service']) $daemon['Service'] = 'Base';
-		$class = 'Daemon::'.$daemon['Daemon'].'::'.$daemon['Service'];
+		$class = 'Daemon\\'.$daemon['Daemon'].'\\'.$daemon['Service'];
 		if ((isset($this->config->Global->Security->Fork)) && PINETD_CAN_FORK) {
 			// prepare an IPC
 			$pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
@@ -264,7 +264,7 @@ class Core {
 			if (isset($Entry['Port'])) {
 				$data['Port'] = (int)$Entry['Port'] + $offset;
 			} else {
-				$data['Port'] = $data['Daemon'] . '::' . $data['Service'];
+				$data['Port'] = $data['Daemon'] . '\\' . $data['Service'];
 			}
 			if (isset($this->daemons[$data['Port']]))
 				continue; // no care
@@ -286,7 +286,7 @@ class Core {
 
 	public function _ChildIPC_killSelf(&$daemon) {
 		// mark it "to be killed"
-		Logger::log(Logger::LOG_DEBUG, 'pinetd::Core::_ChildIPC_killSelf() called for child on port #'.$daemon['Port']);
+		Logger::log(Logger::LOG_DEBUG, 'pinetd\\Core\\_ChildIPC_killSelf() called for child on port #'.$daemon['Port']);
 		if (
 				($daemon['status'] != 'R') &&
 				($daemon['status'] != 'T')
@@ -438,7 +438,7 @@ class Core {
 						if (isset($Entry['Port'])) {
 							$tmpport = (int)$Entry['Port'] + $offset;
 						} else {
-							$tmpport = (string)$Entry['Daemon'] . '::' . (string)$Entry['Service'];
+							$tmpport = (string)$Entry['Daemon'] . '\\' . (string)$Entry['Service'];
 						}
 						if ($tmpport != $port) continue; // we don't want to start this one
 

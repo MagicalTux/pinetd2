@@ -19,7 +19,7 @@ class SQL {
 		$settings = $config[$type];
 		$key = self::genKey($type, $settings);
 		if (isset(self::$inst[$key])) return self::$inst[$key];
-		$class = 'pinetd::SQL::'.$type;
+		$class = 'pinetd\\SQL\\'.$type;
 		self::$inst[$key] = new $class($settings);
 		return self::$inst[$key];
 	}

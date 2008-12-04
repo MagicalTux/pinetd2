@@ -20,6 +20,9 @@
 
 namespace pinetd;
 
+use \SimpleXMLElement;
+use \DOMDocument;
+
 /**
  * \brief This class handles config-related work
  */
@@ -59,7 +62,7 @@ class ConfigManager {
 	}
 
 	public function setConfigVar($var, $val) {
-		if(::is_null($this->xml)) $this->xml = new SimpleXMLElement(file_get_contents(PINETD_ROOT . '/etc/default_config.xml'));
+		if(is_null($this->xml)) $this->xml = new SimpleXMLElement(file_get_contents(PINETD_ROOT . '/etc/default_config.xml'));
 		$cur = $this->xml;
 		$var = str_replace(':', '/:', $var);
 		while(($pos=strpos($var, '/')) !== false) {

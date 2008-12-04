@@ -17,11 +17,13 @@
  *   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace pinetd::TCP;
+namespace pinetd\TCP;
 
-use pinetd::Logger;
+use pinetd\Logger;
+use pinetd\SQL;
+use pinetd\IPC;
 
-abstract class Base extends pinetd::DaemonBase {
+abstract class Base extends \pinetd\DaemonBase {
 	protected $port;
 	protected $daemon;
 	protected $IPC;
@@ -93,7 +95,7 @@ abstract class Base extends pinetd::DaemonBase {
 	}
 
 	function spawnClient($socket, $peer, $parent, $protocol) {
-		$class = ::relativeclass($this, 'Client');
+		$class = relativeclass($this, 'Client');
 		return new $class($socket, $peer, $parent, $protocol);
 	}
 
@@ -139,12 +141,12 @@ abstract class Base extends pinetd::DaemonBase {
 				fclose($news);
 				fclose($pair[1]);
 				unset($new);
-				::pinetd::SQL::parentForked();
+				SQL::parentForked();
 				$this->fclients[$pid] = array(
 					'pid' => $pid,
 					'peer' => $peer,
 					'socket' => $pair[0],
-					'IPC' => new ::pinetd::IPC($pair[0], false, $this),
+					'IPC' => new \pinetd\IPC($pair[0], false, $this),
 					'connect' => time(),
 				);
 				$this->IPC->registerSocketWait($pair[0], array($this->fclients[$pid]['IPC'], 'run'), $foobar = array(&$this->fclients[$pid]));
@@ -152,10 +154,10 @@ abstract class Base extends pinetd::DaemonBase {
 			}
 			if ($pid == 0) {
 				// we are child
-				::pinetd::SQL::forked();
+				SQL::forked();
 				foreach($this->clients as $c) fclose($c['fd']);
 				fclose($pair[0]);
-				$IPC = new ::pinetd::IPC($pair[1], true, $foo = null);
+				$IPC = new IPC($pair[1], true, $foo = null);
 				$IPC->ping(); // wait for parent to be ready
 				Logger::setIPC($IPC);
 				Logger::log(Logger::LOG_DEBUG, 'Daemon started for client, pid '.getmypid());

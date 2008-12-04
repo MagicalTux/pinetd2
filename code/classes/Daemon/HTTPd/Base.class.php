@@ -1,8 +1,8 @@
 <?php
 
-namespace Daemon::HTTPd;
+namespace Daemon\HTTPd;
 
-class Base extends ::pinetd::TCP::Base {
+class Base extends \pinetd\TCP\Base {
 	public function _ChildIPC_getVersionString() {
 		return $this->getVersionString();
 	}

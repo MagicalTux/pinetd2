@@ -1,6 +1,7 @@
 <?php
 
 namespace pinetd;
+use pinetd\ConfigManager;
 
 abstract class DaemonBase {
 	protected $localConfig = array();
@@ -27,9 +28,9 @@ abstract class DaemonBase {
 
 	protected function loadLocalConfig($node) {
 		// fetch config
-		$config = ::pinetd::ConfigManager::invoke();
+		$config = ConfigManager::invoke();
 		$class = get_class($this);
-		$class = explode('::', $class);
+		$class = explode('\\', $class);
 		$daemon = $class[1];
 		// load global config
 		$this->_readLocalConfig($config->Global, $this->localConfig);

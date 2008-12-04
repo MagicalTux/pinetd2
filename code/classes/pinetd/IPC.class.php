@@ -219,7 +219,7 @@ class IPC {
 				$this->parent->shutdown();
 				exit;
 			case self::CMD_LOG:
-				call_user_func_array(array('pinetd::Logger', 'log_full'), $cmd[1]);
+				call_user_func_array(array('pinetd\\Logger', 'log_full'), $cmd[1]);
 				break;
 			default:
 				throw new Exception('Unknown command '.$cmd[0]);

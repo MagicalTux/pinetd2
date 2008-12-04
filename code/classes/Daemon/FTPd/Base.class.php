@@ -18,9 +18,10 @@
  */
 
 
-namespace Daemon::FTPd;
+namespace Daemon\FTPd;
+use \pinetd\Logger;
 
-class Base extends ::pinetd::TCP::Base {
+class Base extends \pinetd\TCP\Base {
 	//
 
 	public function __construct($port, $daemon, &$IPC, $node) {
@@ -71,7 +72,7 @@ class Base extends ::pinetd::TCP::Base {
 			return false; // die!
 		}
 
-		::pinetd::Logger::log(::pinetd::Logger::LOG_INFO, 'User '.$login.' logging in from '.$peer[0].':'.$peer[1].' ('.$peer[2].')');
+		Logger::log(Logger::LOG_INFO, 'User '.$login.' logging in from '.$peer[0].':'.$peer[1].' ('.$peer[2].')');
 
 		$res = array(
 			'root' => $this->getAnonymousRoot(), // where should we have access
@@ -109,7 +110,7 @@ class Base extends ::pinetd::TCP::Base {
 	}
 
 	public function spawnClient($socket, $peer, $parent, $protocol) {
-		$class = ::relativeclass($this, 'Client');
+		$class = relativeclass($this, 'Client');
 		$new = new $class($socket, $peer, $parent, $protocol);
 
 		// check for availability

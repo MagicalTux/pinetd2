@@ -2,9 +2,9 @@
 
 namespace pinetd;
 
-use pinetd::Logger;
+use pinetd\Logger;
 
-abstract class Process extends pinetd::DaemonBase {
+abstract class Process extends \pinetd\DaemonBase {
 	protected $id;
 	protected $daemon;
 	protected $IPC;

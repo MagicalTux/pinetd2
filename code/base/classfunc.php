@@ -19,22 +19,30 @@
 
 
 function __autoload($class) {
+	$full_class = $class;
+
 	// locate class
-	$class = str_replace('::', '/', $class);
-	$class = str_replace('.', '', $class); // avoid people trying to do ::..::..::..:: to escape from reality
+	$class = str_replace('\\', '/', $class);
+	$class = str_replace('.', '', $class); // avoid people trying to do ..\..\..\..\.. to escape from reality
 	while($class[0]=='/') $class = substr($class, 1); // magic scope
-	if (file_exists(PINETD_CLASS_ROOT.'/'.$class.'.class.php'))
+	if (file_exists(PINETD_CLASS_ROOT.'/'.$class.'.class.php')) {
 		require_once(PINETD_CLASS_ROOT.'/'.$class.'.class.php');
+		return;
+	}
+
+	// try to locate class in current scope
+	$naked_class = basename($class); // without its namespace path
+	if (class_exists($naked_class)) class_alias($naked_class, $full_class);
 }
 
 function relativeclass(&$obj, $name) {
 	$class = get_class($obj);
 	while(1) {
-		$pos = strrpos($class, '::');
+		$pos = strrpos($class, '\\');
 		if ($pos === false) return '';
 		$base = substr($class, 0, $pos);
-		$newclass = $base . '::' . $name;
-		$path = str_replace('::', '/', $newclass).'.class.php';
+		$newclass = $base . '\\' . $name;
+		$path = str_replace('\\', '/', $newclass).'.class.php';
 		while($path[0]=='/') $path = substr($path, 1); // magic scope
 		if (file_exists(PINETD_CLASS_ROOT.'/'.$path)) return $newclass;
 		$class = get_parent_class($class);

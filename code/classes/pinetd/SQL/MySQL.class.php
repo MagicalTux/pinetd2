@@ -1,7 +1,8 @@
 <?php
 
-namespace pinetd::SQL;
+namespace pinetd\SQL;
 
+use \Exception;
 
 class MySQL {
 	private $settings;
@@ -35,7 +36,7 @@ class MySQL {
 	}
 
 	public function DAO($table, $key) {
-		if (!isset($this->DAO[$table])) $this->DAO[$table] = new ::DAO::MySQL($this, $table, $key);
+		if (!isset($this->DAO[$table])) $this->DAO[$table] = new \DAO\MySQL($this, $table, $key);
 		return $this->DAO[$table];
 	}
 
@@ -59,7 +60,7 @@ class MySQL {
 	}
 
 	function col_gen_type($col) {
-		$res = ::strtolower($col['type']);
+		$res = strtolower($col['type']);
 		switch($res) {
 			case 'set': case 'enum':
 				$res.='('.$this->quote_escape($col['values']).')';
