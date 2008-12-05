@@ -53,7 +53,7 @@ class Mail {
 		$class = relativeclass($this, 'Auth');
 		$auth = new $class($this->localConfig);
 		if (!$auth->login($login, $pass, 'smtp')) return false;
-		$this->received[] = 'SMTP authenticated user logging in; '.base64_encode($auth->getLogin()).'; '.date(DATE_RFC2822);
+		$this->received[] = 'SMTP authenticated user logged in; '.base64_encode($auth->getLogin()).'; '.date(DATE_RFC2822);
 		$this->login = $auth->getLogin();
 		return true;
 	}

@@ -39,7 +39,7 @@ class Client extends \pinetd\TCP\Client {
 	 * \brief Send a nice header message
 	 */
 	function sendBanner() {
-		$this->sendMsg('220-Welcome to SimpleFTPd v2.0 by MagicalTux <mark@kinoko.fr>');
+		$this->sendMsg('220-Welcome to SimpleFTPd v2.0 by MagicalTux <mark@gg.st>');
 		list($cur, $max) = $this->IPC->getUserCount();
 		$this->sendMsg('220-You are user '.$cur.' on a maximum of '.$max.' users');
 		$this->sendMsg('220 You are '.$this->getHostName().', connected to '.$this->IPC->getName());
@@ -481,7 +481,7 @@ class Client extends \pinetd\TCP\Client {
 		}
 
 		clearstatcache();
-		$dir = @opendir($fil);
+		$dir = @opendir($this->root . $fil);
 
 		if (!$dir) {
 			$this->sendMsg('500 LIST: Could not open this directory');
