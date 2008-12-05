@@ -9,7 +9,7 @@ class Base extends \Daemon\FTPd\Base {
 	public function __construct($port, $daemon, &$IPC, $node) {
 		parent::__construct($port, $daemon, &$IPC, $node);
 		// once __construct runs, we have a localConfig
-		$this->sql = SQL\Factory($this->localConfig['Storage']);
+		$this->sql = SQL::Factory($this->localConfig['Storage']);
 	}
 
 	public function checkAccess($login, $pass, $peer) {
