@@ -69,6 +69,9 @@ if ($argc > 1) {
 	}
 }
 
+// before starting core, enable garbage collector
+gc_enable();
+
 // if we get here, it means we should start
 $sys = new pinetd\Core();
 
