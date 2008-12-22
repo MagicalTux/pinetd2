@@ -4,9 +4,9 @@
 // http://www.dns.net/dnsrd/rfc/
 // http://www.faqs.org/rfcs/rfc1035.html
 
-namespace Daemon\DNSd\Type;
+namespace Daemon\DNSd;
 
-class Decoder {
+class Type {
 	private $dns_type = array(
 		1     => 'A',          // RFC 1035: Host address
 		2     => 'NS',         // RFC 1035: Authoritative Name Server
@@ -46,7 +46,7 @@ class Decoder {
 	);
 
 
-	private $dns_type_rfc = array(
+	private static $dns_type_rfc = array(
 		1     => 1035, // RFC 1035: Host address
 		2     => 1035, // RFC 1035: Authoritative Name Server
 		5     => 1035, // RFC 1035: Canonical Name for an alias
@@ -92,10 +92,17 @@ class Decoder {
 		255 => 'ANY', // Any class
 	);
 
+	public static function factory($type) {
+		if (!isset($this->dns_type_rfc[$type])) return NULL; // ?!
+		$class = 'Type\\RFC'.$this->dns_type_rfc[$type];
+		$obj = new $class($type);
+		return $obj;
+	}
+
 	public static function decode($type, $data) {
 		if (is_object($data)) return $data;
-		if (!isset($this->dns_type_rfc[$type])) return NULL; // ?!
-		$class = 'RFC'.$this->dns_type_rfc[$type];
+		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
+		$class = 'Daemon\\DNSd\\Type\\RFC'.self::$dns_type_rfc[$type];
 		$obj = new $class($type);
 		$obj->decode($data);
 		return $obj;
@@ -103,8 +110,8 @@ class Decoder {
 
 	public static function encode($type, $data) {
 		if (is_object($data)) return $data->encode();
-		if (!isset($this->dns_type_rfc[$type])) return NULL; // ?!
-		$class = 'RFC'.$this->dns_type_rfc[$type];
+		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
+		$class = 'Daemon\\DNSd\\Type\\RFC'.self::$dns_type_rfc[$type];
 		$obj = new $class($type);
 		return $obj->encode($data);
 	}
