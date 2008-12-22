@@ -1,30 +1,58 @@
 <?php
 
+// http://en.wikipedia.org/wiki/List_of_DNS_record_types
+// http://www.dns.net/dnsrd/rfc/
+// http://www.faqs.org/rfcs/rfc1035.html
+
 namespace Daemon\DNSd;
 use pinetd\Logger;
 
 class UDP extends \pinetd\UDP\Base {
 	private $dns_type = array(
-		1 => 'A', // Host address
-		2 => 'NS', // Authoritative Name Server
-		3 => 'MD', // Mail Destination. Obsolete, use MX
-		4 => 'MF', // Mail Forwarder. Obsolete, use MX
-		5 => 'CNAME', // Canonical Name for an alias
-		6 => 'SOA', // Start Of Authority
-		7 => 'MB', // Mailbox domain name (EXPERIMENTAL)
-		8 => 'MG', // A mail group member (EXPERIMENTAL)
-		9 => 'MR', // A mail rename domain name (EXPERIMENTAL)
-		10 => 'NULL', // A NULL RR (EXPERIMENTAL)
-		11 => 'WKS', // A well known service description
-		12 => 'PTR', // A domain name pointer
-		13 => 'HINFO', // Host information
-		14 => 'MINFO', // Mailbox or mail list info
-		15 => 'MX', // Mail eXchange
-		16 => 'TXT', // Text strings
-		252 => 'AXFR', // Transfer of an entire zone
-		253 => 'MAILB', // Mailbox-related records (MB, MG or MR)
-		254 => 'MAILA', // Request for mail agent RRs (obsolete, see MX)
-		255 => 'ANY', // Request for all records
+		1     => 'A', // Host address
+		2     => 'NS', // Authoritative Name Server
+		3     => 'MD', // Mail Destination. Obsolete, use MX
+		4     => 'MF', // Mail Forwarder. Obsolete, use MX
+		5     => 'CNAME', // Canonical Name for an alias
+		6     => 'SOA', // Start Of Authority
+		7     => 'MB', // Mailbox domain name (EXPERIMENTAL)
+		8     => 'MG', // A mail group member (EXPERIMENTAL)
+		9     => 'MR', // A mail rename domain name (EXPERIMENTAL)
+		10    => 'NULL', // A NULL RR (EXPERIMENTAL)
+		11    => 'WKS', // A well known service description
+		12    => 'PTR', // A domain name pointer
+		13    => 'HINFO', // Host information
+		14    => 'MINFO', // Mailbox or mail list info
+		15    => 'MX', // Mail eXchange
+		16    => 'TXT', // Text strings
+		18    => 'AFSDB', // AFS database record
+		24    => 'SIG', // Sig(0). See RFC 2931. Deprecated by RFC 3755
+		25    => 'KEY', // Key record, see RFC 2930.
+		28    => 'AAAA', // IPv6 address record
+		29    => 'LOC', // Geographical location
+		33    => 'SRV', // Service locator
+		35    => 'NAPTR', // Naming Authority Pointer
+		37    => 'CERT',
+		39    => 'DNAME',
+		41    => 'OPT',
+		43    => 'DS',
+		44    => 'SSHFP', // SSH Public Key Fingerprint
+		45    => 'IPSECKEY',
+		48    => 'DNSKEY',
+		49    => 'DHCID',
+		50    => 'NSEC3',
+		51    => 'NSEC3PARAM',
+		55    => 'HIP̈́',        // Host Identity Protocol
+		99    => 'SPF',        // SPF Record
+		249   => 'TKEY',
+		250   => 'TSIG',
+		251   => 'IXFR',       // Incremental Zone Transfer
+		252   => 'AXFR',       // RFC 1035: Transfer of an entire zone
+		253   => 'MAILB',      //           Mailbox-related records (MB, MG or MR)
+		254   => 'MAILA',      //           Request for mail agent RRs (obsolete, see MX)
+		255   => 'ANY',        // RFC 1035: Request for all records
+		32768 => 'TA',         //           DNSSEC Trust Authorities
+		32769 => 'DLV',        // RFC 4431: DNSSEC Lookaside Validation Record
 	);
 
 	private $dns_class = array(
@@ -37,6 +65,9 @@ class UDP extends \pinetd\UDP\Base {
 
 	protected function handlePacket($pkt, $peer) {
 		$pkt = $this->decodePacket($pkt);
+		if (!$pkt) return;
+
+		var_dump($pkt);
 
 		// provide an answer
 		$pkt['answer'] = array();
@@ -45,7 +76,7 @@ class UDP extends \pinetd\UDP\Base {
 			'type' => $pkt['question'][0]['qtype'],
 			'class' => $pkt['question'][0]['qclass'],
 			'ttl' => 86400, // 24 hours TTL
-			'data' => inet_pton('127.0.0.1'),
+			'data' => '127.0.0.1',
 		);
 
 		$pkt['authority'] = array();
@@ -81,12 +112,62 @@ class UDP extends \pinetd\UDP\Base {
 		return $pkt;
 	}
 
+	protected function encodeRRData($rr) {
+		switch($rr['type']) {
+			case 1: // "A": Host address
+				$addr = inet_pton($rr['data']);
+				if (strlen($addr) != 4) $addr = "\0\0\0\0";
+				return $addr;
+			case 2: // "NS": Authoritative Name Server
+				return $this->encodeLabel($rr['data']);
+			case 3: // "MD": Mail Destination. Obsolete, use MX
+				return ''; // TODO
+			case 4: // "MF": Mail forwarder. Obsolete, use MX
+				return ''; // TODO
+			case 5: // "CNAME": Canonical Name for an alias
+				return $this->encodeLabel($rr['data']);
+			case 6: // "SOA": Start Of Authority
+				return ''; // TODO XXX TODO XXX TODO XXX
+			case 7: // "MB": Mailbox Domain Name (EXPERIMENTAL)
+				return ''; // TODO
+			case 8: // "MG": Mail group member (EXPERIMENTAL)
+				return ''; // TODO
+			case 9: // "MR": A mail rename domain name (EXPERIMENTAL)
+				return ''; // TODO
+			case 10: // "NULL"
+				return '';
+			case 11: // "WKS": Well known service description
+				return ''; // TODO
+			case 12: // "PTR": A domain name pointer
+				return ''; // TODO
+			case 13: // "HINFO": Host information
+				return ''; // TODO
+			case 14: // "MINFO": Mailbox or mail list info
+				return ''; // TODO
+			case 15: // "MX": Mail eXchange info
+				return pack('n', $rr['data']['priority']).$this->encodeLabel($rr['data']['host']);
+			case 16: // "TXT": text strings
+				return $rr['data'];
+			case 252: // "AXFR": Transfer of an entire zone
+				return ''; // TODO
+			case 253: // "MAILB": mailbox related records (MB, MG or MR)
+				return ''; // TODO
+			case 254: // "MAILA": request for mail agent RRs (obsolete, see MX)
+				return ''; // TODO
+			case 255: // ANY
+				return '';
+			default:
+				return '';
+		}
+	}
+
 	protected function encodeRR($list) {
 		$res = '';
 
 		foreach($list as $rr) {
 			$res .= $this->encodeLabel($rr['name']);
-			$res .= pack('nnNn', $rr['type'], $rr['class'], $rr['ttl'], strlen($rr['data'])) . $rr['data'];
+			$data = $this->encodeRRData($rr);
+			$res .= pack('nnNn', $rr['type'], $rr['class'], $rr['ttl'], strlen($data)) . $data;
 		}
 
 		return $res;
@@ -150,6 +231,85 @@ class UDP extends \pinetd\UDP\Base {
 		return $res;
 	}
 
+	protected function decodeRRData($type, $data) {
+		switch($type) {
+			case 1: // "A": Host address
+				return inet_ntop($data);
+			case 2: // "NS": Authoritative Name Server
+				return $this->decodeLabel($data, $x = 0);
+			case 3: // "MD": Mail Destination. Obsolete, use MX
+				return NULL; // TODO
+			case 4: // "MF": Mail forwarder. Obsolete, use MX
+				return NULL; // TODO
+			case 5: // "CNAME": Canonical Name for an alias
+				return $this->decodeLabel($data, $x = 0);
+			case 6: // "SOA": Start Of Authority
+				return NULL; // TODO XXX TODO XXX TODO XXX
+			case 7: // "MB": Mailbox Domain Name (EXPERIMENTAL)
+				return NULL; // TODO
+			case 8: // "MG": Mail group member (EXPERIMENTAL)
+				return NULL; // TODO
+			case 9: // "MR": A mail rename domain name (EXPERIMENTAL)
+				return NULL; // TODO
+			case 10: // "NULL"
+				return NULL;
+			case 11: // "WKS": Well known service description
+				return NULL; // TODO
+			case 12: // "PTR": A domain name pointer
+				return NULL; // TODO
+			case 13: // "HINFO": Host information
+				return NULL; // TODO
+			case 14: // "MINFO": Mailbox or mail list info
+				return NULL; // TODO
+			case 15: // "MX": Mail eXchange info
+				$pri = unpack('n', $data);
+				$res = array(
+					'priority' => $pri[0],
+					'host' => $this->decodeLabel(substr($data, 2), $x = 0),
+				);
+				return $res;
+			case 16: // "TXT": text strings
+				return $data;
+			case 252: // "AXFR": Transfer of an entire zone
+				return NULL; // TODO
+			case 253: // "MAILB": mailbox related records (MB, MG or MR)
+				return NULL; // TODO
+			case 254: // "MAILA": request for mail agent RRs (obsolete, see MX)
+				return NULL; // TODO
+			case 255: // ANY
+				return NULL;
+			default:
+				return NULL;
+		}
+	}
+
+	protected function decodeLabel($pkt, &$offset) {
+		$end_offset = NULL;
+		$qname = '';
+		while(1) {
+			$len = ord($pkt[$offset]);
+			if (($len >> 14 & 0x2) == 0x2) { // "DNS PACKET COMPRESSION"
+				// switch to a different offset, but keep this one as "end of packet"
+				$end_offset = $offset+1;
+				$offset = $len & 0x3f;
+				continue;
+			}
+			if ($len > (strlen($pkt) - $offset)) return NULL; // ouch! parse error!!
+			if ($len == 0) {
+				if ($qname == '') $qname = '.';
+				++$offset;
+				break;
+			}
+			$qname .= substr($pkt, $offset+1, $len).'.';
+			$offset += $len + 1;
+		}
+		if (!is_null($end_offset)) {
+			$offset = $end_offset;
+		}
+
+		return $qname;
+	}
+
 	protected function decodeRR($pkt, &$offset, $count) {
 		$res = array();
 		$end_offset = NULL;
@@ -181,7 +341,7 @@ class UDP extends \pinetd\UDP\Base {
 			// read qtype & qclass
 			$tmp = unpack('ntype/nclass/Nttl/ndlength', substr($pkt, $offset, 10));
 			$offset += 10;
-			$tmp['data'] = substr($pkt, $offset, $tmp['dlength']);
+			$tmp['data'] = $this->decodeRRData($tmp['type'], substr($pkt, $offset, $tmp['dlength']));
 			$offset += $tmp['dlength'];
 			$tmp['name'] = $qname;
 			$res[] = $tmp;
