@@ -19,7 +19,5 @@ abstract class ProcessChild {
 		$daemon = $class[1];
 		return Logger::log($level, '['.$daemon.'/'.$this->peer[0].':'.$this->peer[1].'] '.$msg);
 	}
-
-
 }
 

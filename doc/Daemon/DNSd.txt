@@ -1,0 +1,6 @@
+Testing DNSd on non-standard port with dig
+
+Example:
+
+dig -p 10053 @localhost test.tld
+

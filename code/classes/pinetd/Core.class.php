@@ -253,6 +253,69 @@ class Core {
 		}
 	}
 
+	private function loadUDPDaemon($port, $node) {
+		// determine HERE if we should fork...
+		$daemon = &$this->daemons[$port];
+		$good_keys = array('Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Service' => 1);
+		foreach(array_keys($daemon) as $key) {
+			if (!isset($good_keys[$key])) unset($daemon[$key]);
+		}
+		if (!$daemon['Service']) $daemon['Service'] = 'Base';
+		$class = 'Daemon\\'.$daemon['Daemon'].'\\'.$daemon['Service'];
+		if ((isset($this->config->Global->Security->Fork)) && PINETD_CAN_FORK) {
+			// prepare an IPC
+			$pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+			if (is_array($pair)) {
+				$pid = pcntl_fork();
+				if ($pid > 0) {
+					SQL::parentForked();
+					// parent, record infos about this child
+					$this->daemons[$port]['pid'] = $pid;
+					$this->daemons[$port]['socket'] = $pair[0];
+					$this->daemons[$port]['IPC'] = new IPC($pair[0], false, $this);
+					$this->daemons[$port]['status'] = 'R'; // running
+					$this->fdlist[$pair[0]] = array('type'=>'daemon', 'port'=>$port,'fd'=>$pair[0]);
+					fclose($pair[1]);
+					return true;
+				} elseif ($pid == 0) {
+					SQL::forked();
+					fclose($pair[0]);
+					pcntl_signal(SIGTERM, SIG_DFL, false);
+					pcntl_signal(SIGINT, SIG_IGN, false); // fix against Ctrl+C
+					pcntl_signal(SIGCHLD, SIG_DFL, false);
+					// cleanup
+					foreach($this->fdlist as $dat) fclose($dat['fd']);
+					$this->fdlist = array();
+					$IPC = new IPC($pair[1], true, $this);
+					$IPC->ping();
+					Logger::setIPC($IPC);
+					try {
+						$daemon = new $class($port, $this->daemons[$port], $IPC, $node);
+						$IPC->setParent($daemon);
+						$daemon->mainLoop();
+					} catch(Exception $e) {
+						$IPC->Exception($e);
+						exit;
+					}
+					$IPC->Error('Unexpected end of program!', 60);
+					exit;
+				}
+				fclose($pair[0]);
+				fclose($pair[1]);
+			}
+			// if an error occured here, we fallback to no-fork method
+		}
+		// invoke the process in local scope
+		try {
+			$this->daemons[$port]['daemon'] = new $class($port, $this->daemons[$port], $this, $node);
+			$this->daemons[$port]['status'] = 'I'; // Invoked (nofork)
+		} catch(Exception $e) {
+			$this->daemons[$port]['status'] = 'Z';
+			$this->daemons[$port]['deadline'] = time() + 60;
+			Logger::log(Logger::LOG_ERR, 'From daemon on port '.$port.': '.$e->getMessage());
+		}
+	}
+
 	function startMissing() {
 		$offset = (int)$this->config->Processes['PortOffset'];
 		foreach($this->config->Processes->children() as $Type => $Entry) {

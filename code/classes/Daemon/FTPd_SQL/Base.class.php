@@ -19,7 +19,6 @@ class Base extends \Daemon\FTPd\Base {
 		$query = $this->localConfig['SQL']['LoginQuery']['_'];
 		$query = sprintf($query, $this->sql->quote_escape($login));
 		$res = $this->sql->query($query);
-		$res = $this->sql->query($query);
 		if (!$res) {
 			Logger::log(Logger::LOG_ERR, 'login SQL query: ' . $query);
 			Logger::log(Logger::LOG_ERR, 'login SQL query failed: ' . $this->sql->error);
