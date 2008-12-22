@@ -4,6 +4,37 @@ namespace Daemon\DNSd;
 use pinetd\Logger;
 
 class UDP extends \pinetd\UDP\Base {
+	private $dns_type = array(
+		1 => 'A', // Host address
+		2 => 'NS', // Authoritative Name Server
+		3 => 'MD', // Mail Destination. Obsolete, use MX
+		4 => 'MF', // Mail Forwarder. Obsolete, use MX
+		5 => 'CNAME', // Canonical Name for an alias
+		6 => 'SOA', // Start Of Authority
+		7 => 'MB', // Mailbox domain name (EXPERIMENTAL)
+		8 => 'MG', // A mail group member (EXPERIMENTAL)
+		9 => 'MR', // A mail rename domain name (EXPERIMENTAL)
+		10 => 'NULL', // A NULL RR (EXPERIMENTAL)
+		11 => 'WKS', // A well known service description
+		12 => 'PTR', // A domain name pointer
+		13 => 'HINFO', // Host information
+		14 => 'MINFO', // Mailbox or mail list info
+		15 => 'MX', // Mail eXchange
+		16 => 'TXT', // Text strings
+		252 => 'AXFR', // Transfer of an entire zone
+		253 => 'MAILB', // Mailbox-related records (MB, MG or MR)
+		254 => 'MAILA', // Request for mail agent RRs (obsolete, see MX)
+		255 => 'ANY', // Request for all records
+	);
+
+	private $dns_class = array(
+		1 => 'IN', // Teh Internet
+		2 => 'CS', // The CSNET class (obsolete, used only for examples in some obsolete RFCs)
+		3 => 'CH', // The CHAOS class
+		4 => 'HS', // Hesiod [Dyer 87]
+		255 => 'ANY', // Any class
+	);
+
 	protected function handlePacket($pkt, $peer) {
 		$pkt = $this->decodePacket($pkt);
 
@@ -18,6 +49,15 @@ class UDP extends \pinetd\UDP\Base {
 		);
 
 		$pkt['authority'] = array();
+
+		$pkt['additional'] = array();
+		$pkt['additional'][] = array(
+			'name' => 'some.test.tld.',
+			'type' => 5, // CNAME
+			'class' => 1, // IN
+			'ttl' => 120,
+			'data' => $this->encodeLabel('some.other.test.'),
+		);
 
 		$pkt = $this->encodePacket($pkt);
 		$this->sendPacket($pkt, $peer);
