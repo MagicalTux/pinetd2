@@ -36,7 +36,7 @@ class Engine {
 
 		$pkt['authority'] = array();
 
-		$cname = Type::factory(RFC1035::TYPE_CNAME);
+		$cname = Type::factory(RFC1035::TYPE_TXT);
 		$cname->setValue('some.other.test.');
 		$pkt['additional'] = array();
 		$pkt['additional'][] = array(

@@ -32,7 +32,12 @@ class RFC1035 extends Base {
 				);
 				break;
 			case self::TYPE_TXT:
-				$this->value = $val;
+				$len = ord($val[0]);
+				if ((strlen($val) + 1) < $len) {
+					$this->value = NULL;
+					break;
+				}
+				$this->value = substr($val, 1, $len);
 				break;
 			case self::TYPE_AXFR:
 				$this->value = NULL;
@@ -61,7 +66,7 @@ class RFC1035 extends Base {
 			case self::TYPE_MX:
 				return pack('n', $val['priority']).$this->encodeLabel($val['host']);
 			case self::TYPE_TXT:
-				return $val;
+				return chr(strlen($val)) . $val;
 			case self::TYPE_AXFR:
 				return '';
 			case self::TYPE_ANY:
