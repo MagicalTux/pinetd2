@@ -39,7 +39,7 @@ class UDP extends \pinetd\UDP\Base {
 		$pkt = $this->encodePacket($pkt);
 
 		// just trying
-		var_dump($this->decodePacket($pkt));
+		//var_dump($this->decodePacket($pkt));
 
 		$this->sendPacket($pkt, $peer);
 
