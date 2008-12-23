@@ -3,9 +3,6 @@
 namespace Daemon\DNSd\Type;
 
 class RFC1035 extends Base {
-	protected $type;
-	protected $value;
-
 	const TYPE_A = 1;
 	const TYPE_NS = 2;
 	const TYPE_CNAME = 5;
@@ -16,10 +13,6 @@ class RFC1035 extends Base {
 	const TYPE_AXFR = 252;
 	const TYPE_ANY = 255;
 	
-	public function __construct($type) {
-		$this->type = $type;
-	}
-
 	public function decode($val) {
 		switch($this->type) {
 			case self::TYPE_A:

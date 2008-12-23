@@ -2,9 +2,26 @@
 
 namespace Daemon\DNSd\Type;
 
-class Base {
+abstract class Base {
+	protected $type;
+	protected $value;
 
-	public function decodeLabel($pkt, &$offset) {
+	abstract public function decode($val);
+	abstract public function encode($val = NULL);
+
+	public function __construct($type) {
+		$this->type = $type;
+	}
+
+	public function setValue($val) {
+		$this->value = $val;
+	}
+
+	public function getType() {
+		return $this->type;
+	}
+
+	public static function decodeLabel($pkt, &$offset) {
 		$end_offset = NULL;
 		$qname = '';
 		while(1) {
@@ -31,7 +48,7 @@ class Base {
 		return $qname;
 	}
 
-	public function encodeLabel($str) {
+	public static function encodeLabel($str) {
 		// encode a label :)
 		$res = '';
 		$str = explode('.', $str);

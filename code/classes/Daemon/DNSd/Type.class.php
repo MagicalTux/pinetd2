@@ -93,8 +93,8 @@ class Type {
 	);
 
 	public static function factory($type) {
-		if (!isset($this->dns_type_rfc[$type])) return NULL; // ?!
-		$class = 'Type\\RFC'.$this->dns_type_rfc[$type];
+		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
+		$class = 'Daemon\\DNSd\\Type\\RFC'.self::$dns_type_rfc[$type];
 		$obj = new $class($type);
 		return $obj;
 	}
