@@ -3,6 +3,8 @@
 namespace Daemon\DNSd;
 
 class UDP extends \pinetd\UDP\Base {
+	private $engine;
+
 	public function mainLoop() {
 		// some init...
 		$class = relativeclass($this, 'Engine');

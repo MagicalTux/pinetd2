@@ -23,6 +23,8 @@
 
 namespace pinetd;
 
+use \Exception;
+
 /**
  * \class IPC
  * \brief IPC (Inter-Process Communications) class, used by parents and children

@@ -128,137 +128,23 @@ class Core {
 	}
 
 	private function loadProcessDaemon($port, $node) {
-		// determine HERE if we should fork...
-		$daemon = &$this->daemons[$port];
-		$good_keys = array('Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Service' => 1);
-		foreach(array_keys($daemon) as $key) {
-			if (!isset($good_keys[$key])) unset($daemon[$key]);
-		}
-		if (!$daemon['Service']) $daemon['Service'] = 'Process';
-		$class = 'Daemon\\'.$daemon['Daemon'].'\\'.$daemon['Service'];
-		if ((isset($this->config->Global->Security->Fork)) && PINETD_CAN_FORK) {
-			// prepare an IPC
-			$pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
-			if (is_array($pair)) {
-				$pid = pcntl_fork();
-				if ($pid > 0) {
-					SQL::parentForked();
-					// parent, record infos about this child
-					$this->daemons[$port]['pid'] = $pid;
-					$this->daemons[$port]['socket'] = $pair[0];
-					$this->daemons[$port]['IPC'] = new IPC($pair[0], false, $this);
-					$this->daemons[$port]['status'] = 'R'; // running
-					$this->fdlist[$pair[0]] = array('type'=>'daemon', 'port'=>$port,'fd'=>$pair[0]);
-					fclose($pair[1]);
-					return true;
-				} elseif ($pid == 0) {
-					SQL::forked();
-					fclose($pair[0]);
-					pcntl_signal(SIGTERM, SIG_DFL, false);
-					pcntl_signal(SIGINT, SIG_IGN, false); // fix against Ctrl+C
-					pcntl_signal(SIGCHLD, SIG_DFL, false);
-					// cleanup
-					foreach($this->fdlist as $dat) fclose($dat['fd']);
-					$this->fdlist = array();
-					$IPC = new IPC($pair[1], true, $this);
-					$IPC->ping();
-					Logger::setIPC($IPC);
-					try {
-						$daemon = new $class($port, $this->daemons[$port], $IPC, $node);
-						$IPC->setParent($daemon);
-						$daemon->mainLoop();
-					} catch(Exception $e) {
-						$IPC->Exception($e);
-						exit;
-					}
-					$IPC->Error('Unexpected end of program!', 60);
-					exit;
-				}
-				fclose($pair[0]);
-				fclose($pair[1]);
-			}
-			// if an error occured here, we fallback to no-fork method
-		}
-		// invoke the process in local scope
-		try {
-			$this->daemons[$port]['daemon'] = new $class($port, $this->daemons[$port], $this, $node);
-			$this->daemons[$port]['status'] = 'I'; // Invoked (nofork)
-		} catch(Exception $e) {
-			$this->daemons[$port]['status'] = 'Z';
-			$this->daemons[$port]['deadline'] = time() + 60;
-			Logger::log(Logger::LOG_ERR, 'From process '.$port.': '.$e->getMessage());
-		}
+		return $this->loadDaemon($port, $node, $port . '/process');
 	}
 
 	private function loadTCPDaemon($port, $node) {
-		// determine HERE if we should fork...
-		$daemon = &$this->daemons[$port];
-		$good_keys = array('Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Service' => 1);
-		foreach(array_keys($daemon) as $key) {
-			if (!isset($good_keys[$key])) unset($daemon[$key]);
-		}
-		if (!$daemon['Service']) $daemon['Service'] = 'Base';
-		$class = 'Daemon\\'.$daemon['Daemon'].'\\'.$daemon['Service'];
-		if ((isset($this->config->Global->Security->Fork)) && PINETD_CAN_FORK) {
-			// prepare an IPC
-			$pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
-			if (is_array($pair)) {
-				$pid = pcntl_fork();
-				if ($pid > 0) {
-					SQL::parentForked();
-					// parent, record infos about this child
-					$this->daemons[$port]['pid'] = $pid;
-					$this->daemons[$port]['socket'] = $pair[0];
-					$this->daemons[$port]['IPC'] = new IPC($pair[0], false, $this);
-					$this->daemons[$port]['status'] = 'R'; // running
-					$this->fdlist[$pair[0]] = array('type'=>'daemon', 'port'=>$port,'fd'=>$pair[0]);
-					fclose($pair[1]);
-					return true;
-				} elseif ($pid == 0) {
-					SQL::forked();
-					fclose($pair[0]);
-					pcntl_signal(SIGTERM, SIG_DFL, false);
-					pcntl_signal(SIGINT, SIG_IGN, false); // fix against Ctrl+C
-					pcntl_signal(SIGCHLD, SIG_DFL, false);
-					// cleanup
-					foreach($this->fdlist as $dat) fclose($dat['fd']);
-					$this->fdlist = array();
-					$IPC = new IPC($pair[1], true, $this);
-					$IPC->ping();
-					Logger::setIPC($IPC);
-					try {
-						$daemon = new $class($port, $this->daemons[$port], $IPC, $node);
-						$IPC->setParent($daemon);
-						$daemon->mainLoop();
-					} catch(Exception $e) {
-						$IPC->Exception($e);
-						exit;
-					}
-					$IPC->Error('Unexpected end of program!', 60);
-					exit;
-				}
-				fclose($pair[0]);
-				fclose($pair[1]);
-			}
-			// if an error occured here, we fallback to no-fork method
-		}
-		// invoke the process in local scope
-		try {
-			$this->daemons[$port]['daemon'] = new $class($port, $this->daemons[$port], $this, $node);
-			$this->daemons[$port]['status'] = 'I'; // Invoked (nofork)
-		} catch(Exception $e) {
-			$this->daemons[$port]['status'] = 'Z';
-			$this->daemons[$port]['deadline'] = time() + 60;
-			Logger::log(Logger::LOG_ERR, 'From daemon on port '.$port.': '.$e->getMessage());
-		}
+		return $this->loadDaemon($port, $node, $port . '/tcp');
+	}
+	
+	private function loadUDPDaemon($port, $node) {
+		return $this->loadDaemon($port, $node, $port . '/udp');
 	}
 
-	private function loadUDPDaemon($port, $node) {
+	private function loadDaemon($port, $node, $key) {
 		// determine HERE if we should fork...
-		$daemon = &$this->daemons[$port];
+		$daemon = &$this->daemons[$key];
 		$good_keys = array('Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Service' => 1);
-		foreach(array_keys($daemon) as $key) {
-			if (!isset($good_keys[$key])) unset($daemon[$key]);
+		foreach(array_keys($daemon) as $_key) {
+			if (!isset($good_keys[$_key])) unset($daemon[$_key]);
 		}
 		if (!$daemon['Service']) $daemon['Service'] = 'Base';
 		$class = 'Daemon\\'.$daemon['Daemon'].'\\'.$daemon['Service'];
@@ -270,11 +156,11 @@ class Core {
 				if ($pid > 0) {
 					SQL::parentForked();
 					// parent, record infos about this child
-					$this->daemons[$port]['pid'] = $pid;
-					$this->daemons[$port]['socket'] = $pair[0];
-					$this->daemons[$port]['IPC'] = new IPC($pair[0], false, $this);
-					$this->daemons[$port]['status'] = 'R'; // running
-					$this->fdlist[$pair[0]] = array('type'=>'daemon', 'port'=>$port,'fd'=>$pair[0]);
+					$this->daemons[$key]['pid'] = $pid;
+					$this->daemons[$key]['socket'] = $pair[0];
+					$this->daemons[$key]['IPC'] = new IPC($pair[0], false, $this);
+					$this->daemons[$key]['status'] = 'R'; // running
+					$this->fdlist[$pair[0]] = array('type'=>'daemon', 'port'=>$port, 'key' => $key,'fd'=>$pair[0]);
 					fclose($pair[1]);
 					return true;
 				} elseif ($pid == 0) {
@@ -290,7 +176,7 @@ class Core {
 					$IPC->ping();
 					Logger::setIPC($IPC);
 					try {
-						$daemon = new $class($port, $this->daemons[$port], $IPC, $node);
+						$daemon = new $class($port, $this->daemons[$key], $IPC, $node);
 						$IPC->setParent($daemon);
 						$daemon->mainLoop();
 					} catch(Exception $e) {
@@ -307,12 +193,12 @@ class Core {
 		}
 		// invoke the process in local scope
 		try {
-			$this->daemons[$port]['daemon'] = new $class($port, $this->daemons[$port], $this, $node);
-			$this->daemons[$port]['status'] = 'I'; // Invoked (nofork)
+			$this->daemons[$key]['daemon'] = new $class($port, $this->daemons[$key], $this, $node);
+			$this->daemons[$key]['status'] = 'I'; // Invoked (nofork)
 		} catch(Exception $e) {
-			$this->daemons[$port]['status'] = 'Z';
-			$this->daemons[$port]['deadline'] = time() + 60;
-			Logger::log(Logger::LOG_ERR, 'From daemon on port '.$port.': '.$e->getMessage());
+			$this->daemons[$key]['status'] = 'Z';
+			$this->daemons[$key]['deadline'] = time() + 60;
+			Logger::log(Logger::LOG_ERR, 'From daemon on '.$key.': '.$e->getMessage());
 		}
 	}
 
@@ -329,17 +215,18 @@ class Core {
 			} else {
 				$data['Port'] = $data['Daemon'] . '\\' . $data['Service'];
 			}
-			if (isset($this->daemons[$data['Port']]))
+			$key = $data['Port'] . '/' . strtolower($Type);
+			if (isset($this->daemons[$key]))
 				continue; // no care
-			$this->daemons[$data['Port']] = $data;
+			$this->daemons[$key] = $data;
 			$startfunc = 'load'.$Type.'Daemon';
 			$this->$startfunc($data['Port'], $Entry);
 		}
 	}
 
 	function checkRunning() {
-		foreach($this->daemons as $port => $data) {
-			// do something
+		foreach($this->daemons as $key => $data) {
+			// TODO: do something
 		}
 	}
 
@@ -361,46 +248,46 @@ class Core {
 		$daemon['status'] = 'K';
 	}
 
-	private function killDaemon($port, $timeout) {
+	private function killDaemon($key, $timeout) {
 		// kill it!
-		if (!isset($this->daemons[$port])) throw new Exception('Unknown port '.$port);
-		if ($this->daemons[$port]['status'] == 'I') {
+		if (!isset($this->daemons[$key])) throw new Exception('Unknown daemon '.$key);
+		if ($this->daemons[$key]['status'] == 'I') {
 			// not forked
-			$this->daemons[$port]['daemon']->shutdown();
-			$this->daemons[$port]['status'] = 'Z';
+			$this->daemons[$key]['daemon']->shutdown();
+			$this->daemons[$key]['status'] = 'Z';
 			return;
 		}
 		if (
-				($this->daemons[$port]['status'] != 'R') && 
-				($this->daemons[$port]['status'] != 'K') &&
-				($this->daemons[$port]['status'] != 'T')
+				($this->daemons[$key]['status'] != 'R') && 
+				($this->daemons[$key]['status'] != 'K') &&
+				($this->daemons[$key]['status'] != 'T')
 				)
 			return;
-		if (posix_kill($this->daemons[$port]['pid'], 0)) {
+		if (posix_kill($this->daemons[$key]['pid'], 0)) {
 			// still running
-			$this->daemons[$port]['IPC']->stop();
-			if (!isset($this->daemons[$port]['kill']))
-				$this->daemons[$port]['kill'] = time() + 5;
-			$this->daemons[$port]['status'] = 'K'; // kill
+			$this->daemons[$key]['IPC']->stop();
+			if (!isset($this->daemons[$key]['kill']))
+				$this->daemons[$key]['kill'] = time() + 5;
+			$this->daemons[$key]['status'] = 'K'; // kill
 		} else {
-			$this->daemons[$port]['status'] = 'Z'; // zombie
-			@fclose($this->daemons[$port]['socket']); // make sure this is closed
-			unset($this->fdlist[$this->daemons[$port]['socket']]);
+			$this->daemons[$key]['status'] = 'Z'; // zombie
+			@fclose($this->daemons[$key]['socket']); // make sure this is closed
+			unset($this->fdlist[$this->daemons[$key]['socket']]);
 		}
-		if (!isset($this->daemons[$port]['deadline']))
-			$this->daemons[$port]['deadline'] = time() + $timeout;
+		if (!isset($this->daemons[$key]['deadline']))
+			$this->daemons[$key]['deadline'] = time() + $timeout;
 	}
 
 	function IPCDied($fd) {
 		if (!isset($this->fdlist[$fd])) return; // can't do anything about this
 		switch($this->fdlist[$fd]['type']) {
 			case 'daemon':
-				$port = $this->fdlist[$fd]['port'];
-				if ($this->daemons[$port]['status'] == 'R')
-				Logger::log(Logger::LOG_DEBUG, 'IPC died on '.$port);
+				$key = $this->fdlist[$fd]['key'];
+				if ($this->daemons[$key]['status'] == 'R')
+				Logger::log(Logger::LOG_DEBUG, 'IPC died on '.$key);
 				fclose($fd);
 				unset($this->fdlist[$fd]);
-				$this->killDaemon($port, 10);
+				$this->killDaemon($key, 10);
 				break;
 		}
 	}
@@ -413,17 +300,17 @@ class Core {
 		if ($res == 0) return; // no process terminated
 		// search what ended
 		$ended = null;
-		foreach($this->daemons as $port => $dat) {
+		foreach($this->daemons as $key => $dat) {
 			if ($dat['pid'] == $res) {
-				$ended = $port;
+				$ended = $key;
 				break;
 			}
 		}
 		if (is_null($ended)) return; // we do not know what ended
 		if (pcntl_wifexited($status)) {
 			$code = pcntl_wexitstatus($status);
-			Logger::log(Logger::LOG_INFO, 'Child with pid #'.$res.' on ['.$port.'] exited');
-			$this->killDaemon($port, 10);
+			Logger::log(Logger::LOG_INFO, 'Child with pid #'.$res.' on ['.$key.'] exited');
+			$this->killDaemon($key, 10);
 			return;
 		}
 		if (pcntl_wifstopped($status)) {
@@ -442,8 +329,8 @@ class Core {
 				$signal = $var;
 				break;
 			}
-			Logger::log(Logger::LOG_INFO, 'Child with pid #'.$res.' on port '.$port.' died due to signal '.$signal);
-			$this->killDaemon($port, 10);
+			Logger::log(Logger::LOG_INFO, 'Child with pid #'.$res.' on '.$key.' died due to signal '.$signal);
+			$this->killDaemon($key, 10);
 		}
 	}
 
@@ -457,7 +344,7 @@ class Core {
 			foreach($r as $fd) {
 				switch($this->fdlist[$fd]['type']) {
 					case 'daemon':
-						$this->daemons[$this->fdlist[$fd]['port']]['IPC']->run($this->daemons[$this->fdlist[$fd]['port']]);
+						$this->daemons[$this->fdlist[(int)$fd]['key']]['IPC']->run($this->daemons[$this->fdlist[(int)$fd]['key']]);
 						break;
 					case 'callback':
 						$info = &$this->fdlist[$fd];
@@ -470,7 +357,7 @@ class Core {
 
 	function childrenStatus() {
 		$now = time();
-		foreach($this->daemons as $port => &$data) {
+		foreach($this->daemons as $key => &$data) {
 			switch($data['status']) {
 				case 'R': // running (forked)
 				case 'I': // invoked (not forked)
@@ -490,7 +377,7 @@ class Core {
 					}
 				case 'Z': // zombie
 					if (!isset($data['deadline'])) {
-						unset($this->daemons[$port]);
+						unset($this->daemons[$key]);
 						break;
 					}
 					if ($data['deadline'] > $now) break;
@@ -503,10 +390,11 @@ class Core {
 						} else {
 							$tmpport = (string)$Entry['Daemon'] . '\\' . (string)$Entry['Service'];
 						}
-						if ($tmpport != $port) continue; // we don't want to start this one
+						$tmpkey = $tmpport . strtolower($Type);
+						if ($tmpkey != $key) continue; // we don't want to start this one
 
 						$startfunc = 'load'.$Type.'Daemon';
-						$this->$startfunc($port, $Entry);
+						$this->$startfunc($tmpport, $Entry);
 						break; // ok, finished
 					}
 					break;
