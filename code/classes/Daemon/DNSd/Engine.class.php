@@ -20,31 +20,62 @@ class Engine {
 		$pkt = $this->decodePacket($pkt);
 		if (!$pkt) return;
 
-		// provide an answer
-		$addr = Type::factory(RFC1035::TYPE_A);
-		$addr->setValue('127.0.0.1');
 		$pkt['answer'] = array();
-		$pkt['answer'][] = array(
-			'name' => $pkt['question'][0]['qname'],
-			'type' => $pkt['question'][0]['qtype'],
-			'class' => $pkt['question'][0]['qclass'],
-			'ttl' => 86400, // 24 hours TTL
-			'data' => $addr,
-		);
+		$pkt['authority'] = array();
+		$pkt['additional'] = array();
+
+		foreach($pkt['question'] as $question) {
+			if ($question['qclass'] == self::DNS_CLASS_CH) {
+				// Special "magical" class...
+				if (($question['qname'] == 'version.dnsd.') && ($question['qtype'] == RFC1035::TYPE_TXT)) {
+					$txt = Type::factory(RFC1035::TYPE_TXT);
+					$txt->setValue('DNSd PHP daemon (PHP/'.PHP_VERSION.')');
+					$pkt['answer'][] = array(
+						'name' => 'version.dnsd.',
+						'class' => self::DNS_CLASS_CH,
+						'ttl' => 0,
+						'data' => $txt,
+					);
+
+					$auth = Type::factory(RFC1035::TYPE_NS);
+					$auth->setValue('version.dnsd.');
+					$pkt['authority'][] = array(
+						'name' => 'version.dnsd.',
+						'class' => self::DNS_CLASS_CH,
+						'ttl' => 0,
+						'data' => $auth,
+					);
+				}
+				continue;
+			}
+
+			// provide an answer
+			$addr = Type::factory(RFC1035::TYPE_A);
+			$addr->setValue('127.0.0.1');
+			$pkt['answer'][] = array(
+				'name' => $pkt['question'][0]['qname'],
+				'type' => $pkt['question'][0]['qtype'],
+				'class' => $pkt['question'][0]['qclass'],
+				'ttl' => 86400, // 24 hours TTL
+				'data' => $addr,
+			);
+
+			$pkt['flags']['qr'] = 1;
+
+
+			$cname = Type::factory(RFC1035::TYPE_TXT);
+			$cname->setValue('some.other.test.');
+			$pkt['additional'][] = array(
+				'name' => 'some.test.tld.',
+				'class' => self::DNS_CLASS_IN,
+				'ttl' => 120,
+				'data' => $cname,
+			);
+
+		}
 
 		$pkt['flags']['qr'] = 1;
-
-		$pkt['authority'] = array();
-
-		$cname = Type::factory(RFC1035::TYPE_TXT);
-		$cname->setValue('some.other.test.');
-		$pkt['additional'] = array();
-		$pkt['additional'][] = array(
-			'name' => 'some.test.tld.',
-			'class' => self::DNS_CLASS_IN,
-			'ttl' => 120,
-			'data' => $cname,
-		);
+		$pkt['flags']['aa'] = 1;
 
 		$pkt = $this->encodePacket($pkt);
 
