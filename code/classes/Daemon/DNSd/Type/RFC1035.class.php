@@ -19,10 +19,10 @@ class RFC1035 extends Base {
 				$this->value = inet_ntop($val);
 				break;
 			case self::TYPE_NS:
-				$this->value = $this->decodeLabel($val);
+				$this->value = $this->pkt->decodeLabel($val);
 				break;
 			case self::TYPE_CNAME:
-				$this->value = $this->decodeLabel($val);
+				$this->value = $this->pkt->decodeLabel($val);
 				break;
 			case self::TYPE_MX:
 				$tmp = unpack('n', $val);
@@ -60,11 +60,11 @@ class RFC1035 extends Base {
 				if (strlen($enc) != 4) $enc = "\0\0\0\0";
 				return $enc;
 			case self::TYPE_NS:
-				return $this->encodeLabel($val);
+				return $this->pkt->encodeLabel($val);
 			case self::TYPE_CNAME:
-				return $this->encodeLabel($val);
+				return $this->pkt->encodeLabel($val);
 			case self::TYPE_MX:
-				return pack('n', $val['priority']).$this->encodeLabel($val['host']);
+				return pack('n', $val['priority']).$this->pkt->encodeLabel($val['host']);
 			case self::TYPE_TXT:
 				return chr(strlen($val)) . $val;
 			case self::TYPE_AXFR:

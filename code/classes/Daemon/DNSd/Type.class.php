@@ -92,27 +92,27 @@ class Type {
 		255 => 'ANY', // Any class
 	);
 
-	public static function factory($type) {
+	public static function factory($pkt, $type) {
 		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
 		$class = 'Daemon\\DNSd\\Type\\RFC'.self::$dns_type_rfc[$type];
-		$obj = new $class($type);
+		$obj = new $class($pkt, $type);
 		return $obj;
 	}
 
-	public static function decode($type, $data) {
+	public static function decode($pkt, $type, $data) {
 		if (is_object($data)) return $data;
 		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
 		$class = 'Daemon\\DNSd\\Type\\RFC'.self::$dns_type_rfc[$type];
-		$obj = new $class($type);
+		$obj = new $class($pkt, $type);
 		$obj->decode($data);
 		return $obj;
 	}
 
-	public static function encode($type, $data) {
+	public static function encode($pkt, $type, $data) {
 		if (is_object($data)) return $data->encode();
 		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
 		$class = 'Daemon\\DNSd\\Type\\RFC'.self::$dns_type_rfc[$type];
-		$obj = new $class($type);
+		$obj = new $class($pkt, $type);
 		return $obj->encode($data);
 	}
 }

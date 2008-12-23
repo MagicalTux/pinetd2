@@ -28,11 +28,11 @@ class Engine {
 			if ($question['qclass'] == self::DNS_CLASS_CH) {
 				// Special "magical" class...
 				if (($question['qname'] == 'version.dnsd.') && ($question['qtype'] == RFC1035::TYPE_TXT)) {
-					$txt = Type::factory(RFC1035::TYPE_TXT);
+					$txt = Type::factory($pkt, RFC1035::TYPE_TXT);
 					$txt->setValue('DNSd PHP daemon (PHP/'.PHP_VERSION.')');
 					$pkt->addAnswer('version.dnsd.', $txt, 0, self::DNS_CLASS_CH);
 
-					$auth = Type::factory(RFC1035::TYPE_NS);
+					$auth = Type::factory($pkt, RFC1035::TYPE_NS);
 					$auth->setValue('version.dnsd.');
 					$pkt->addAuthority('version.dnsd.', $auth, 0, self::DNS_CLASS_CH);
 				}
@@ -40,11 +40,11 @@ class Engine {
 			}
 
 			// provide an answer
-			$addr = Type::factory(RFC1035::TYPE_A);
+			$addr = Type::factory($pkt, RFC1035::TYPE_A);
 			$addr->setValue('127.0.0.1');
 			$pkt->addAnswer($question['qname'], $addr);
 
-			$cname = Type::factory(RFC1035::TYPE_TXT);
+			$cname = Type::factory($pkt, RFC1035::TYPE_TXT);
 			$cname->setValue('some.other.test.');
 			$pkt->addAdditional('some.test.tld.', $cname, 120);
 

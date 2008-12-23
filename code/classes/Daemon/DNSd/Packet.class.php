@@ -89,16 +89,56 @@ class Packet {
 		return true;
 	}
 
+	public function decodeLabel($pkt, &$offset) {
+		$end_offset = NULL;
+		$qname = '';
+		while(1) {
+			$len = ord($pkt[$offset]);
+			if (($len >> 14 & 0x2) == 0x2) { // "DNS PACKET COMPRESSION"
+				// switch to a different offset, but keep this one as "end of packet"
+				$end_offset = $offset+1;
+				$offset = $len & 0x3f;
+				continue;
+			}
+			if ($len > (strlen($pkt) - $offset)) return NULL; // ouch! parse error!!
+			if ($len == 0) {
+				if ($qname == '') $qname = '.';
+				++$offset;
+				break;
+			}
+			$qname .= substr($pkt, $offset+1, $len).'.';
+			$offset += $len + 1;
+		}
+		if (!is_null($end_offset)) {
+			$offset = $end_offset;
+		}
+
+		return $qname;
+	}
+
+	public function encodeLabel($str) {
+		// encode a label :)
+		$res = '';
+		$str = explode('.', $str);
+		foreach($str as $bit) {
+			$res .= chr(strlen($bit));
+			if (strlen($bit) == 0) break;
+			$res .= $bit;
+		}
+
+		return $res;
+	}
+
 	protected function encodeRR($list) {
 		$res = '';
 
 		foreach($list as $rr) {
-			$res .= Type\Base::encodeLabel($rr['name']);
+			$res .= $this->encodeLabel($rr['name']);
 			if (is_object($rr['data'])) {
 				$data = $rr['data']->encode();
 				$res .= pack('nnNn', $rr['data']->getType(), $rr['class'], $rr['ttl'], strlen($data)) . $data;
 			} else {
-				$data = Type::encode($rr['type'], $rr['data']);
+				$data = Type::encode($this, $rr['type'], $rr['data']);
 				$res .= pack('nnNn', $rr['type'], $rr['class'], $rr['ttl'], strlen($data)) . $data;
 			}
 		}
@@ -111,7 +151,7 @@ class Packet {
 
 		foreach($list as $rr) {
 			// qname, qtype & qclass
-			$res .= Type\Base::encodeLabel($rr['qname']);
+			$res .= $this->encodeLabel($rr['qname']);
 			$res .= pack('nn', $rr['qtype'], $rr['qclass']);
 		}
 
@@ -175,7 +215,7 @@ class Packet {
 			// read qtype & qclass
 			$tmp = unpack('ntype/nclass/Nttl/ndlength', substr($pkt, $offset, 10));
 			$offset += 10;
-			$tmp['data'] = Type::decode($tmp['type'], substr($pkt, $offset, $tmp['dlength']));
+			$tmp['data'] = Type::decode($this, $tmp['type'], substr($pkt, $offset, $tmp['dlength']));
 			$offset += $tmp['dlength'];
 			$tmp['name'] = $qname;
 			$res[] = $tmp;
