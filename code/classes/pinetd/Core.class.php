@@ -412,6 +412,7 @@ class Core {
 			$this->receiveStopped(); // waitpid
 			$this->childrenStatus();
 			$this->readIPCs(200000);
+			Timer::processTimers();
 		}
 	}
 }

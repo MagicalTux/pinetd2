@@ -126,7 +126,10 @@ class Client extends \pinetd\ProcessChild {
 		$this->IPC->registerSocketWait($this->fd, array($this, 'readData'), $foo = array());
 		$this->doResolve();
 		$this->sendBanner();
-		while($this->ok) $IPC->selectSockets(200000);
+		while($this->ok) {
+			$IPC->selectSockets(200000);
+			$this->processTimers();
+		}
 		exit;
 	}
 }

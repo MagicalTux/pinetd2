@@ -239,6 +239,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		while(1) {
 			$this->IPC->selectSockets(200000);
 			$this->waitChildren();
+			$this->processTimers();
 		}
 	}
 }

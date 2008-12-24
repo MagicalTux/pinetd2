@@ -3,6 +3,8 @@
 namespace pinetd;
 use pinetd\ConfigManager;
 
+use pinetd\Timer;
+
 abstract class DaemonBase {
 	protected $localConfig = array();
 
@@ -54,5 +56,8 @@ abstract class DaemonBase {
 		return $this->localConfig;
 	}
 
+	protected function processTimers() {
+		Timer::processTimers();
+	}
 }
 

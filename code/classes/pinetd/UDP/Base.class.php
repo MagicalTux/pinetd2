@@ -96,6 +96,7 @@ abstract class Base extends \pinetd\DaemonBase {
 	public function mainLoop() {
 		while(1) {
 			$this->IPC->selectSockets(200000);
+			$this->processTimers();
 		}
 	}
 }
