@@ -70,6 +70,7 @@ class MTA extends \pinetd\Process {
 		}
 		if ($pid == 0) {
 			SQL::parentForked(); // close all sql links to avoid bugs
+			Timer::reset();
 			fclose($pair[0]);
 			$IPC = new IPC($pair[1], true, $foo = null);
 			$IPC->ping();

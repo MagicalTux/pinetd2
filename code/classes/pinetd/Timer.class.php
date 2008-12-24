@@ -2,28 +2,72 @@
 
 namespace pinetd;
 
+use \SplPriorityQueue;
+
+class TimerQueue extends SplPriorityQueue {
+	public function compare($priority1, $priority2) {
+		// Overload compare func to make it work as we expect with stamps
+		if ($priority1 == $priority2) return 0;
+		return ($priority1 < $priority2) ? 1 : -1;
+	}
+}
+
 class Timer {
-	private $_timers = array();
+	private $_timers;
 	static $self = NULL;
 
-	protected function instance() {
+	private function __construct() {
+		$this->_timers = new TimerQueue();
+	}
+
+	private function instance() {
 		if (is_null(self::$self)) self::$self = new self();
 		return self::$self;
 	}
 
+	private function _addTimer(array $timer) {
+		$next_run = microtime(true) + $timer['delay'];
+		$this->_timers->insert($timer, $next_run);
+	}
+
+	public function addTimer($callback, $delay, &$extra = null, $recurring = false) {
+		$timer = array(
+			'callback' => $callback,
+			'delay' => $delay,
+			'extra' => &$extra,
+			'recurring' => $recurring,
+		);
+		self::instance()->_addTimer($timer);
+	}
+
+	private function _processTimer($timer) {
+		$res = call_user_func($timer['callback'], &$timer['extra']);
+		if (($timer['recurring']) && ($res))
+			$this->_addTimer($timer);
+	}
+
 	private function _processTimers() {
+		if (!$this->_timers->valid()) return;
+
 		$now = microtime(true);
-		$remove = array();
-		foreach($this->_timers as $when => &$info) {
-			if ($when > $now) break;
-			$remove[] = $when;
-			$this->processTimer($info);
+		$this->_timers->setExtractFlags(SplPriorityQueue::EXTR_PRIORITY);
+		while(($this->_timers->valid()) && ($this->_timers->top() < $now)) {
+			$this->_timers->setExtractFlags(SplPriorityQueue::EXTR_DATA);
+			$this->_processTimer($this->_timers->extract());
+			$this->_timers->setExtractFlags(SplPriorityQueue::EXTR_PRIORITY);
 		}
-		foreach($remove as $t) unset($this->_timers[$t]);
 	}
 
 	public function processTimers() {
 		self::instance()->_processTimers();
+	}
+
+	private function _reset() {
+		$this->_timers = new TimerQueue();
+	}
+
+	public function reset() {
+		self::instance()->_reset();
 	}
 }
 

@@ -2,6 +2,8 @@
 
 namespace Daemon\DNSd;
 
+use pinetd\Timer;
+
 class UDP extends \pinetd\UDP\Base {
 	private $engine;
 

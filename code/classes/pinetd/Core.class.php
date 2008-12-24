@@ -165,6 +165,7 @@ class Core {
 					return true;
 				} elseif ($pid == 0) {
 					SQL::forked();
+					Timer::reset();
 					fclose($pair[0]);
 					pcntl_signal(SIGTERM, SIG_DFL, false);
 					pcntl_signal(SIGINT, SIG_IGN, false); // fix against Ctrl+C
