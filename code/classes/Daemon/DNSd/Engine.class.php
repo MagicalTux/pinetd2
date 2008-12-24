@@ -11,10 +11,12 @@ class Engine {
 	const DNS_CLASS_HS = 4; // Hesiod [Dyer 87]
 
 	protected $parent;
+	protected $IPC;
 	protected $packet_class;
 
-	public function __construct($parent) {
+	public function __construct($parent, $IPC) {
 		$this->parent = $parent;
+		$this->IPC = $IPC;
 		$this->packet_class = relativeclass($this, 'Packet');
 	}
 

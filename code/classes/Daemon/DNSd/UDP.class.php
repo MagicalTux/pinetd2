@@ -10,7 +10,7 @@ class UDP extends \pinetd\UDP\Base {
 	public function mainLoop() {
 		// some init...
 		$class = relativeclass($this, 'Engine');
-		$this->engine = new $class($this);
+		$this->engine = new $class($this, $this->IPC);
 
 		// this *never* returns
 		parent::mainLoop();
