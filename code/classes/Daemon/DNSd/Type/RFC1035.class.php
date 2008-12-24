@@ -52,7 +52,7 @@ class RFC1035 extends Base {
 		return true;
 	}
 
-	public function encode($val = NULL) {
+	public function encode($val = NULL, $offset = NULL) {
 		if (is_null($val)) $val = $this->value;
 		switch($this->type) {
 			case self::TYPE_A:
@@ -60,11 +60,11 @@ class RFC1035 extends Base {
 				if (strlen($enc) != 4) $enc = "\0\0\0\0";
 				return $enc;
 			case self::TYPE_NS:
-				return $this->pkt->encodeLabel($val);
+				return $this->pkt->encodeLabel($val, $offset);
 			case self::TYPE_CNAME:
-				return $this->pkt->encodeLabel($val);
+				return $this->pkt->encodeLabel($val, $offset);
 			case self::TYPE_MX:
-				return pack('n', $val['priority']).$this->pkt->encodeLabel($val['host']);
+				return pack('n', $val['priority']).$this->pkt->encodeLabel($val['host'], $offset);
 			case self::TYPE_TXT:
 				return chr(strlen($val)) . $val;
 			case self::TYPE_AXFR:

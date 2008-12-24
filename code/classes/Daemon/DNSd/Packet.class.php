@@ -11,6 +11,8 @@ class Packet {
 	protected $authority = array();
 	protected $additional = array();
 
+	protected $_label_cache = array();
+
 	public function decode($pkt) {
 		// unpack packet's header
 		$data = unpack('npacket_id/nflags/nqdcount/nancount/nnscount/narcount', $pkt);
@@ -43,12 +45,15 @@ class Packet {
 
 		$pkt = pack('nnnnnn', $this->packet_id, $this->encodeFlags($this->flags), $qdcount, $ancount, $nscount, $arcount);
 
+		// Reset label compression cache
+		$this->_label_cache = array();
+
 		// encode question
-		$pkt .= $this->encodeQuestionRR($this->question);
+		$pkt .= $this->encodeQuestionRR($this->question, strlen($pkt));
 		// encode other fields
-		$pkt .= $this->encodeRR($this->answer);
-		$pkt .= $this->encodeRR($this->authority);
-		$pkt .= $this->encodeRR($this->additional);
+		$pkt .= $this->encodeRR($this->answer, strlen($pkt));
+		$pkt .= $this->encodeRR($this->authority, strlen($pkt));
+		$pkt .= $this->encodeRR($this->additional, strlen($pkt));
 
 		return $pkt;
 	}
@@ -94,10 +99,11 @@ class Packet {
 		$qname = '';
 		while(1) {
 			$len = ord($pkt[$offset]);
-			if (($len >> 14 & 0x2) == 0x2) { // "DNS PACKET COMPRESSION"
+			if (($len >> 6 & 0x2) == 0x2) { // "DNS PACKET COMPRESSION"
 				// switch to a different offset, but keep this one as "end of packet"
+				$new_offset = unpack('noffset', substr($pkt, $offset, 2));
 				$end_offset = $offset+1;
-				$offset = $len & 0x3f;
+				$offset = $new_offset['offset'] & 0x3fff;
 				continue;
 			}
 			if ($len > (strlen($pkt) - $offset)) return NULL; // ouch! parse error!!
@@ -116,29 +122,47 @@ class Packet {
 		return $qname;
 	}
 
-	public function encodeLabel($str) {
+	public function encodeLabel($str, $offset = NULL) {
 		// encode a label :)
 		$res = '';
-		$str = explode('.', $str);
-		foreach($str as $bit) {
-			$res .= chr(strlen($bit));
-			if (strlen($bit) == 0) break;
-			$res .= $bit;
-		}
+		$in_offset = 0;
 
-		return $res;
+		while(1) {
+			$pos = strpos($str, '.', $in_offset);
+			if ($pos === false) { // end of string ?!
+				return $res . "\0";
+			}
+			// did we cache?
+			if (!is_null($offset)) {
+				if (isset($this->_label_cache[strtolower(substr($str, $in_offset))])) {
+					$code = (0x3 << 14) | $this->_label_cache[strtolower(substr($str, $in_offset))];
+					return $res . pack('n', $code);
+				}
+				if ($offset < 0x3fff) $this->_label_cache[strtolower(substr($str, $in_offset))] = $offset;
+			}
+			$res .= chr($pos - $in_offset) . substr($str, $in_offset, $pos - $in_offset);
+			$offset += ($pos - $in_offset) + 1;
+			$in_offset = $pos + 1;
+		}
 	}
 
-	protected function encodeRR($list) {
+	protected function encodeRR($list, $offset) {
 		$res = '';
 
 		foreach($list as $rr) {
-			$res .= $this->encodeLabel($rr['name']);
+			$lbl = $this->encodeLabel($rr['name'], $offset);
+			$res .= $lbl;
+			$offset += strlen($lbl);
+
 			if (is_object($rr['data'])) {
-				$data = $rr['data']->encode();
+				$offset += 10;
+				$data = $rr['data']->encode(NULL, $offset);
+				$offset += strlen($data);
 				$res .= pack('nnNn', $rr['data']->getType(), $rr['class'], $rr['ttl'], strlen($data)) . $data;
 			} else {
+				$offset += 10;
 				$data = Type::encode($this, $rr['type'], $rr['data']);
+				$offset += strlen($data);
 				$res .= pack('nnNn', $rr['type'], $rr['class'], $rr['ttl'], strlen($data)) . $data;
 			}
 		}
@@ -146,12 +170,14 @@ class Packet {
 		return $res;
 	}
 
-	protected function encodeQuestionRR($list) {
+	protected function encodeQuestionRR($list, $offset) {
 		$res = '';
 
 		foreach($list as $rr) {
 			// qname, qtype & qclass
-			$res .= $this->encodeLabel($rr['qname']);
+			$lbl = $this->encodeLabel($rr['qname'], $offset);
+			$offset += strlen($lbl) + 4;
+			$res .= $lbl;
 			$res .= pack('nn', $rr['qtype'], $rr['qclass']);
 		}
 
@@ -186,32 +212,10 @@ class Packet {
 
 	protected function decodeRR($pkt, &$offset, $count) {
 		$res = array();
-		$end_offset = NULL;
 
 		for($i = 0; $i < $count; ++$i) {
 			// read qname
-			$qname = '';
-			while(1) {
-				$len = ord($pkt[$offset]);
-				if (($len >> 14 & 0x2) == 0x2) { // "DNS PACKET COMPRESSION"
-					// switch to a different offset, but keep this one as "end of packet"
-					$end_offset = $offset+1;
-					$offset = $len & 0x3f;
-					continue;
-				}
-				if ($len > (strlen($pkt) - $offset)) return NULL; // ouch! parse error!!
-				if ($len == 0) {
-					if ($qname == '') $qname = '.';
-					++$offset;
-					break;
-				}
-				$qname .= substr($pkt, $offset+1, $len).'.';
-				$offset += $len + 1;
-			}
-			if (!is_null($end_offset)) {
-				$offset = $end_offset;
-				$end_offset = NULL;
-			}
+			$qname = $this->decodeLabel($pkt, $offset);
 			// read qtype & qclass
 			$tmp = unpack('ntype/nclass/Nttl/ndlength', substr($pkt, $offset, 10));
 			$offset += 10;
@@ -226,31 +230,10 @@ class Packet {
 
 	protected function decodeQuestionRR($pkt, &$offset, $count) {
 		$res = array();
-		$end_offset = NULL;
 
 		for($i = 0; $i < $count; ++$i) {
 			// read qname
-			$qname = '';
-			while(1) {
-				$len = ord($pkt[$offset]);
-				if (($len >> 14 & 0x2) == 0x2) { // "DNS PACKET COMPRESSION"
-					// switch to a different offset, but keep this one as "end of packet"
-					$end_offset = $offset+1;
-					$offset = $len & 0x3f;
-					continue;
-				}
-				if ($len > (strlen($pkt) - $offset)) return NULL; // ouch! parse error!!
-				if ($len == 0) {
-					++$offset;
-					break;
-				}
-				$qname .= substr($pkt, $offset+1, $len).'.';
-				$offset += $len + 1;
-			}
-			if (!is_null($end_offset)) {
-				$offset = $end_offset;
-				$end_offset = NULL;
-			}
+			$qname = $this->decodeLabel($pkt, $offset);
 			// read qtype & qclass
 			$tmp = unpack('nqtype/nqclass', substr($pkt, $offset, 4));
 			$offset += 4;

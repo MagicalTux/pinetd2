@@ -44,16 +44,18 @@ class Engine {
 			$addr->setValue('127.0.0.1');
 			$pkt->addAnswer($question['qname'], $addr);
 
-			$cname = Type::factory($pkt, RFC1035::TYPE_TXT);
-			$cname->setValue('some.other.test.');
-			$pkt->addAdditional('some.test.tld.', $cname, 120);
-
+			$cname = Type::factory($pkt, RFC1035::TYPE_CNAME);
+			$cname->setValue('some.other.test.hoho.tld.');
+			$pkt->addAdditional('some.TEST.hoho.tld.', $cname, 120);
 		}
 
 		$pkt->setFlag('qr', 1);
 		$pkt->setFlag('aa', 1);
 
 		$pkt = $pkt->encode();
+//		$test = new $this->packet_class();
+//		$test->decode($pkt);
+//		var_dump($test);
 
 		if (!is_null($pkt)) $this->parent->sendReply($pkt, $peer_info);
 	}

@@ -8,7 +8,7 @@ abstract class Base {
 	protected $pkt;
 
 	abstract public function decode($val);
-	abstract public function encode($val = NULL);
+	abstract public function encode($val = NULL, $offset = NULL);
 
 	public function __construct($pkt, $type) {
 		$this->pkt = $pkt;
