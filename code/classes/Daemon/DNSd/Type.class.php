@@ -63,7 +63,7 @@ class Type {
 		35    => 3403, // RFC 3403: Naming Authority Pointer
 		37    => 4398, // RFC 4398
 		39    => 2672, // RFC 2672
-		41    => 2671, // RFC 2671
+		41    => 2671, // RFC 2671: OPT (EDNS0) extended bits, used for DNSSEC
 		43    => 3658, // RFC 3658: Delegation Signer
 		44    => 4255, // RFC 4255: SSH Public Key Fingerprint
 		45    => 4025, // RFC 4025

@@ -17,6 +17,7 @@ class RFC2671 extends Base {
 			return false;
 		}
 		$ext_rcode = $context['ttl'] >> 24 & 0x8;
+		// TODO: handle bad version and send error reply if not 0
 	var_dump($this->type, $val, $context);
 	// TODO: continue here
 		return true;
