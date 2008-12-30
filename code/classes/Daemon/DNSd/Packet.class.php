@@ -99,11 +99,18 @@ class Packet {
 		$qname = '';
 		while(1) {
 			$len = ord($pkt[$offset]);
-			if (($len >> 6 & 0x2) == 0x2) { // "DNS PACKET COMPRESSION"
-				// switch to a different offset, but keep this one as "end of packet"
-				$new_offset = unpack('noffset', substr($pkt, $offset, 2));
-				$end_offset = $offset+1;
-				$offset = $new_offset['offset'] & 0x3fff;
+			$type = $len >> 6 & 0x2;
+			if ($type) {
+				switch($type) {
+					case 0x2: // "DNS PACKET COMPRESSION", RFC 1035
+						// switch to a different offset, but keep this one as "end of packet"
+						$new_offset = unpack('noffset', substr($pkt, $offset, 2));
+						$end_offset = $offset+1;
+						$offset = $new_offset['offset'] & 0x3fff;
+						break;
+					case 0x1: // Extended label, RFC 2671
+						break;
+				}
 				continue;
 			}
 			if ($len > (strlen($pkt) - $offset)) return NULL; // ouch! parse error!!
@@ -218,10 +225,10 @@ class Packet {
 			$qname = $this->decodeLabel($pkt, $offset);
 			// read qtype & qclass
 			$tmp = unpack('ntype/nclass/Nttl/ndlength', substr($pkt, $offset, 10));
-			$offset += 10;
-			$tmp['data'] = Type::decode($this, $tmp['type'], substr($pkt, $offset, $tmp['dlength']));
-			$offset += $tmp['dlength'];
 			$tmp['name'] = $qname;
+			$offset += 10;
+			$tmp['data'] = Type::decode($this, $tmp, $tmp['type'], substr($pkt, $offset, $tmp['dlength']));
+			$offset += $tmp['dlength'];
 			$res[] = $tmp;
 		}
 

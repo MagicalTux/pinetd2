@@ -99,12 +99,12 @@ class Type {
 		return $obj;
 	}
 
-	public static function decode($pkt, $type, $data) {
+	public static function decode($pkt, $context, $type, $data) {
 		if (is_object($data)) return $data;
 		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
 		$class = 'Daemon\\DNSd\\Type\\RFC'.self::$dns_type_rfc[$type];
 		$obj = new $class($pkt, $type);
-		$obj->decode($data);
+		if (is_null($obj->decode($data, $context))) return NULL;
 		return $obj;
 	}
 
