@@ -111,6 +111,12 @@ class Core {
 		$daemon['IPC']->sendcmd(IPC::RES_CALLPORT, $reply);
 	}
 
+	public function openPort($port) {
+		if (!isset($this->ports[$port])) return NULL;
+
+		return $this->ports[$port]['class'];
+	}
+
 	public function callPort($call) {
 		// ok, determine where we should put this call
 		if (!isset($this->ports[$call[0]])) {
