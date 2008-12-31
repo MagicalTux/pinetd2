@@ -34,7 +34,6 @@ class Packet {
 	public function resetAnswer() {
 		$this->answer = array();
 		$this->authority = array();
-		$this->additional = array();
 	}
 
 	public function encode() {
@@ -105,7 +104,7 @@ class Packet {
 					case 0x2: // "DNS PACKET COMPRESSION", RFC 1035
 						// switch to a different offset, but keep this one as "end of packet"
 						$new_offset = unpack('noffset', substr($pkt, $offset, 2));
-						$end_offset = $offset+1;
+						$end_offset = $offset+2;
 						$offset = $new_offset['offset'] & 0x3fff;
 						break;
 					case 0x1: // Extended label, RFC 2671
@@ -134,6 +133,11 @@ class Packet {
 		$res = '';
 		$in_offset = 0;
 
+		if ($str == '.') {
+			// special case: root label. Avoid looking up compression cache and stuff...
+			return "\0";
+		}
+
 		while(1) {
 			$pos = strpos($str, '.', $in_offset);
 			if ($pos === false) { // end of string ?!
@@ -161,16 +165,22 @@ class Packet {
 			$res .= $lbl;
 			$offset += strlen($lbl);
 
-			if (is_object($rr['data'])) {
-				$offset += 10;
-				$data = $rr['data']->encode(NULL, $offset);
+			if (!is_object($rr['data'])) {
+				return false;
+			}
+			$offset += 10;
+			$data = $rr['data']->encode(NULL, $offset);
+			if (is_array($data)) {
+				// overloading written data
+				if (!isset($data['type'])) $data['type'] = $rr['data']->getType();
+				if (!isset($data['data'])) $data['data'] = '';
+				if (!isset($data['class'])) $data['class'] = $rr['class'];
+				if (!isset($data['ttl'])) $data['ttl'] = $rr['ttl'];
+				$offset += strlen($data['data']);
+				$res .= pack('nnNn', $data['type'], $data['class'], $data['ttl'], strlen($data['data'])) . $data['data'];
+			} else {
 				$offset += strlen($data);
 				$res .= pack('nnNn', $rr['data']->getType(), $rr['class'], $rr['ttl'], strlen($data)) . $data;
-			} else {
-				$offset += 10;
-				$data = Type::encode($this, $rr['type'], $rr['data']);
-				$offset += strlen($data);
-				$res .= pack('nnNn', $rr['type'], $rr['class'], $rr['ttl'], strlen($data)) . $data;
 			}
 		}
 

@@ -71,9 +71,9 @@ class Engine {
 		$pkt->setFlag('aa', 1);
 
 		$pkt = $pkt->encode();
-//		$test = new $this->packet_class();
-//		$test->decode($pkt);
-//		var_dump($test);
+		//$test = new $this->packet_class();
+		//$test->decode($pkt);
+		//var_dump($test);
 
 		if (!is_null($pkt)) $this->parent->sendReply($pkt, $peer_info);
 	}
