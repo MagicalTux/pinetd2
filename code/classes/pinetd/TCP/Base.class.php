@@ -22,6 +22,7 @@ namespace pinetd\TCP;
 use pinetd\Logger;
 use pinetd\SQL;
 use pinetd\IPC;
+use pinetd\Timer;
 use \Exception;
 
 abstract class Base extends \pinetd\DaemonBase {

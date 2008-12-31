@@ -2,6 +2,7 @@
 namespace pinetd;
 
 use pinetd\Logger;
+use pinetd\Timer;
 
 abstract class ProcessChild {
 	protected $IPC = null;
@@ -18,6 +19,10 @@ abstract class ProcessChild {
 		$class = explode('\\', $class);
 		$daemon = $class[1];
 		return Logger::log($level, '['.$daemon.'/'.$this->peer[0].':'.$this->peer[1].'] '.$msg);
+	}
+
+	protected function processTimers() {
+		Timer::processTimers();
 	}
 }
 
