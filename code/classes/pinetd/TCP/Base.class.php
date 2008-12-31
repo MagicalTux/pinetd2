@@ -148,7 +148,7 @@ abstract class Base extends \pinetd\DaemonBase {
 					'pid' => $pid,
 					'peer' => $peer,
 					'socket' => $pair[0],
-					'IPC' => new \pinetd\IPC($pair[0], false, $this),
+					'IPC' => new \pinetd\IPC($pair[0], false, $this, $this->IPC),
 					'connect' => time(),
 				);
 				$this->IPC->registerSocketWait($pair[0], array($this->fclients[$pid]['IPC'], 'run'), $foobar = array(&$this->fclients[$pid]));
@@ -160,7 +160,7 @@ abstract class Base extends \pinetd\DaemonBase {
 				Timer::reset();
 				foreach($this->clients as $c) fclose($c['fd']);
 				fclose($pair[0]);
-				$IPC = new IPC($pair[1], true, $foo = null);
+				$IPC = new IPC($pair[1], true, $foo = null, $bar = null);
 				$IPC->ping(); // wait for parent to be ready
 				Logger::setIPC($IPC);
 				Logger::log(Logger::LOG_DEBUG, 'Daemon started for client, pid '.getmypid());

@@ -51,6 +51,11 @@ class Core {
 	 */
 	private $fdlist = array();
 
+	/**
+	 * \brief List of currently enabled ports
+	 */
+	private $ports = array();
+
 	public function __construct() {
 		$this->config = ConfigManager::invoke();
 		$this->daemons = array();
@@ -89,6 +94,60 @@ class Core {
 
 	public function _ChildIPC_loadCertificate(&$daemon, $SSL) {
 		return $this->loadCertificate($SSL);
+	}
+
+	public function createPort($port, &$class) {
+		if (isset($this->ports[$port])) return false;
+		$this->ports[$port] = array('type' => 'class', 'class' => &$class);
+		return true;
+	}
+
+	public function routePortReply($reply, $is_exception = false) {
+		$next = array_pop($reply[1]);
+		if (!isset($this->fdlist[$next])) return; // ?!
+
+		$key = $this->fdlist[$next]['key'];
+		$daemon = &$this->daemons[$key];
+		$daemon['IPC']->sendcmd(IPC::RES_CALLPORT, $reply);
+	}
+
+	public function callPort($call) {
+		// ok, determine where we should put this call
+		if (!isset($this->ports[$call[0]])) {
+			// port does not exists => die!
+			$exception = array(
+				$call[0],
+				$call[1],
+				new Exception('Requested port '.$call[0].' does not exists!'),
+			);
+			$this->routePortReply($exception, true);
+			return;
+		}
+		$call[1][] = '@parent';
+		$class = &$this->ports[$call[0]]['class']; // at this point, ports are only class type
+		if ($class instanceof IPC) {
+			$class->sendcmd(IPC::CMD_CALLPORT, $call);
+		} else {
+			$method = $call[2];
+			try {
+				$res = call_user_func_array(array($class, $method), $call[3]);
+			} catch(Exception $e) {
+				$exception = array(
+					$call[0],
+					$call[1],
+					$e,
+				);
+				$this->routePortReply($exception, true);
+				return;
+			}
+
+			$result = array(
+				$call[0],
+				$call[1],
+				$res,
+			);
+			$this->routePortReply($result);
+		}
 	}
 
 	public function registerSocketWait($socket, $callback, &$data) {
@@ -158,7 +217,7 @@ class Core {
 					// parent, record infos about this child
 					$this->daemons[$key]['pid'] = $pid;
 					$this->daemons[$key]['socket'] = $pair[0];
-					$this->daemons[$key]['IPC'] = new IPC($pair[0], false, $this);
+					$this->daemons[$key]['IPC'] = new IPC($pair[0], false, $this, $this);
 					$this->daemons[$key]['status'] = 'R'; // running
 					$this->fdlist[$pair[0]] = array('type'=>'daemon', 'port'=>$port, 'key' => $key,'fd'=>$pair[0]);
 					fclose($pair[1]);
@@ -173,7 +232,7 @@ class Core {
 					// cleanup
 					foreach($this->fdlist as $dat) fclose($dat['fd']);
 					$this->fdlist = array();
-					$IPC = new IPC($pair[1], true, $this);
+					$IPC = new IPC($pair[1], true, $this, $this);
 					$IPC->ping();
 					Logger::setIPC($IPC);
 					try {
@@ -345,7 +404,7 @@ class Core {
 			foreach($r as $fd) {
 				switch($this->fdlist[$fd]['type']) {
 					case 'daemon':
-						$this->daemons[$this->fdlist[(int)$fd]['key']]['IPC']->run($this->daemons[$this->fdlist[(int)$fd]['key']]);
+						$this->daemons[$this->fdlist[(int)$fd]['key']]['IPC']->run($this->daemons[$this->fdlist[(int)$fd]['key']], $fd);
 						break;
 					case 'callback':
 						$info = &$this->fdlist[$fd];
