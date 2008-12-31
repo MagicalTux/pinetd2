@@ -7,13 +7,11 @@ use pinetd\Timer;
 class UDP extends \pinetd\UDP\Base {
 	private $engine;
 
-	public function mainLoop() {
-		// some init...
+	public function __construct($port, $daemon, &$IPC, $node) {
+		parent::__construct($port, $daemon, $IPC, $node);
+
 		$class = relativeclass($this, 'Engine');
 		$this->engine = new $class($this, $this->IPC);
-
-		// this *never* returns
-		parent::mainLoop();
 	}
 
 	protected function handlePacket($pkt, $peer) {
