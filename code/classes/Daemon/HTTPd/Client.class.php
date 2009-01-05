@@ -57,7 +57,7 @@ class Client extends \pinetd\TCP\Client {
 				$cookies[$var] = $val;
 				continue;
 			}
-			$headers[$key] = array($var, $val);
+			$headers[$key][] = array($var, $val);
 		}
 		if (preg_match('#^([A-Z]+) ([^ ]+) HTTP/(1\.[01])$#', $request, $match) == 0) {
 			$answer = new HTTPAnswerError($this);
