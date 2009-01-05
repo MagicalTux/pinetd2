@@ -10,7 +10,7 @@ class Client extends \pinetd\TCP\Client {
 		return true;
 	}
 
-	protected function sendBanner() {
+	public function sendBanner() {
 	}
 
 	public function getVersionString() {
