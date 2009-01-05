@@ -366,6 +366,7 @@ class IPC {
 				} else {
 					var_dump('huh?');
 				}
+				break;
 			default:
 				throw new Exception('Unknown command '.$cmd[0]);
 		}
