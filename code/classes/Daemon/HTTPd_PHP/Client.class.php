@@ -44,7 +44,9 @@ class Client extends \Daemon\HTTPd\Client {
 		$sandbox->eval('$_GET = '.var_export($g_vars, true).';');
 		$sandbox->eval('$_ENV = array();'); // avoid providing data from $_ENV
 
-		$sandbox->eval('phpinfo();');
+		$sandbox->require($base.'/index.php');
+
+		//$sandbox->eval('phpinfo();');
 		//$sandbox->eval('echo \'Hello \'.$_SERVER[\'REMOTE_ADDR\'].\'!<br /><pre>\'; var_dump($_SERVER);');
 
 		$this->close();
