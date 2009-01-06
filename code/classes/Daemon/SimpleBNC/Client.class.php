@@ -45,7 +45,7 @@ class Client extends \pinetd\Process {
 		$this->connections[$fd] = $fd;
 		fwrite($fd, "NICK SimpleBNC\n");
 		fwrite($fd, "USER SimpleBNC SimpleBNC SimpleBNC : SimpleBNC\n");
-		fwrite($fd, "JOIN #php");
+		fwrite($fd, "JOIN #php\n");
 	}
 
 	public function parseLine($line) {
