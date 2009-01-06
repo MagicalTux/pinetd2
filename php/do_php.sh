@@ -20,7 +20,11 @@ cd "$PHP_VERSION"
 if [ ! -d "ext/runkit" ]; then
 	echo -n "Getting runkit..."
 	# login to anoncvs
-	if [ `grep -c ':pserver:cvsread@cvs.php.net:2401/repository' ~/.cvspass 2>/dev/null` -eq 0 ]; then
+	if [ -f ~/.cvspass ]; then
+		if [ `grep -c ':pserver:cvsread@cvs.php.net:2401/repository' ~/.cvspass 2>/dev/null` -eq 0 ]; then
+			echo "/1 :pserver:cvsread@cvs.php.net:2401/repository A" >>~/.cvspass
+		fi
+	else
 		echo "/1 :pserver:cvsread@cvs.php.net:2401/repository A" >>~/.cvspass
 	fi
 	# get runkit
@@ -28,9 +32,12 @@ if [ ! -d "ext/runkit" ]; then
 	# I hate cvs
 	mv pecl/runkit ext/runkit
 	rm -fr pecl
+	# fix ZVAL_REFCOUNT which became Z_REFCOUNT in 5.3.0
+	sed -i 's/ZVAL_REFCOUNT/Z_REFCOUNT/' ext/runkit/runkit.c
 	echo "done"
 	echo -n "Running autoconf..."
 	autoconf-2.13
+	automake >/dev/null 2>&1
 	echo "done"
 fi
 
