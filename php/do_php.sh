@@ -17,6 +17,23 @@ fi
 
 cd "$PHP_VERSION"
 
+if [ ! -d "ext/runkit" ]; then
+	echo -n "Getting runkit..."
+	# login to anoncvs
+	if [ `grep -c ':pserver:cvsread@cvs.php.net:2401/repository' ~/.cvspass 2>/dev/null` -eq 0 ]; then
+		echo "/1 :pserver:cvsread@cvs.php.net:2401/repository A" >>~/.cvspass
+	fi
+	# get runkit
+	cvs -Q -d :pserver:cvsread@cvs.php.net:2401/repository checkout pecl/runkit
+	# I hate cvs
+	mv pecl/runkit ext/runkit
+	rm -fr pecl
+	echo "done"
+	echo -n "Running autoconf..."
+	autoconf-2.13
+	echo "done"
+fi
+
 echo -n "Cleaning..."
 make distclean >/dev/null 2>&1
 echo "done"
@@ -44,7 +61,7 @@ echo -n "Configuring..."
  --with-gd --with-jpeg-dir=/usr/lib --with-png-dir --with-zlib --enable-gd-native-ttf \
  --with-mysql="$MYSQLI_DIR" --with-mysqli="$MYSQLI_PATH" --with-mhash --with-config-file-path="$BUILD_ROOT" \
  --enable-libxml --enable-dom --enable-xml --enable-xmlreader --enable-xmlwriter --with-openssl=/usr \
- --with-imap=/usr --with-imap-ssl
+ --with-imap=/usr --with-imap-ssl --enable-maintainer-zts --enable-runkit --enable-runkit-sandbox
 
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
