@@ -34,6 +34,29 @@ if [ ! -d "ext/runkit" ]; then
 	rm -fr pecl
 	# fix ZVAL_REFCOUNT which became Z_REFCOUNT in 5.3.0
 	sed -i 's/ZVAL_REFCOUNT/Z_REFCOUNT/' ext/runkit/runkit.c
+	sed -i 's/member->refcount = 1/Z_SET_REFCOUNT_P(member, 1)/' ext/runkit/runkit_sandbox_parent.c
+	sed -i 's/(pzv)->refcount = 1/Z_SET_REFCOUNT_P(pzv, 1)/' ext/runkit/php_runkit.h
+	sed -i 's/(pzv)->is_ref = 0/Z_UNSET_ISREF_P(pzv)/' ext/runkit/php_runkit.h
+	# fix for change in sapi header_handler
+	sed -i 's/php_runkit_sandbox_sapi_header_handler(sapi_header_struct \*sapi_header,sapi_headers_struct/php_runkit_sandbox_sapi_header_handler(sapi_header_struct *sapi_header,sapi_header_op_enum op,sapi_headers_struct/' ext/runkit/runkit_sandbox.c
+	sed -i 's/php_runkit_sandbox_original_sapi.header_handler(sapi_header, sapi_headers/php_runkit_sandbox_original_sapi.header_handler(sapi_header, op, sapi_headers/' ext/runkit/runkit_sandbox.c
+	for foo in ext/runkit/runkit_sandbox.c ext/runkit/runkit.c ext/runkit/runkit_sandbox_parent.c ext/runkit/runkit_constants.c ext/runkit/runkit_import.c ext/runkit/runkit_props.c; do
+		sed -i -r -e 's/([a-z_]+)->refcount = ([^;]+)/Z_SET_REFCOUNT_P(\1, \2)/' "$foo"
+		sed -i -r -e 's/([a-z_]+)\.refcount = ([^;]+)/Z_SET_REFCOUNT(\1, \2)/' "$foo"
+		sed -i -r -e 's/([a-z_]+)->refcount--/Z_SET_REFCOUNT_P(\1, Z_REFCOUNT_P(\1) - 1)/' "$foo"
+		sed -i -r -e 's/([a-z_]+)->refcount\+\+/Z_SET_REFCOUNT_P(\1, Z_REFCOUNT_P(\1) - 1)/' "$foo"
+		sed -i -r -e 's/([a-z_]+)->is_ref = 0/Z_UNSET_ISREF_P(\1)/' "$foo"
+		sed -i -r -e 's/([a-z_]+)\.is_ref = 0/Z_UNSET_ISREF(\1)/' "$foo"
+		sed -i -r -e 's/([a-z_]+)->is_ref/Z_ISREF_P(\1)/' "$foo"
+		sed -i -r -e 's/zend_is_callable\(([^)]*)\)/zend_is_callable(\1 TSRMLS_CC)/' "$foo"
+		sed -i -r -e 's/zend_file_handle_dtor\(([^)]*)\)/zend_file_handle_dtor(\1 TSRMLS_CC)/' "$foo"
+		# for stuff like if ((*symtable)->refcount > 1 && ...
+		sed -i -r -e 's/\(\*([a-z_]+)\)->refcount\+\+/Z_SET_REFCOUNT_PP(\1, Z_REFCOUNT_PP(\1) + 1)/' "$foo"
+		sed -i -r -e 's/\(\*([a-z_]+)\)->is_ref = 1/Z_SET_ISREF_PP(\1)/' "$foo"
+		sed -i -r -e 's/\(\*([a-z_]+)\)->refcount/Z_REFCOUNT_PP(\1)/' "$foo"
+		sed -i -r -e 's/\(\*([a-z_]+)\)->is_ref/Z_ISREF_PP(\1)/' "$foo"
+		sed -i 's/ZVAL_ADDREF/Z_ADDREF/' "$foo"
+	done
 	echo "done"
 	echo -n "Running autoconf..."
 	autoconf-2.13
@@ -97,7 +120,7 @@ fi
 make $MAKEOPTS >make.log 2>&1
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
-	tail make.log
+	cat make.log | grep error | tail
 	exit 1
 fi
 
