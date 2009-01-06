@@ -38,10 +38,18 @@ class Client extends \pinetd\Process {
 		$fd	=	stream_socket_client($socket, $errCode, $errStr);
 		if (!$fd) {
 			$this->notifyClients($user, "Unable to connect to $tcp");
-		 } else {
+		} else {
 			$this->notifyClients($user, "Connecting to $socket....");
-		 }
+		}
+		$this->IPC->registerSocketWait($fd, array($this, 'parseLine'), $fd);
 		$this->connections[$fd] = $fd;
+		fwrite($fd, "NICK SimpleBNC\n");
+		fwrite($fd, "USER SimpleBNC SimpleBNC SimpleBNC : SimpleBNC\n");
+		fwrite($fd, "JOIN #php");
+	}
+
+	public function parseLine($line) {
+		$this->notifyClients('grepsd', $line);
 	}
 
 	public function notifyClients($user, $string) {
@@ -49,7 +57,7 @@ class Client extends \pinetd\Process {
 			return false;
 		}
 		foreach($this->clients[$user] as &$client) {
-			$client[3]->sendMsg($string);
+			$client[3]->bidon($string);
 		}
 	}
 
