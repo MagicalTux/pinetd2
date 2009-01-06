@@ -14,6 +14,7 @@ class Client extends \Daemon\HTTPd\Client {
 			'allow_url_fopen' => false,
 			'runkit.internal_override' => false,
 		);
+
 		$sandbox = new Runkit_Sandbox($options);
 		$sandbox['output_handler'] = array($this, '_outputHandler');
 
@@ -43,6 +44,7 @@ class Client extends \Daemon\HTTPd\Client {
 		$sandbox->eval('foreach('.var_export($s_vars, true).' as $var => $val) $_SERVER[$var] = $val; unset($var, $val);');
 		$sandbox->eval('$_GET = '.var_export($g_vars, true).';');
 		$sandbox->eval('$_ENV = array();'); // avoid providing data from $_ENV
+		$sandbox->eval('chdir('.var_export($base, true).');');
 
 		$sandbox->require($base.'/index.php');
 
