@@ -33,4 +33,27 @@ class Client extends \pinetd\Process {
 		}
 		fwrite($this->connection, $raw);
 	}
+
+	public function connect($socket, $user) {
+		$fd	=	stream_socket_client($socket, $errCode, $errStr);
+		if (!$fd) {
+			$this->notifyClients($user, "Unable to connect to $tcp");
+		 } else {
+			$this->notifyClients($user, "Connecting to $socket....");
+		 }
+		$this->connections[$fd] = $fd;
+	}
+
+	public function notifyClients($user, $string) {
+		if (!count($this->clients[$user])) {
+			return false;
+		}
+		foreach($this->clients[$user] as &$client) {
+			$client[3]->sendMsg($string);
+		}
+	}
+
+	public function registerClient($login, $portName, $peer) {
+		$this->clients[$login][]	=	array($peer[0], $peer[1], $portName, $this->IPC->openPort($portName));
+	}
 }
