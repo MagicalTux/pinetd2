@@ -4,16 +4,8 @@ namespace Daemon\SimpleBNC;
 use pinetd\Logger;
 
 class Server extends \pinetd\TCP\Base {
-	
-	public function __construct() {
-		var_dump($this->localConfig);	
-	}
-
-	public function mainLoop() {
-		
-	}
-
-	public function shutdown() {
-
+	function spawnClient($socket, $peer, $parent, $protocol) {
+		$class = relativeclass($this, 'Server_Thread');
+		return new $class($socket, $peer, $parent, $protocol);
 	}
 }
