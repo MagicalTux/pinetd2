@@ -37,7 +37,7 @@ if [ ! -d "ext/runkit" ]; then
 	echo "done"
 	echo -n "Running autoconf..."
 	autoconf-2.13
-	automake >/dev/null 2>&1
+	./buildconf --force >/dev/null 2>&1
 	echo "done"
 fi
 
