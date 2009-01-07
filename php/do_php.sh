@@ -17,6 +17,8 @@ fi
 
 cd "$PHP_VERSION"
 
+NEED_AUTOCONF=no
+
 if [ ! -d "ext/runkit" ]; then
 	echo -n "Getting runkit..."
 	# login to anoncvs
@@ -32,8 +34,8 @@ if [ ! -d "ext/runkit" ]; then
 	# I hate cvs
 	mv pecl/runkit ext/runkit
 	rm -fr pecl
-	# fix ZVAL_REFCOUNT which became Z_REFCOUNT in 5.3.0
-	sed -i 's/ZVAL_REFCOUNT/Z_REFCOUNT/' ext/runkit/runkit.c
+	# fix ZVAL_REFCOUNT which became Z_REFCOUNT_P in 5.3.0 (maybe?)
+	sed -i 's/ZVAL_REFCOUNT/Z_REFCOUNT_P/' ext/runkit/runkit.c
 	sed -i 's/member->refcount = 1/Z_SET_REFCOUNT_P(member, 1)/' ext/runkit/runkit_sandbox_parent.c
 	sed -i 's/(pzv)->refcount = 1/Z_SET_REFCOUNT_P(pzv, 1)/' ext/runkit/php_runkit.h
 	sed -i 's/(pzv)->is_ref = 0/Z_UNSET_ISREF_P(pzv)/' ext/runkit/php_runkit.h
@@ -58,7 +60,39 @@ if [ ! -d "ext/runkit" ]; then
 		sed -i 's/ZVAL_ADDREF/Z_ADDREF/' "$foo"
 	done
 	echo "done"
-	echo -n "Running autoconf..."
+	NEED_AUTOCONF=yes
+fi
+
+if [ ! -d "ext/ares" ]; then
+	echo -n "Getting ares..."
+	# login to anoncvs
+	if [ -f ~/.cvspass ]; then
+		if [ `grep -c ':pserver:cvsread@cvs.php.net:2401/repository' ~/.cvspass 2>/dev/null` -eq 0 ]; then
+			echo "/1 :pserver:cvsread@cvs.php.net:2401/repository A" >>~/.cvspass
+		fi
+	else
+		echo "/1 :pserver:cvsread@cvs.php.net:2401/repository A" >>~/.cvspass
+	fi
+	# get ares
+	cvs -Q -d :pserver:cvsread@cvs.php.net:2401/repository checkout pecl/ares
+	# I hate cvs
+	mv pecl/ares ext/ares
+	rm -fr pecl
+	# Fix .cvsignore file in ares to *not* include config*
+	cat ext/ares/.cvsignore | grep -v 'config\*' >ext/ares/.cvsignore~
+	mv -f ext/ares/.cvsignore~ ext/ares/.cvsignore
+	# Fix some other things
+	for foo in ext/ares/*.c; do
+		sed -i -r -e 's/zend_is_callable\(([^)]*)\)/zend_is_callable(\1 TSRMLS_CC)/' "$foo"
+	done
+	echo "done"
+	NEED_AUTOCONF=yes
+fi
+
+if [ "$NEED_AUTOCONF" = "yes" ]; then
+	echo -n "Running buildconf..."
+	autoconf-2.13
+	autoheader-2.13
 	autoconf-2.13
 	./buildconf --force >/dev/null 2>&1
 	echo "done"
@@ -91,7 +125,7 @@ echo -n "Configuring..."
  --with-gd --with-jpeg-dir=/usr/lib --with-png-dir --with-zlib --enable-gd-native-ttf \
  --with-mysql="$MYSQLI_DIR" --with-mysqli="$MYSQLI_PATH" --with-mhash --with-config-file-path="$BUILD_ROOT" \
  --enable-libxml --enable-dom --enable-xml --enable-xmlreader --enable-xmlwriter --with-openssl=/usr \
- --with-imap=/usr --with-imap-ssl --enable-maintainer-zts --enable-runkit --enable-runkit-sandbox
+ --with-imap=/usr --with-imap-ssl --enable-maintainer-zts --enable-runkit --enable-runkit-sandbox --with-ares
 
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
