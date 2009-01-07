@@ -57,7 +57,7 @@ if [ ! -d "ext/runkit" ]; then
 		sed -i -r -e 's/\(\*([a-z_]+)\)->is_ref = 1/Z_SET_ISREF_PP(\1)/' "$foo"
 		sed -i -r -e 's/\(\*([a-z_]+)\)->refcount/Z_REFCOUNT_PP(\1)/' "$foo"
 		sed -i -r -e 's/\(\*([a-z_]+)\)->is_ref/Z_ISREF_PP(\1)/' "$foo"
-		sed -i 's/ZVAL_ADDREF/Z_ADDREF/' "$foo"
+		sed -i 's/ZVAL_ADDREF/Z_ADDREF_P/' "$foo"
 	done
 	echo "done"
 	NEED_AUTOCONF=yes
@@ -84,6 +84,7 @@ if [ ! -d "ext/ares" ]; then
 	# Fix some other things
 	for foo in ext/ares/*.c; do
 		sed -i -r -e 's/zend_is_callable\(([^)]*)\)/zend_is_callable(\1 TSRMLS_CC)/' "$foo"
+		sed -i 's/ZVAL_ADDREF/Z_ADDREF_P/' "$foo"
 	done
 	echo "done"
 	NEED_AUTOCONF=yes
