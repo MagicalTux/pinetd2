@@ -10,9 +10,11 @@ class Server_Thread extends \pinetd\TCP\Client {
 	}
 
 	public function sendBanner() {
-		$this->server = $this->IPC->openPort('SimpleBNC::Transport');
-		var_dump($this->localConfig);
-	}
+		$this->server   =   $this->IPC->openPort('SimpleBNC::Transport');
+        $this->parent   =   $this->IPC->openPort('SimpleBNC::Parent');
+        var_dump($this->parent);
+        $this->SQL      =   $this->parent->getSQLInstance();
+    }
 
 	protected function parseLine($lin) {
 		$line   =   rtrim($lin);
