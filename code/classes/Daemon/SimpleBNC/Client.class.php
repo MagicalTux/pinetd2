@@ -27,11 +27,14 @@ class Client extends \pinetd\Process {
 		return true;
 	}
 
-	public function write($login , $raw) {
-		if (!$this->isConnected($login)) {
-			return false;
+	public function write($raw) {
+		if (!count($this->connections)) {
+			return;
 		}
-		fwrite($this->connection, $raw);
+		foreach($this->connections as $key => $fd) {
+			$return = fwrite($fd, $raw);
+			var_dump($return, strlen($raw));
+		}
 	}
 
 	public function connect($socket, $user) {
@@ -41,7 +44,8 @@ class Client extends \pinetd\Process {
 		} else {
 			$this->notifyClients($user, "Connecting to $socket....");
 		}
-		$this->IPC->registerSocketWait($fd, array($this, 'parseLine'), $fd);
+		$arrayFD = array($fd);
+		$this->IPC->registerSocketWait($fd, array($this, 'parseLine'), $arrayFD);
 		$this->connections[$fd] = $fd;
 		fwrite($fd, "NICK SimpleBNC\n");
 		fwrite($fd, "USER SimpleBNC SimpleBNC SimpleBNC : SimpleBNC\n");
@@ -49,7 +53,11 @@ class Client extends \pinetd\Process {
 	}
 
 	public function parseLine($line) {
+		$line = rtrim(fgets($line, 4096));
 		$this->notifyClients('grepsd', $line);
+		if ($line != "0\n") {
+			file_put_contents('logSimpleBNC', $line, FILE_APPEND);
+		}
 	}
 
 	public function notifyClients($user, $string) {
@@ -57,7 +65,7 @@ class Client extends \pinetd\Process {
 			return false;
 		}
 		foreach($this->clients[$user] as &$client) {
-			$client[3]->bidon($string);
+			$client[3]->sendMsg($string);
 		}
 	}
 
