@@ -4,6 +4,9 @@ namespace Daemon\PMaild;
 
 class SMTP_Client extends \pinetd\TCP\Client {
 	protected $helo = null;
+	protected $dataMode = false;
+	protected $txn;
+	protected $dataTxn; // used when sending an email
 
 	function __construct($fd, $peer, $parent, $protocol) {
 		parent::__construct($fd, $peer, $parent, $protocol);
@@ -206,31 +209,34 @@ class SMTP_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('550 Invalid use of pipelining, you can\'t pipeline a mail content');
 			return;
 		}
-		$txn = $this->txn->sendMail();
-		if (!is_array($txn)) {
+		$this->dataTxn = $this->txn->sendMail();
+		if (!is_array($this->dataTxn)) {
 			$this->sendMsg('450 Internal error, please try again later');
 			return;
 		}
 		$this->sendMsg('354 Enter message, ending with "." on a line by itself (CR/LF)');
-		// Ok, we'll just read the mail from $this->fd, and write it to the tmp fd
-		$first = true;
-		while(1) { // TODO: Not non-fork() safe, find a better way to do that
-			$lin = fgets($this->fd); // mails are not always supposed to be binary-safe, but we'll do it anyway
-			if ($first) {
-				$first = false;
-				// check line ending
-				if (substr($lin, -2) != "\r\n") {
-					$this->txn->cancelMail();
-					$this->sendMsg('550 Sorry, you are supposed to end lines with <CR><LF>, which seems to not be the case right now');
-					return;
-				}
-			}
-			if (rtrim($lin) == '.') break;
-			if (($lin[0] == '.') && ($lin[1] == '.')) $lin = substr($lin, 1); // strip trailing dots
-			fputs($txn['fd'], $lin); // still have its linebreak
+		$this->dataMode = true;
+	}
+
+	function parseDataLine($lin) {
+		// we got one line of data
+		// check line ending
+		if (substr($lin, -2) != "\r\n") {
+			$this->txn->cancelMail();
+			$this->sendMsg('550 Sorry, you are supposed to end lines with <CR><LF>, which seems to not be the case right now');
+			$this->dataMode = false;
+			return;
 		}
+		if (rtrim($lin) != '.') { // only one dot in one line ?
+			if (($lin[0] == '.') && ($lin[1] == '.')) $lin = substr($lin, 1); // strip trailing dots
+			fputs($this->dataTxn['fd'], $lin); // still have its linebreak
+			return;
+		}
+
 		// got whole mail, it's time for checks!
-		if (!$this->txn->finishMail()) {
+		$this->dataMode = false;
+
+		if (!$this->txn->finishMail()) { // failed at sending the mail? :(
 			$this->sendMsg($this->txn->errorMsg());
 			$this->txn->reset();
 			return;
@@ -246,6 +252,21 @@ class SMTP_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('250-<'.$mail.'>: '.$err);
 		}
 		$this->sendMsg('250 End of list');
+	}
+
+	protected function parseLine($lin) {
+		if ($this->dataMode)
+			return $this->parseDataLine($lin);
+		return parent::parseLine($lin);
+	}
+
+	public function close() {
+		if ($this->dataMode) {
+			$this->txn->cancelMail();
+			$this->dataMode = false;
+		}
+		return parent::close();
+			
 	}
 }
 
