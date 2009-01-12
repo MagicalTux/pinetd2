@@ -92,10 +92,10 @@ fi
 
 if [ "$NEED_AUTOCONF" = "yes" ]; then
 	echo -n "Running buildconf..."
+	./buildconf --force >/dev/null 2>&1
 	autoconf-2.13
 	autoheader-2.13
 	autoconf-2.13
-	./buildconf --force >/dev/null 2>&1
 	echo "done"
 fi
 
