@@ -474,6 +474,16 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
+		if ($fullarg[0] == '-') {
+			// parameters passed? (-l, -la, -m, etc...)
+			$pos = strpos($fullarg, ' ');
+			if ($pos === false) {
+				$fullarg = '';
+			} else {
+				$fullarg = ltrim(substr($fullarg, $pos+1));
+			}
+		}
+
 		$fil = $this->convertPath($fullarg);
 		if ((is_null($fil)) || ($fil === false)) {
 			$this->sendMsg('500 LIST: Directory not found or too many symlink levels');
