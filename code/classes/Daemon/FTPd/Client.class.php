@@ -462,9 +462,9 @@ class Client extends \pinetd\TCP\Client {
 		);
 	}
 
-	function _cmd_nlst($argv) {
+	function _cmd_nlst($argv, $cmd, $fullarg) {
 		$argv[0] = 'NLST';
-		return $this->_cmd_list($argv);
+		return $this->_cmd_list($argv, $cmd, $fullarg);
 	}
 
 	function _cmd_list($argv, $cmd, $fullarg) {
@@ -721,14 +721,14 @@ class Client extends \pinetd\TCP\Client {
 		}
 	}
 
-	function _cmd_rmd($argv) {
+	function _cmd_rmd($argv, $cmd, $fullarg) {
 		$argv[0] = 'RMD';
-		return $this->_cmd_dele($argv);
+		return $this->_cmd_dele($argv, $cmd, $fullarg);
 	}
 
-	function _cmd_rrmd($argv) {
+	function _cmd_rrmd($argv, $cmd, $fullarg) {
 		$argv[0] = 'RRMD';
-		return $this->_cmd_dele($argv);
+		return $this->_cmd_dele($argv, $cmd, $fullarg);
 	}
 
 	function doRecursiveRMD($dir) {
@@ -747,14 +747,14 @@ class Client extends \pinetd\TCP\Client {
 		$this->updateQuota();
 	}
 
-	function _cmd_dele($argv) {
+	function _cmd_dele($argv, $cmd, $fullarg) {
 		// DELETE A file (unlink)
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
 
-		$fil = $this->convertPath($argv[1]);
+		$fil = $this->convertPath($fullarg);
 		if ((is_null($fil)) || ($fil === false)) {
 			$this->sendMsg('500 Entry not found');
 			return;
@@ -822,12 +822,12 @@ class Client extends \pinetd\TCP\Client {
 		$this->updateQuota();
 	}
 
-	function _cmd_size($argv) {
+	function _cmd_size($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
-		$fil = $this->convertPath($argv[1]);
+		$fil = $this->convertPath($fullarg);
 		if ((is_null($fil)) || ($fil === false)) {
 			$this->sendMsg('500 File not found or too many symlink levels');
 			return;
@@ -843,13 +843,13 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg('213 '.$size);
 	}
 
-	function _cmd_rnfr($argv) {
+	function _cmd_rnfr($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
 
-		$fil = $this->convertPath($argv[1]);
+		$fil = $this->convertPath($fullarg);
 		if ((is_null($fil)) || ($fil === false)) {
 			$this->sendMsg('500 File not found or too many symlink levels');
 			return;
@@ -860,7 +860,7 @@ class Client extends \pinetd\TCP\Client {
 		$this->rnfr = $fil;
 	}
 
-	function _cmd_rnto($argv) {
+	function _cmd_rnto($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
@@ -871,8 +871,8 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$out_file = basename($argv[1]);
-		$out = $this->convertPath(dirname($argv[1]));
+		$out_file = basename($fullarg);
+		$out = $this->convertPath(dirname($fullarg));
 		$out .= '/' . $out_file;
 
 		if (!$this->canWriteFile($out)) {
@@ -920,12 +920,12 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg('200 F OK');
 	}
 
-	function _cmd_mdtm($argv) {
+	function _cmd_mdtm($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
-		$fil = $this->convertPath($argv[1]);
+		$fil = $this->convertPath($fullarg);
 		if ((is_null($fil)) || ($fil === false)) {
 			$this->sendMsg('500 File not found or too many symlink levels');
 			return;
