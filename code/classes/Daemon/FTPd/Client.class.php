@@ -372,16 +372,16 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	function _cmd_cdup($argv) {
-		$this->_cmd_cwd(array('CWD', '..'));
+		$this->_cmd_cwd(array('CWD', '..'), 'CWD', '..');
 	}
 
-	function _cmd_cwd($argv) {
+	function _cmd_cwd($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
-		// new path in $argv[1]
-		if (!$this->doChdir($argv[1])) {
+		// new path in $fullarg
+		if (!$this->doChdir($fullarg)) {
 			$this->sendMsg('500 Couldn\'t change location');
 		} else {
 			$this->sendMsg('250 Directory changed');
