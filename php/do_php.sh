@@ -46,6 +46,15 @@ if [ ! -d "ext/ares" ]; then
 	NEED_AUTOCONF=yes
 fi
 
+if [ ! -d "ext/proctitle" ]; then
+	echo -n "Getting proctitle..."
+	# get
+	svn co -q http://ookoo.org/svn/proctitle/ ext/proctitle
+	echo "done"
+	NEED_AUTOCONF=yes
+fi
+
+
 if [ "$NEED_AUTOCONF" = "yes" ]; then
 	echo -n "Running buildconf..."
 	./buildconf --force >/dev/null 2>&1
@@ -82,7 +91,7 @@ echo -n "Configuring..."
  --with-gd --with-jpeg-dir=/usr/lib --with-png-dir --with-zlib --enable-gd-native-ttf \
  --with-mysql="$MYSQLI_DIR" --with-mysqli="$MYSQLI_PATH" --with-mhash --with-config-file-path="$BUILD_ROOT" \
  --enable-libxml --enable-dom --enable-xml --enable-xmlreader --enable-xmlwriter --with-openssl=/usr \
- --with-imap=/usr --with-imap-ssl --with-ares
+ --with-imap=/usr --with-imap-ssl --with-ares --enable-proctitle
 
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
