@@ -64,7 +64,7 @@ class MTA extends \pinetd\Process {
 			$this->agents[$pid] = array(
 				'pid' => $pid,
 				'launch' => time(),
-				'IPC' => new IPC($pair[0], false, $this),
+				'IPC' => new IPC($pair[0], false, $this, null),
 			);
 			$this->IPC->registerSocketWait($pair[0], array($this->agents[$pid]['IPC'], 'run'), $foobar = array(&$this->daemons[$pid]));
 			return true;
@@ -73,7 +73,7 @@ class MTA extends \pinetd\Process {
 			SQL::parentForked(); // close all sql links to avoid bugs
 			Timer::reset();
 			fclose($pair[0]);
-			$IPC = new IPC($pair[1], true, $foo = null);
+			$IPC = new IPC($pair[1], true, $foo = null, $this->IPC);
 			$IPC->ping();
 			Logger::setIPC($IPC);
 			Logger::log(Logger::LOG_DEBUG, 'MTA started with pid '.getmypid());
