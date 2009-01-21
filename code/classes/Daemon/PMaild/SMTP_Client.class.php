@@ -160,7 +160,7 @@ class SMTP_Client extends \pinetd\TCP\Client {
 				return;
 			}
 		} else {
-			$from = $argv[$nargv++];
+			$from = (string)$argv[$nargv++];
 		}
 		// in theory, addr should be in < > (still, we won't require it)
 		if (($from[0] == '<') && (substr($from, -1) == '>')) {

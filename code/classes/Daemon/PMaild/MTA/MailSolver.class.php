@@ -103,7 +103,11 @@ class MailSolver {
 			if (!$account)
 				return '503 5.1.1 Mailbox not found';
 		}
-		$account = $account[0];
+
+		// check if we got an account list, or just one account
+		if (is_array($account))
+			$account = $account[0];
+
 		if (!is_null($account->redirect)) {
 			$res['type'] = 'redirect';
 			$res['target'] = $account->redirect;
