@@ -238,6 +238,10 @@ abstract class Base extends \pinetd\DaemonBase {
 	}
 
 	public function mainLoop() {
+		// We are in a "own fork" if we reach this, so let's rename our process!
+		if (defined('PINETD_GOT_PROCTITLE')) {
+			setproctitle('TCP: '.get_class($this).' on port '.$this->port);
+		}
 		while(1) {
 			$this->IPC->selectSockets(200000);
 			$this->waitChildren();

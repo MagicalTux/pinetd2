@@ -102,6 +102,7 @@ class MTA extends \pinetd\Process {
 	}
 
 	public function mainLoop() {
+		parent::initMainLoop();
 		while(1) {
 			$this->waitChildren();
 			$this->launchChildsIfNeeded();

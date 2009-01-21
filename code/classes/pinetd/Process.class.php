@@ -18,6 +18,12 @@ abstract class Process extends \pinetd\DaemonBase {
 
 		Logger::log(Logger::LOG_INFO, 'Loading process '.get_class($this));
 	}
+
+	protected function initMainLoop() {
+		if (defined('PINETD_GOT_PROCTITLE')) {
+			setproctitle('Proc: '.get_class($this));
+		}
+	}
 }
 
 
