@@ -5,6 +5,7 @@ namespace Daemon\PMaild;
 use pinetd\Logger;
 use pinetd\SQL;
 use pinetd\IPC;
+use pinetd\Timer;
 
 class MTA extends \pinetd\Process {
 	protected $agents = array();
