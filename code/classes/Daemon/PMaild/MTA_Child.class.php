@@ -14,7 +14,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$this->IPC = $IPC;
 		$this->IPC->setParent($this);
 		$this->localConfig = $this->IPC->getLocalConfig();
-		$this->sql = SQL\Factory($this->localConfig['Storage']);
+		$this->sql = SQL::Factory($this->localConfig['Storage']);
 		while(1) {
 			$this->IPC->selectSockets(0);
 			// get a mail for me
