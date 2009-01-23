@@ -48,8 +48,8 @@ class Client extends \pinetd\TCP\Client {
 
 	protected function setProcessStatus($msg = '') {
 		if ($msg == '') $msg = 'idle';
-		if (is_null($login)) return parent::setProcessStatus('(not logged in) ' . $msg);
-		return parent::setProcessStatus('('.$this->login.':'.$this->cwd.') '.$msg);
+		if (is_null($this->login)) return parent::setProcessStatus('(not logged in) ' . $msg);
+		return parent::setProcessStatus('('.$this->login.':'.$this->getCwd().') '.$msg);
 	}
 
 	/**

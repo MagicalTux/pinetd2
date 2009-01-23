@@ -79,7 +79,7 @@ class Client extends \pinetd\ProcessChild {
 	protected function parseBuffer() {
 		while($this->ok) {
 			$pos = strpos($this->buf, "\n");
-			if ($pos === false) return;
+			if ($pos === false) break;
 			$pos++;
 			$lin = substr($this->buf, 0, $pos);
 			$this->buf = substr($this->buf, $pos);
