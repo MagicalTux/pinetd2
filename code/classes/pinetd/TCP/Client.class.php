@@ -85,6 +85,7 @@ class Client extends \pinetd\ProcessChild {
 			$this->buf = substr($this->buf, $pos);
 			$this->parseLine($lin);
 		}
+		$this->setProcessStatus(); // back to idle
 	}
 
 	public function readData() {
@@ -120,12 +121,26 @@ class Client extends \pinetd\ProcessChild {
 		return $lin;
 	}
 
+	protected function setProcessStatus($msg = '') {
+		if (!defined('PINETD_GOT_PROCTITLE')) return;
+		if (!$msg) $msg = 'idle';
+
+		if ((isset($this->peer[2])) && ($this->peer[0] != $this->peer[2])) {
+			setproctitle('[' . $this->peer[0] . '] ' . get_class($this) . ': ' . $msg . ' (' . $this->peer[2].')');
+			return;
+		}
+
+		setproctitle('['.$this->peer[0].'] ' . get_class($this) . ': ' . $msg);
+	}
+
 	public function mainLoop($IPC) {
 		$this->IPC = $IPC;
 		$this->IPC->setParent($this);
 		$this->IPC->registerSocketWait($this->fd, array($this, 'readData'), $foo = array());
+		$this->setProcessStatus('resolving');
 		$this->doResolve();
 		$this->sendBanner();
+		$this->setProcessStatus();
 		while($this->ok) {
 			$IPC->selectSockets(200000);
 			$this->processTimers();

@@ -46,6 +46,12 @@ class Client extends \pinetd\TCP\Client {
 		return true;
 	}
 
+	protected function setProcessStatus($msg = '') {
+		if ($msg == '') $msg = 'idle';
+		if (is_null($login)) return parent::setProcessStatus('(not logged in) ' . $msg);
+		return parent::setProcessStatus('('.$this->login.':'.$this->cwd.') '.$msg);
+	}
+
 	/**
 	 * \brief Called on shutdown signal (daemon is stopping)
 	 */
