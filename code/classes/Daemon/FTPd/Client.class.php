@@ -662,9 +662,16 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$fp = fopen($dir.'/'.$fil, 'a');
+		$fp = fopen($dir.'/'.$fil, ($appe?'a':'r+'));
+
+		if (!$fp) {
+			$this->sendMsg('500 Failed to open file for writing, check chmod');
+			return;
+		}
+
 		if (!$appe) {
-			$size = filesize($dir.'/'.$fil);
+			fseek($fp, 0, SEEK_END);
+			$size = ftell($fp);
 			if ($size < $this->restore) {
 				$this->sendMsg('500 Can\'t REST over EOF');
 				fclose($fp);
