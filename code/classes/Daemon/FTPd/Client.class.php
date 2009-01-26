@@ -664,7 +664,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$fp = fopen($dir.'/'.$fil, ($appe?'a':'r+'));
+		$fp = fopen($dir.'/'.$fil, 'ab');
 
 		if (!$fp) {
 			$this->sendMsg('500 Failed to open file for writing, check chmod');
