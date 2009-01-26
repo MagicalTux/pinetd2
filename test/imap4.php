@@ -29,8 +29,8 @@ var_dump(imap_list($mbox, $server, '*'));
 echo 'Delete FOO: ';
 var_dump(imap_deletemailbox($mbox, '{localhost:10143}FOO'));
 
-/*
-imap_ping($mbox);
+echo 'PING: ';
+var_dump(imap_ping($mbox));
 
 $info = imap_check($mbox);
 
@@ -38,12 +38,14 @@ echo 'Got '.$info->Nmsgs.' messages on server '.$info->Mailbox."\r\n";
 
 //var_dump($info);
 $res = imap_search($mbox, 'ALL', SE_UID, 'UTF-8');
+echo 'IMAP search found '.count($res).' mails (should be '.$info->Nmsgs.')'."\n";
 //$res = imap_search($mbox, 'ALL');
-var_dump($res);
+//var_dump($res);
 
 $res = imap_body($mbox, 1);
 var_dump($res);
 
+/*
 var_dump(imap_headerinfo($mbox, 1));
 */
 
