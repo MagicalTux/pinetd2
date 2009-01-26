@@ -15,6 +15,8 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$this->IPC->setParent($this);
 		$this->localConfig = $this->IPC->getLocalConfig();
 		$this->sql = SQL::Factory($this->localConfig['Storage']);
+		$this->processBaseName = get_class($this);
+		$this->setProcessStatus();
 		while(1) {
 			$this->IPC->selectSockets(0);
 			// get a mail for me
@@ -30,6 +32,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 				$mail = $DAO_mailqueue->loadByField($row);
 				if (!$mail) continue; // ?!
 				$mail = $mail[0];
+				$this->setProcessStatus($mail);
 				$this->mail = $mail;
 				// ok, we got our very own mlid
 				try {
@@ -136,7 +139,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 			return;
 //			throw new Exception('Mail '.$mail->mlid.' for '.$mail->to.' refused: '.$info['last_error']);
 		}
-		// TODO: handle non-fatal errors and mail a elivery status *warning* if from is not null
+		// TODO: handle non-fatal errors and mail a delivery status *warning* if from is not null
 		if ($mail->attempt_count == floor($this->localConfig['MTA']['MaxAttempt']*0.33)) {
 			// this is thirddelivery, may be good to warn user
 			if (!is_null($mail->from)) {
@@ -202,13 +205,11 @@ class MTA_Child extends \pinetd\ProcessChild {
 			$res[] = substr($lin, 4);
 			if ($lin[3] != '-') break;
 		}
-		var_dump($res);
 		if (!$saferead) $this->IPC->selectSockets(0);
 		return $res;
 	}
 
 	protected function writeMx($sock, $msg) {
-		var_dump($msg);
 		fputs($sock, $msg."\r\n");
 	}
 

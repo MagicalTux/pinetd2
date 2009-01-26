@@ -600,6 +600,8 @@ class Client extends \pinetd\TCP\Client {
 
 		$size -= $resume;
 
+		$this->setProcessStatus(strtoupper($cmd[0]).' '.$fil);
+
 		$sock = $this->initiateXfer();
 		if (!$sock) {
 			$this->sendMsg('500 Unable to initiate connection, please provide PORT/PASV, and make sure your firewall is configured correctly');
@@ -680,6 +682,8 @@ class Client extends \pinetd\TCP\Client {
 			fseek($fp, $this->restore);
 			ftruncate($fp, $this->restore); // blah!
 		}
+
+		$this->setProcessStatus(strtoupper($cmd[0]).' '.$fil);
 
 		// initiate link
 		$sock = $this->initiateXfer();
