@@ -542,22 +542,14 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('OK DELETE completed');
 	}
 
-	function fetchMailById($id, $param) {
+	function fetchMailByUid($uid, $param, $id = NULL) {
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
 		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
-		while(1) {
-			if (!isset($this->uidmap[$id])) {
-				return;
-			}
-			$uid = $this->uidmap[$id];
-			$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
-			if (!$result) {
-				// update uid map, if we have a non-existant UID in our map that means something was deleted
-				$this->updateUidMap();
-				continue;
-			}
-			break;
-		}
+
+		if (is_null($id)) $id = $uid;
+
+		$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
+		if (!$result) return false;
 		$mail = $result[0];
 		$tmp_headers = $DAO_mailheaders->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
 		$headers = array();
@@ -565,6 +557,25 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$headers[strtolower($h->header)][] = $h;
 		}
 		$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $headers, $param), '*');
+		return true;
+	}
+
+	function fetchMailById($id, $param) {
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+		while(1) {
+			// not in the current uidmap?
+			if (!isset($this->uidmap[$id])) {
+				return false;
+			}
+			$uid = $this->uidmap[$id];
+			$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
+			if (!$result) {
+				// update uid map, if we have a non-existant UID in our map that means something was deleted
+				$this->updateUidMap();
+				continue; // and retry lookup
+			}
+			return $this->fetchMailByUid($uid, $param, $id);
+		}
 	}
 
 	function fetchParamByMail($mail, $headers, $param) {
@@ -799,6 +810,11 @@ A OK FETCH completed
 				$start = substr($id, 0, $pos);
 				$end = substr($id, $pos+1, $pos2 - $pos - 1);
 				$id = substr($id, $pos2+1);
+				if ($end == '*') {
+					$i = $start;
+					while($this->fetchMailById($i++, $param));
+					continue;
+				}
 				for($i=$start; $i <= $end; $i++) {
 					$this->fetchMailById($i, $param);
 				}
@@ -809,6 +825,19 @@ A OK FETCH completed
 			}
 		}
 		$this->sendMsg('OK FETCH completed');
+	}
+
+//A00008 UID FETCH 1:* (FLAGS RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (DATE FROM TO CC SUBJECT REFERENCES IN-REPLY-TO MESSAGE-ID MIME-VERSION CONTENT-TYPE X-MAILING-LIST X-LOOP LIST-ID LIST-POST MAILING-LIST ORIGINATOR X-LIST SENDER RETURN-PATH X-BEENTHERE)])
+	function _cmd_uid($argv) {
+		array_shift($argv); // UID
+		$fetch = array_shift($argv); // FETCH
+		
+		if (strtoupper($fetch) != 'FETCH') {
+			$this->sendMsg('BAD Should have been "UID FETCH"');
+			return;
+		}
+
+		// TODO: continue here!
 	}
 }
 
