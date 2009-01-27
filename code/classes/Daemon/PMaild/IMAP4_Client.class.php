@@ -832,6 +832,7 @@ A OK FETCH completed
 		array_shift($argv); // UID
 		$fetch = array_shift($argv); // FETCH
 		
+		// UID FETCH, UID SEARCH, UID STORE
 		if (strtoupper($fetch) != 'FETCH') {
 			$this->sendMsg('BAD Should have been "UID FETCH"');
 			return;
