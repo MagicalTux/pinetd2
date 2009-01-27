@@ -832,13 +832,50 @@ A OK FETCH completed
 		array_shift($argv); // UID
 		$fetch = array_shift($argv); // FETCH
 		
-		// UID FETCH, UID SEARCH, UID STORE
+		// UID COPY, UID FETCH, UID STORE
+		// UID SEARCH
 		if (strtoupper($fetch) != 'FETCH') {
 			$this->sendMsg('BAD Should have been "UID FETCH"');
 			return;
 		}
 
-		// TODO: continue here!
+		$id = array_shift($argv); // 1:*
+
+		// parse param
+		$param = implode(' ', $argv);
+		// ok, let's parse param
+		$param = $this->parseFetchParam($param);
+
+		$last = null;
+		while(strlen($id) > 0) {
+			$pos = strpos($id, ':');
+			$pos2 = strpos($id, ',');
+			if (($pos === false) && ($pos2 === false)) {
+				$this->fetchMailById($id, $param);
+				break;
+			}
+			if ($pos === false) $pos = strlen($id);
+			if ($pos2 === false) $pos2 = strlen($id);
+			if ($pos < $pos2) {
+				// got an interval. NB: 1:3:5 is impossible, must be 1:3,5 or something like that
+				$start = substr($id, 0, $pos);
+				$end = substr($id, $pos+1, $pos2 - $pos - 1);
+				$id = substr($id, $pos2+1);
+				if ($end == '*') {
+					$i = $start;
+					while($this->fetchMailById($i++, $param));
+					continue;
+				}
+				for($i=$start; $i <= $end; $i++) {
+					$this->fetchMailById($i, $param);
+				}
+			} else {
+				$i = substr($id, 0, $pos2);
+				$id = substr($id, $pos2+1);
+				$this->fetchMailById($i, $param);
+			}
+		}
+		$this->sendMsg('OK FETCH completed');
 	}
 }
 
