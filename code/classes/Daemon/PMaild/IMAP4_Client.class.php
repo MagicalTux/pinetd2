@@ -1,5 +1,10 @@
 <?php
 
+// http://www.isi.edu/in-notes/rfc2683.txt (IMAP4 Implementation Recommendations)
+// http://www.faqs.org/rfcs/rfc3501.html (IMAP4rev1)
+// http://www.faqs.org/rfcs/rfc2045.html (Multipurpose Internet Mail Extensions (MIME) Part One)
+
+
 namespace Daemon\PMaild;
 
 use pinetd\SQL;
@@ -799,10 +804,6 @@ A OK FETCH completed
 		while(strlen($id) > 0) {
 			$pos = strpos($id, ':');
 			$pos2 = strpos($id, ',');
-			if (($pos === false) && ($pos2 === false)) {
-				$this->fetchMailById($id, $param);
-				break;
-			}
 			if ($pos === false) $pos = strlen($id);
 			if ($pos2 === false) $pos2 = strlen($id);
 			if ($pos < $pos2) {
@@ -850,10 +851,6 @@ A OK FETCH completed
 		while(strlen($id) > 0) {
 			$pos = strpos($id, ':');
 			$pos2 = strpos($id, ',');
-			if (($pos === false) && ($pos2 === false)) {
-				$this->fetchMailById($id, $param);
-				break;
-			}
 			if ($pos === false) $pos = strlen($id);
 			if ($pos2 === false) $pos2 = strlen($id);
 			if ($pos < $pos2) {
@@ -862,17 +859,15 @@ A OK FETCH completed
 				$end = substr($id, $pos+1, $pos2 - $pos - 1);
 				$id = substr($id, $pos2+1);
 				if ($end == '*') {
-					$i = $start;
-					while($this->fetchMailById($i++, $param));
-					continue;
+					$end = 999; // TODO: convert to WHERE statement instead
 				}
 				for($i=$start; $i <= $end; $i++) {
-					$this->fetchMailById($i, $param);
+					$this->fetchMailByUid($i, $param);
 				}
 			} else {
 				$i = substr($id, 0, $pos2);
 				$id = substr($id, $pos2+1);
-				$this->fetchMailById($i, $param);
+				$this->fetchMailByUid($i, $param);
 			}
 		}
 		$this->sendMsg('OK FETCH completed');
