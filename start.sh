@@ -1,2 +1,2 @@
 #!/bin/sh
-exec ./php/php code/root.php "$@"
+exec ./php/php -d date.timezone=`date +%Z` code/root.php "$@"
