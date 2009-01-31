@@ -439,6 +439,45 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg('200 PORT command successful');
 	}
 
+// TODO: http://www.faqs.org/rfcs/rfc2428.html
+	function _cmd_eprt($argv) {
+		if (is_null($this->login)) {
+			$this->sendMsg('500 Please login first!');
+			return;
+		}
+		// INPUT : |num|ip|port|
+		// IP: a.b.c.d
+		$data = explode('|', $argv[1]);
+		if (count($data) != 5) {
+			$this->sendMsg('500 Invalid EPRT command, should be |1|ip|port|');
+			return;
+		}
+
+		$proto = $data[1];
+		$ip = $data[2];
+		$port = $data[3];
+
+		if ($port < 1024) { // SAFETY CHECK
+			$this->sendMsg('500 Invalid PORT command (port < 1024)');
+			return;
+		}
+		if ($ip != $this->peer[0]) {
+			if ($this->login == 'ftp') {
+				$this->sendMsg('500 FXP denied to anonymous users');
+				return;
+			}
+			$this->sendMsg('200-FXP initialized to '.$ip);
+		}
+		$this->clearXferMode();
+		$this->mode = array(
+			'type' => 'port',
+			'ip' => $ip,
+			'port' => $port,
+			'proto' => $proto,
+		);
+		$this->sendMsg('200 EPRT command successful');
+	}
+
 	function _cmd_pasv() {
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
