@@ -1,0 +1,58 @@
+DNSD
+====
+
+Notions
+
+Domain: a domain name. Connected to a Zone
+
+Zone: a DNS zone. Can extend another zone, and contains records.
+
+Record: A specific record contained in a zone.
+
+
+----
+
+Data format
+
+Domain assignation files: links a specific domain to a specific zone
+* Standard index key for text
+* reverse fqdn search? (starting at tld)
+* sqlite??
+
+
+
+Zone definition file: contains records, and an optionnal link to another zone
+* Standard index key for text
+* sqlite?
+
+Should contain a ZONE SERIAL for each zone. Serial is simple incremental
+value.
+
+----
+
+Data update
+
+* Domains management
+ - New domain: assign a new domain to a zone
+ - Update domain: assign an existing domain to a new zone
+ - Delete domain: unassign domain from zone
+
+* Zones management
+ - New zone: creates a new zone and its initial SOA record
+ - Add RR: add record to an existing zone
+ - Remove RR: remove an existing RR (key: target, type, value, index)
+ - DumpZone: dump RR in a zone
+ - RemoveZone: delete a zone from the server (no check for orphan domains)
+ - SetExtends: set a zone to extend another zone
+
+----
+
+Lookups
+
+In order to determine which zone has authority for a specific domain, lookup
+is done within the domain table to find the longest corresponding domain.
+
+Once found, the lookup is done. Wildcards are supported.
+
+
+
