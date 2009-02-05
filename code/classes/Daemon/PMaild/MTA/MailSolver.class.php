@@ -22,7 +22,7 @@ class MailSolver {
 			return $res;
 		}
 		// CONTINUE HERE: load account referenced, and continue to next
-		return $alias->id;
+		return $alias->real_target;
 	}
 
 	static public function solve($mail, &$localConfig) {
