@@ -212,6 +212,10 @@ class POP3_Client extends \pinetd\TCP\Client {
 			$num = $this->getLocalNum($mail->mailid);
 			if (isset($this->toDelete[$num])) continue;
 			$file = $this->mailPath($mail->uniqname);
+			if (!file_exists($file)) {
+				$mail->delete();
+				continue;
+			}
 			$s = filesize($file);
 			if ($onlyone) {
 				$this->sendMsg('+OK '.$num.' '.$s);
