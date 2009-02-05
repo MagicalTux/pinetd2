@@ -64,7 +64,7 @@ class MTA extends \pinetd\Process {
 			$this->agents[$pid] = array(
 				'pid' => $pid,
 				'launch' => time(),
-				'IPC' => new IPC($pair[0], false, $this, null),
+				'IPC' => new IPC($pair[0], false, $this, $this->IPC),
 			);
 			$this->IPC->registerSocketWait($pair[0], array($this->agents[$pid]['IPC'], 'run'), $foobar = array(&$this->daemons[$pid]));
 			return true;
