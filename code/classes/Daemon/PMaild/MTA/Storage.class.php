@@ -411,8 +411,17 @@ class Storage {
 	function validateTables($SQL, $id = null) {
 		$t = &self::$global_tables;
 		if (!is_null($id)) {
+			$id = (int)$id; // force cast to int
+			$option = str_pad($id, 10, '0', STR_PAD_LEFT);
+
 			foreach(self::$tables_struct as $name => $struct) {
 				$name = sprintf($name, $id);
+				// check for legacy table
+				$old_name = sprintf($name, $option);
+				if ($SQL->query('SELECT 1 FROM `'.$old_name.'` LIMIT 1')) {
+					$SQL->query('RENAME TABLE `'.$old_name.'` TO `'.$name.'`');
+				}
+
 				$SQL->validateStruct($name, $struct);
 			}
 			return; // o rly?
