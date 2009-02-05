@@ -32,7 +32,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 				$mail = $DAO_mailqueue->loadByField($row);
 				if (!$mail) continue; // ?!
 				$mail = $mail[0];
-				$this->setProcessStatus($mail);
+				$this->setProcessStatus($mail->to);
 				$this->mail = $mail;
 				// ok, we got our very own mlid
 				try {
