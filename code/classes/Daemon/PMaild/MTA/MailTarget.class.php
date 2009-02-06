@@ -219,14 +219,14 @@ class MailTarget {
 			$c = '&';
 		}
 		fseek($txn['fd'], 0, SEEK_END);
-		$len = ftell($txn['id']);
+		$len = ftell($txn['fd']);
 		rewind($txn['fd']);
-		$ch = curl_init($url); // HTTP
-		curl_setopt($ch, CURLOPT_PUT, true);
-		curl_setopt($ch, CURLOPT_INFILE, $txn['fd']);
-		curl_setopt($ch, CURLOPT_INFILESIZE, $len);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		$res = curl_exec($ch);
+		$ch = \curl_init($url); // HTTP
+		\curl_setopt($ch, CURLOPT_PUT, true);
+		\curl_setopt($ch, CURLOPT_INFILE, $txn['fd']);
+		\curl_setopt($ch, CURLOPT_INFILESIZE, $len);
+		\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		$res = \curl_exec($ch);
 		if (substr($res, 0, 3) == '250') return null;
 		if (!preg_match("/^[0-9]{3} [^\n]+\$/", $res)) {
 			// check if that is an API call...
