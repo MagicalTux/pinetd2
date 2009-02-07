@@ -38,7 +38,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 				try {
 					$this->processEmail($mail);
 					$this->mail = null;
-				} catch(Exception $e) {
+				} catch(\Exception $e) {
 					Logger::log(Logger::LOG_WARN, (string)$e);
 					$this->mail = null;
 					break;
@@ -92,7 +92,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 					if (!$res) @unlink($file); // cleanup
 					return true;
 				}
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				Logger::log(Logger::LOG_INFO, 'MX '.$mx.' refused mail: '.$e->getMessage());
 				$this->error[$mx] = $e;
 				$status = (string)$e->getCode();
@@ -137,7 +137,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 			@unlink($file);
 			$mail->delete();
 			return;
-//			throw new Exception('Mail '.$mail->mlid.' for '.$mail->to.' refused: '.$info['last_error']);
+//			throw new \Exception('Mail '.$mail->mlid.' for '.$mail->to.' refused: '.$info['last_error']);
 		}
 		// TODO: handle non-fatal errors and mail a delivery status *warning* if from is not null
 		if ($mail->attempt_count == floor($this->localConfig['MTA']['MaxAttempt']*0.33)) {
@@ -198,7 +198,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$res = array();
 		while(1) {
 			$lin = fgets($sock);
-			if ($lin === false) throw new Exception('Could not read from peer!', 400);
+			if ($lin === false) throw new \Exception('Could not read from peer!', 400);
 			$lin = rtrim($lin);
 			$code = substr($lin, 0, 3);
 			if ($lin[0] != $expect) throw new \Exception($lin, $code);
@@ -215,11 +215,11 @@ class MTA_Child extends \pinetd\ProcessChild {
 
 	protected function processEmailMX($host, $mail) {
 		$file = $this->mailPath($mail->mlid);
-		if (!file_exists($file)) throw new Exception('Mail queued but file not found: '.$mail->mlid);
+		if (!file_exists($file)) throw new \Exception('Mail queued but file not found: '.$mail->mlid);
 		$this->IPC->selectSockets(0);
 		$sock = fsockopen($host, 25, $errno, $errstr, 30);
 		stream_set_timeout($sock, 30); // 30 secs timeout on read
-		if (!$sock) throw new Exception('Connection failed: ['.$errno.'] '.$errstr, 400); // not fatal (400)
+		if (!$sock) throw new \Exception('Connection failed: ['.$errno.'] '.$errstr, 400); // not fatal (400)
 		$this->IPC->selectSockets(0);
 		$this->readMxAnswer($sock); // hello man
 		$this->writeMx($sock, 'EHLO '.$this->IPC->getName());
@@ -246,7 +246,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$this->writeMx($sock, 'QUIT');
 		try {
 			$this->readMxAnswer($sock, 2, true);
-		} catch(Exception $e) {
+		} catch(\Exception $e) {
 			// even if you complain now, it's too late
 		}
 		fclose($sock);
