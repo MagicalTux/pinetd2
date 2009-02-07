@@ -201,7 +201,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 			if ($lin === false) throw new Exception('Could not read from peer!', 400);
 			$lin = rtrim($lin);
 			$code = substr($lin, 0, 3);
-			if ($lin[0] != $expect) throw new Exception($lin, $code);
+			if ($lin[0] != $expect) throw new \Exception($lin, $code);
 			$res[] = substr($lin, 4);
 			if ($lin[3] != '-') break;
 		}
