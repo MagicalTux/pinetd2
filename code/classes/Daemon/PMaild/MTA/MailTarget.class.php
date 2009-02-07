@@ -144,7 +144,7 @@ class MailTarget {
 		fclose($out);
 		$insert = array(
 			'mlid' => basename($store),
-			'to' => $this->target['mail'],
+			'to' => $this->target['target'],
 			'queued' => $this->sql->now(),
 		);
 		if ($this->from !== '') $insert['from'] = $this->from;
