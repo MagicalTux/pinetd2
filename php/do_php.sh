@@ -91,6 +91,7 @@ echo -n "Configuring..."
  --with-gd --with-jpeg-dir=/usr/lib --with-png-dir --with-zlib --enable-gd-native-ttf \
  --with-mysql="$MYSQLI_DIR" --with-mysqli="$MYSQLI_PATH" --with-mhash --with-config-file-path="$BUILD_ROOT" \
  --enable-libxml --enable-dom --enable-xml --enable-xmlreader --enable-xmlwriter --with-openssl=/usr \
+ --with-curl=/usr --with-curlwrappers \
  --with-imap=/usr --with-imap-ssl --with-ares --enable-proctitle
 
 if [ x"$?" != x"0" ]; then
