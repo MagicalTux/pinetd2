@@ -159,6 +159,7 @@ abstract class Base extends \pinetd\DaemonBase {
 				SQL::forked();
 				Timer::reset();
 				foreach($this->clients as $c) fclose($c['fd']);
+				fclose($this->socket);
 				fclose($pair[0]);
 				$IPC = new IPC($pair[1], true, $foo = null, $bar = null);
 				$IPC->ping(); // wait for parent to be ready
