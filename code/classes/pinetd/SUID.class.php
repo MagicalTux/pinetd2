@@ -1,6 +1,7 @@
 <?php
 
 namespace pinetd;
+use \Exception;
 
 class SUID {
 	private $uid;
