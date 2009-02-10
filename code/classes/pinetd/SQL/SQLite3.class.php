@@ -14,6 +14,9 @@ class SQLite3 {
 		$this->settings = $settings;
 		$this->sqlite = new SQLite3($settings['File']);
 		// TODO: handle errors
+
+		// support for missing SQL functions in sqlite
+		$this->sqlite->createFunction('now', array($this, 'now'), 0);
 	}
 
 	public function __call($func, $args) {
@@ -40,11 +43,6 @@ class SQLite3 {
 	// when we fork, this is required
 	public function reconnect() {
 		// TODO
-		$this->mysqli->close();
-		$this->mysqli->connect($this->settings['Host'], $this->settings['Login'], $this->settings['Password'], $this->settings['Database']);
-		if (mysqli_connect_errno()) {
-			throw new Exception(mysqli_connect_error());
-		}
 	}
 
 	public function quote_escape($string) {
@@ -105,7 +103,7 @@ class SQLite3 {
 			}
 			$req.=($req==''?'':',').$tmp;
 		}
-		$req = 'CREATE TABLE `'.$name.'` ('.$req.') ENGINE=MyISAM DEFAULT CHARSET=utf8';
+		$req = 'CREATE TABLE `'.$name.'` ('.$req.')';
 		return $req;
 	}
 
