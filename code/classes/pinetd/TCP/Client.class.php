@@ -28,6 +28,7 @@ class Client extends \pinetd\ProcessChild {
 	protected $buf = '';
 	protected $ok = true;
 	protected $protocol = 'tcp';
+	protected $timeout = 3600; // default: 1 hour timeout
 
 	public function __construct($fd, $peer, $parent, $protocol) {
 		$this->fd = $fd;
@@ -88,8 +89,27 @@ class Client extends \pinetd\ProcessChild {
 		$this->setProcessStatus(); // back to idle
 	}
 
+	// overload this to add an action on timeout (eg. sending a msg to client). Please return true
+	protected function socketTimedOut() {
+		// void
+		return true;
+	}
+
+	protected function pullDataFromSocket() {
+		stream_set_timeout($this->fd, $this->timeout);
+		$res = fread($this->fd, 8192);
+		$info = stream_get_meta_data($this->fd);
+
+		if ($info['timed_out']) {
+			$this->socketTimedOut();
+			return false;
+		}
+		
+		return $res;
+	}
+
 	public function readData() {
-		$dat = fread($this->fd, 8192);
+		$dat = $this->pullDataFromSocket();
 		if (($dat === false) || ($dat === '')) {
 			Logger::log(Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
 			$this->IPC->killSelf($this->fd);
@@ -101,7 +121,7 @@ class Client extends \pinetd\ProcessChild {
 	}
 
 	public function readLine() {
-		$dat = fread($this->fd, 8192);
+		$dat = $this->pullDataFromSocket();
 		if (($dat === false) || ($dat === '')) {
 			Logger::log(Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
 			$this->IPC->killSelf($this->fd);
