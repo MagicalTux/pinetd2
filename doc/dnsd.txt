@@ -19,6 +19,12 @@ Domain assignation files: links a specific domain to a specific zone
 * reverse fqdn search? (starting at tld)
 * sqlite??
 
+Each domain creation/deletion will cause the insertion of a log entry in the
+domains log table. Each entry has an unique incremental sequence ID. Leaves
+across the network will be able to "play" missing log entries if disconnected
+a long time.
+Deleting a domain will delete the log entry for the creation of the domain.
+Re-creating a domain will delete the log entry for the deletion of the domain.
 
 
 Zone definition file: contains records, and an optionnal link to another zone
@@ -26,7 +32,9 @@ Zone definition file: contains records, and an optionnal link to another zone
 * sqlite?
 
 Should contain a ZONE SERIAL for each zone. Serial is simple incremental
-value.
+value starting at 0 and cycling gracefully.
+No history is kept of zone changes, which means that a newly connecting leaf
+will have to redownload the whole zone if the serial doesn't match.
 
 ----
 
@@ -54,5 +62,20 @@ is done within the domain table to find the longest corresponding domain.
 
 Once found, the lookup is done. Wildcards are supported.
 
+----
 
+Initial database import
+
+A leaf connecting to the master will need an initial import of the database.
+
+
+----
+
+Daemons
+
+TCP
+UDP
+DatabaseManager
+
+NO RECURSION OFFERED
 
