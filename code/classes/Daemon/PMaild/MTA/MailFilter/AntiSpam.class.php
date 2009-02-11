@@ -19,21 +19,31 @@ class AntiSpam extends \Daemon\PMaild\MTA\MailFilter\MailFilter {
 			1 => array('pipe', 'w'), // stdout
 		);
 
-		$proc = proc_open('spamc -x', $desc, $pipes);
+		rewind($txn['fd']);
+		$tmp = tempnam('/tmp', 'PMD');
+		$fp = fopen($tmp, 'w');
+		stream_copy_to_stream($txn['fd'], $fp);
+		fclose($fp);
+
+		$proc = proc_open('spamc -x <'.escapeshellarg($tmp), $desc, $pipes);
 
 		if (!$proc) {
 			Logger::log(Logger::LOG_ERR, 'Failed to run spamc');
+			unlink($tmp);
 			return '400 Antispam seems down, your mail can\'t be checked, and because of that I can\'t accept it';
 		}
 
-		rewind($txn['fd']);
-		stream_copy_to_stream($txn['fd'], $pipes[0]); // copy to spamassassin
+		// we are using a tmp file there...
+		//stream_copy_to_stream($txn['fd'], $pipes[0]); // copy to spamassassin
 		fclose($pipes[0]); // send EOF to stdin, will cause the antispam to run
+
 		ftruncate($txn['fd'], 0);
 		stream_copy_to_stream($pipes[1], $txn['fd']);
 		fclose($pipes[1]);
 
 		$res = proc_close($proc);
+
+		unlink($tmp);
 
 		switch($res) {
 			case 0: break; // no problem
