@@ -2,7 +2,7 @@
 
 namespace DAO;
 
-class MySQL extends \DAO\Base {
+class SQLite3 extends \DAO\Base {
 	public function __construct($SQL, $table, $key) {
 		$this->SQL = $SQL;
 		parent::__construct($table, $key);

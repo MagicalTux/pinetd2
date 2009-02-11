@@ -9,11 +9,14 @@ class SQLite3 {
 	private $sqlite;
 	private $DAO = array();
 
-	public function __construct($settings) {
+	public function __construct(array $settings) {
 		if (!extension_loaded('sqlite3')) throw new Exception('This class requires SQLite3');
 		$this->settings = $settings;
-		$this->sqlite = new SQLite3($settings['File']);
+		$this->sqlite = new \SQLite3($settings['File']);
 		// TODO: handle errors
+
+		$this->sqlite->exec('PRAGMA encoding = "UTF-8"');
+		$this->sqlite->exec('PRAGMA legacy_file_format = 0');
 
 		// support for missing SQL functions in sqlite
 		$this->sqlite->createFunction('now', array($this, 'now'), 0);
@@ -24,6 +27,10 @@ class SQLite3 {
 	}
 
 	public function __get($var) {
+		switch($var) {
+			case 'error': return '['.$this->sqlite->lastErrorCode().'] '.$this->sqlite->lastErrorMsg();
+			case 'insert_id': return $this->sqlite->lastInsertRowID();
+		}
 		return $this->sqlite->$var;
 	}
 
@@ -38,6 +45,13 @@ class SQLite3 {
 	public function DAO($table, $key) {
 		if (!isset($this->DAO[$table])) $this->DAO[$table] = new \DAO\SQLite3($this, $table, $key);
 		return $this->DAO[$table];
+	}
+
+	public function query($query) {
+		$res = $this->sqlite->query($query);
+		if (is_bool($res)) return $res;
+
+		return new SQLite3\Result($res);
 	}
 
 	// when we fork, this is required
@@ -58,23 +72,24 @@ class SQLite3 {
 	function col_gen_type($col) {
 		$res = strtolower($col['type']);
 		switch($res) {
-			case 'set': case 'enum':
-				$res.='('.$this->quote_escape($col['values']).')';
+			case 'set': case 'enum': // not supported by sqlite
+				$max_len = 0;
+				foreach($col['values'] as $val) $max_len = max($max_len, strlen($val));
+				$res='varchar('.$max_len.')';
 				break;
-			case 'text': case 'blob': case 'datetime':
+			case 'text': case 'blob': case 'datetime': // no size!
 				break;
 			default:
 				if (isset($col['size'])) $res.='('.$col['size'].')';
 				break;
 		}
-		if ($col['unsigned']) $res.=' unsigned';
+		if ($col['unsigned']) $res='unsigned '.$r;
 		return $res;
 	}
 
 	function gen_field_info($cname, $col) {
 		$tmp = '`'.$cname.'` '.$this->col_gen_type($col);
 		if (!$col['null']) $tmp.=' NOT NULL';
-		if (isset($col['auto_increment'])) $tmp.=' auto_increment';
 		if (array_key_exists('default',$col)) $tmp.=' DEFAULT '.$this->quote_escape($col['default']);
 		return $tmp;
 	}
@@ -109,14 +124,19 @@ class SQLite3 {
 
 	public function validateStruct($table_name, $struct) {
 		$f = array_flip(array_keys($struct)); // field list
+		var_dump($table_name);
 
-		// get structure for this table
-		$res = $this->sqlite->query('SELECT `sql` FROM `sqlite_master` WHERE `type` = \'table\' AND `name` = '.$this->quote_escape($table_name));
+		// check if table exists
+		$res = $this->querySingle('SELECT 1 FROM `sqlite_master` WHERE `type`=\'table\' AND `name` = '.$this->quote_escape($table_name));
 		if (is_null($res)) {
 			// table does not exists
 			$req = $this->gen_create_query($table_name, $struct);
-			return @$this->sqlite->exec($req);
+			var_dump($req);
+			return $this->sqlite->exec($req);
 		}
+		return;
+		// get structure for this table
+		$res = $this->query('PRAGMA table_info('.$table_name.')');
 		// TODO: decode "CREATE TABLE" returned by query (string)
 		while($row = $res->fetch_assoc()) {
 			if (!isset($f[$row['Field']])) {
