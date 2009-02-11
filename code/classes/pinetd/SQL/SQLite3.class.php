@@ -89,6 +89,7 @@ class SQLite3 {
 
 	function gen_field_info($cname, $col) {
 		$tmp = '`'.$cname.'` '.$this->col_gen_type($col);
+		if ($col['key'] == 'PRIMARY') $tmp .=' PRIMARY KEY';
 		if (!$col['null']) $tmp.=' NOT NULL';
 		if (array_key_exists('default',$col)) $tmp.=' DEFAULT '.$this->quote_escape($col['default']);
 		return $tmp;
@@ -101,37 +102,41 @@ class SQLite3 {
 			$req.=($req==''?'':', ').$this->gen_field_info($cname, $col);
 			if (isset($col['key'])) $keys[$col['key']][]=$cname;
 		}
+		$req = array('BEGIN TRANSACTION', 'CREATE TABLE `'.$name.'` ('.$req.')');
 		foreach($keys as $kname=>$cols) {
+			if ($kname == 'PRIMARY') continue;
 			$tmp = '';
 			foreach($cols as $c) $tmp.=($tmp==''?'':',').'`'.$c.'`';
 			$tmp='('.$tmp.')';
-			if ($kname == 'PRIMARY') {
-				$tmp = 'PRIMARY KEY '.$tmp;
-			} elseif (substr($kname, 0, 7)=='UNIQUE:') {
+			if (substr($kname, 0, 7)=='UNIQUE:') {
 				$kname = substr($kname, 7);
-				$tmp = 'UNIQUE KEY `'.$kname.'` '.$tmp;
-			} elseif (substr($kname, 0, 9)=='FULLTEXT:') {
-				$kname = substr($kname, 9);
-				$tmp = 'FULLTEXT KEY `'.$kname.'` '.$tmp;
+				$tmp = 'CREATE UNIQUE INDEX `'.$name.'_'.$kname.'` ON `'.$name.'` '.$tmp;
 			} else {
-				$tmp = 'KEY `'.$kname.'` '.$tmp;
+				$tmp = 'CREATE INDEX `'.$name.'_'.$kname.'` ON `'.$name.'` '.$tmp;
 			}
-			$req.=($req==''?'':',').$tmp;
+			$req[]=$tmp;
 		}
-		$req = 'CREATE TABLE `'.$name.'` ('.$req.')';
+		$req[] = 'COMMIT';
 		return $req;
 	}
 
 	public function validateStruct($table_name, $struct) {
 		$f = array_flip(array_keys($struct)); // field list
-		var_dump($table_name);
 
 		// check if table exists
 		$res = $this->querySingle('SELECT 1 FROM `sqlite_master` WHERE `type`=\'table\' AND `name` = '.$this->quote_escape($table_name));
 		if (is_null($res)) {
 			// table does not exists
 			$req = $this->gen_create_query($table_name, $struct);
-			var_dump($req);
+			if (is_array($req)) {
+				foreach($req as $query) {
+					if (!$this->sqlite->exec($query)) {
+						$this->sqlite->exec('ROLLBACK');
+						return false;
+					}
+				}
+				return true;
+			}
 			return $this->sqlite->exec($req);
 		}
 		return;
