@@ -13,6 +13,8 @@ class Process extends \pinetd\Process {
 
 		$storage = relativeclass($this, 'Storage');
 		$storage::validateTables($this->sql);
+
+		var_dump($this->localConfig['UpdateSignature']['_']);
 	}
 
 	public function mainLoop() {
@@ -25,3 +27,4 @@ class Process extends \pinetd\Process {
 	public function shutdown() {
 	}
 }
+

@@ -19,6 +19,15 @@ class TCP extends \pinetd\TCP\Base {
 		return new $class($socket, $peer, $parent, $protocol);
 	}
 
+	public function _ChildIPC_getUpdateSignature(&$daemon, $node) {
+		return $this->getUpdateSignature($node);
+	}
+
+	public function getUpdateSignature($node) {
+		// TODO: use different signatures per node
+		return $this->localConfig['UpdateSignature']['_'];
+	}
+
 	public function doAccept($sock) {
 		// Overload this to avoid useless things (like remote host resolving)
 		$news = @stream_socket_accept($sock, 0, $peer);
