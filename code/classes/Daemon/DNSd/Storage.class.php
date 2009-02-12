@@ -76,9 +76,91 @@ class Storage {
 				'null' => false,
 				'key' => 'domain_lookup',
 			),
-			'prefix' => array(
+			'host' => array(
 				'type' => 'VARCHAR',
-				// ...
+				'size' => 128,
+				'null' => false,
+				'key' => 'domain_lookup',
+			),
+			'ttl' => array(
+				'type' => 'INT',
+				'size' => 11,
+				'null' => false,
+			),
+			'type' => array(
+				'type' => 'VARCHAR',
+				'size' => 10,
+				'null' => false,
+				'key' => 'domain_lookup',
+			),
+			'mx_priority' => array(
+				'type' => 'INT',
+				'size' => 11,
+				'null' => true,
+			),
+			'data' => array(
+				'type' => 'TEXT',
+				'null' => false,
+			),
+			'resp_person' => array(
+				'type' => 'TEXT',
+				'null' => true,
+			),
+			'serial' => array(
+				'type' => 'INT',
+				'unsigned' => true,
+				'null' => false,
+			),
+			'refresh' => array(
+				'type' => 'INT',
+				'unsigned' => true,
+				'null' => false,
+			),
+			'retry' => array(
+				'type' => 'INT',
+				'unsigned' => true,
+				'null' => false,
+			),
+			'expire' => array(
+				'type' => 'INT',
+				'unsigned' => true,
+				'null' => false,
+			),
+			'minimum' => array(
+				'type' => 'INT',
+				'unsigned' => true,
+				'null' => false,
+			),
+		),
+		'deletions' => array(
+			'deletion_date' => array(
+				'type' => 'DATETIME',
+				'null' => false,
+			),
+			'deletion_id' => array(
+				'type' => 'INT',
+				'size' => 11,
+				'null' => false,
+			),
+			'deletion_type' => array(
+				'type' => 'ENUM',
+				'values' => array('zone', 'domain', 'record'),
+			),
+		),
+		'status' => array(
+			'status_id' => array(
+				'type' => 'INT',
+				'size' => 11,
+				'null' => false,
+				'key' => 'PRIMARY',
+			),
+			'updated' => array(
+				'type' => 'DATETIME',
+				'null' => false,
+			),
+			'oldest_record' => array(
+				'type' => 'DATETIME',
+				'null' => false,
 			),
 		),
 	);
