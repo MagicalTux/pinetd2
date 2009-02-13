@@ -45,12 +45,8 @@ class Engine {
 		if (substr($name, -1) == '.') $name = substr($name, 0, -1);
 
 		// TODO: create a function to convert a "TYPE" to "TYPESTR"
-		switch($type) {
-			case RFC1035::TYPE_A: $typestr = 'A'; break;
-			case RFC1035::TYPE_MX: $typestr = 'MX'; break;
-			case RFC1035::TYPE_CNAME: $typestr = 'CNAME'; break;
-			default: return;
-		}
+		$typestr = Type::typeToString($type);
+		if (is_null($typestr)) return NULL;
 
 		// search this domain
 		$domain = $name;
@@ -68,24 +64,33 @@ class Engine {
 			break;
 		}
 
+		$pkt->setDefaultDomain($domain);
+
 		// got host & domain, lookup...
-		$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($res['zone']).' AND `host` = '.$this->sql->quote_escape($host).' AND `type` = '.$this->sql->quote_escape($typestr);
+		$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($res['zone']).' AND `host` = '.$this->sql->quote_escape($host).' AND `type` IN ('.$this->sql->quote_escape($typestr).', \'CNAME\')';
 		$res = $this->sql->query($req);
 
 		while($row = $res->fetch_assoc()) {
-			$answer = Type::factory($pkt, $type);
-			$answer->setValue($row['data']);
+			$atype = Type::stringToType($row['type']);
+			if (is_null($atype)) continue;
+
+			$answer = Type::factory($pkt, $atype);
+			switch($atype) {
+				case Type\RFC1035::TYPE_MX:
+					$answer->setValue(array('priority' => $row['mx_priority'], 'host' => $row['data']));
+					break;
+				default:
+					$answer->setValue($row['data']);
+			}
 			if ($row['host']) $row['host'].='.';
 			$pkt->addAnswer($row['host'] . $domain. '.', $answer, $row['ttl']);
+
+			if ($atype == Type\RFC1035::TYPE_CNAME) {
+				$aname = $row['data'];
+				if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
+				if (strtolower($aname) != $name) $this->handleInternetQuestion($pkt, $aname, $type);
+			}
 		}
-
-//		$addr = Type::factory($pkt, RFC1035::TYPE_A);
-//		$addr->setValue('127.0.0.1');
-//		$pkt->addAnswer($name, $addr);
-
-//		$cname = Type::factory($pkt, RFC1035::TYPE_CNAME);
-//		$cname->setValue('some.other.test.hoho.tld.');
-//		$pkt->addAdditional('some.TEST.hoho.tld.', $cname, 120);
 	}
 
 	protected function handleChaosQuestion($pkt, $name, $type) {

@@ -10,6 +10,7 @@ class Packet {
 	protected $answer = array();
 	protected $authority = array();
 	protected $additional = array();
+	protected $defaultDomain = '.';
 
 	protected $_label_cache = array();
 
@@ -29,6 +30,11 @@ class Packet {
 		$this->additional = $this->decodeRR($pkt, $offset, $data['arcount']);
 
 		return true;
+	}
+
+	public function setDefaultDomain($domain = '.') {
+		if (substr($domain, -1) != '.') $domain .= '.';
+		$this->defaultDomain = $domain;
 	}
 
 	public function resetAnswer() {
@@ -137,6 +143,9 @@ class Packet {
 			// special case: root label. Avoid looking up compression cache and stuff...
 			return "\0";
 		}
+
+		if (substr($str, -1) != '.') 
+			$str .= '.' . $this->defaultDomain;
 
 		while(1) {
 			$pos = strpos($str, '.', $in_offset);

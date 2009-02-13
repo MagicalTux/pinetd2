@@ -80,6 +80,7 @@ $dnsd = new DNSd_updater('MyPeer', '127.0.0.1', 'azerty', 10053);
 echo 'Connected to '.$dnsd->getNode()."\n";
 
 $id = $dnsd->getZone('shigoto');
+
 if (is_null($id)) { // not found
 	$id = $dnsd->createZone('shigoto');
 
@@ -88,6 +89,8 @@ if (is_null($id)) { // not found
 	var_dump($dnsd->addRecord($id, '', 'NS', 'ns1'));
 	var_dump($dnsd->addRecord($id, '', 'MX', array('data' => 'mail.ookoo.org.', 'mx_priority' => 10)));
 	var_dump($dnsd->addRecord($id, 'www', 'A', '127.0.0.1'));
+	var_dump($dnsd->addRecord($id, 'test', 'CNAME', 'www'));
+	var_dump($dnsd->addRecord($id, '*', 'CNAME', 'www'));
 }
 
 var_dump($id);

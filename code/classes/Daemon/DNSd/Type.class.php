@@ -7,7 +7,7 @@
 namespace Daemon\DNSd;
 
 class Type {
-	private $dns_type = array(
+	private static $dns_type = array(
 		1     => 'A',          // RFC 1035: Host address
 		2     => 'NS',         // RFC 1035: Authoritative Name Server
 		5     => 'CNAME',      // RFC 1035: Canonical Name for an alias
@@ -45,6 +45,7 @@ class Type {
 		32769 => 'DLV',        // RFC 4431: DNSSEC Lookaside Validation Record
 	);
 
+	private static $dns_type_rev = NULL;
 
 	private static $dns_type_rfc = array(
 		1     => 1035, // RFC 1035: Host address
@@ -91,6 +92,18 @@ class Type {
 		4 => 'HS', // Hesiod [Dyer 87]
 		255 => 'ANY', // Any class
 	);
+
+	public static function typeToString($type) {
+		if (!isset(self::$dns_type[$type])) return null;
+		return self::$dns_type[$type];
+	}
+
+	public static function stringToType($typestr) {
+		if (is_null(self::$dns_type_rev)) self::$dns_type_rev = array_flip(self::$dns_type);
+		if (!isset(self::$dns_type_rev[$typestr])) return NULL;
+
+		return self::$dns_type_rev[$typestr];
+	}
 
 	public static function factory($pkt, $type) {
 		if (!isset(self::$dns_type_rfc[$type])) return NULL; // ?!
