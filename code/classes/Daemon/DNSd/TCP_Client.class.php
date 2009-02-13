@@ -4,6 +4,7 @@ namespace Daemon\DNSd;
 
 class TCP_Client extends \pinetd\TCP\Client {
 	private $engine;
+	private $syncmode = false;
 
 	public function welcomeUser() {
 		$this->setMsgEnd('');
@@ -17,8 +18,9 @@ class TCP_Client extends \pinetd\TCP\Client {
 
 	protected function receivePacket($pkt) {
 		if (substr($pkt, 0, 5) == 'BEGIN') {
+			$pkt = substr($pkt, 5);
 			// read packet
-			$stamp = unpack('N', substr($pkt, -24));
+			list($stamp) = @unpack('N', substr($pkt, -24));
 			$node = substr($pkt, 0, -24);
 			// check signature
 			$signature = sha1(substr($pkt, 0, -20).$this->IPC->getUpdateSignature($node), true);
@@ -38,7 +40,15 @@ class TCP_Client extends \pinetd\TCP\Client {
 				return;
 			}
 
-			// TODO: continue
+			// auth OK, enable advanced protocol
+			$this->syncmode = true;
+
+			$resp = $this->getNodeName().pack('N', time());
+			// add signature
+			$resp .= sha1($resp.$this->IPC->getUpdateSignature($node), true);
+
+			$this->sendMsg(pack('n', strlen($resp)).$resp);
+			return;
 		}
 
 		$this->engine->handlePacket($pkt, NULL);
