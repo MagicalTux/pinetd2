@@ -40,7 +40,7 @@ class Engine {
 		return $this->$handler($pkt, $question['qname'], $question['qtype']);
 	}
 
-	protected function handleInternetQuestion($pkt, $name, $type) {
+	protected function handleInternetQuestion($pkt, $name, $type, $subquery = false) {
 		// strip ending "."
 		if (substr($name, -1) == '.') $name = substr($name, 0, -1);
 
@@ -66,6 +66,7 @@ class Engine {
 
 		$zone = $res['zone'];
 		$ohost = $host;
+		if ($ohost != '') $ohost .= '.';
 
 		$pkt->setDefaultDomain($domain);
 
@@ -78,27 +79,22 @@ class Engine {
 			while($row = $res->fetch_assoc()) {
 				++$found;
 
-				$atype = Type::stringToType($row['type']);
-				if (is_null($atype)) continue;
+				$answer = $this->makeResponse($row, $pkt);
+				if (is_null($answer)) continue;
 
-				$answer = Type::factory($pkt, $atype);
-				switch($atype) {
-					case Type\RFC1035::TYPE_MX:
-						$answer->setValue(array('priority' => $row['mx_priority'], 'host' => $row['data']));
-						break;
-					default:
-						$answer->setValue($row['data']);
-				}
-				if ($row['host']) $row['host'].='.';
-				$pkt->addAnswer($ohost .'.'. $domain. '.', $answer, $row['ttl']);
-
-				if ($atype == Type\RFC1035::TYPE_CNAME) {
+				if ($answer->getType() == Type\RFC1035::TYPE_CNAME) {
 					$aname = $row['data'];
 					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
-					if (strtolower($aname) != $name) $this->handleInternetQuestion($pkt, $aname, $type);
+					if (strtolower($aname) != $ohost . $domain. '.') {
+						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
+						$this->handleInternetQuestion($pkt, $aname, $type, true);
+					}
+				} else {
+					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
 			}
 			if ($found) break;
+			if ($host == '') break;
 			if ($host == '*') break; // can't lookup more
 			if ($host[0] == '*') $host = (string)substr($host, 2);
 
@@ -109,6 +105,35 @@ class Engine {
 				$host = '*' . substr($host, $pos);
 			}
 		}
+
+		if ($subquery) return;
+
+		// add authority
+		$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($zone).' AND `host` = \'\' AND `type` IN (\'NS\')';
+		$res = $this->sql->query($req);
+
+		while($row = $res->fetch_assoc()) {
+			$answer = $this->makeResponse($row, $pkt);
+			if (is_null($answer)) continue;
+			$pkt->addAuthority($domain . '.', $answer, $row['ttl']);
+		}
+	}
+
+	protected function makeResponse($row, $pkt) {
+		$atype = Type::stringToType($row['type']);
+		if (is_null($atype)) return NULL;
+
+		$answer = Type::factory($pkt, $atype);
+		switch($atype) {
+			case Type\RFC1035::TYPE_MX:
+				$answer->setValue(array('priority' => $row['mx_priority'], 'host' => $row['data']));
+				break;
+			default:
+				$answer->setValue($row['data']);
+		}
+		if ($row['host']) $row['host'].='.';
+
+		return $answer;
 	}
 
 	protected function handleChaosQuestion($pkt, $name, $type) {
