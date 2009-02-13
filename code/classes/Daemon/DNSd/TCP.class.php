@@ -28,6 +28,10 @@ class TCP extends \pinetd\TCP\Base {
 		return $this->localConfig['UpdateSignature']['_'];
 	}
 
+	public function getNodeName() {
+		return $this->localConfig['Name']['_'];
+	}
+
 	public function doAccept($sock) {
 		// Overload this to avoid useless things (like remote host resolving)
 		$news = @stream_socket_accept($sock, 0, $peer);

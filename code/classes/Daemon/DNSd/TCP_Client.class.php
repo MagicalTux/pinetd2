@@ -1,6 +1,7 @@
 <?php
 
 namespace Daemon\DNSd;
+use pinetd\Logger;
 
 class TCP_Client extends \pinetd\TCP\Client {
 	private $engine;
@@ -20,12 +21,13 @@ class TCP_Client extends \pinetd\TCP\Client {
 		if (substr($pkt, 0, 5) == 'BEGIN') {
 			$pkt = substr($pkt, 5);
 			// read packet
-			list($stamp) = @unpack('N', substr($pkt, -24));
+			list(,$stamp) = @unpack('N', substr($pkt, -24, 4));
 			$node = substr($pkt, 0, -24);
 			// check signature
 			$signature = sha1(substr($pkt, 0, -20).$this->IPC->getUpdateSignature($node), true);
 			if ($signature != substr($pkt, -20)) {
 				// bad signature
+				Logger::log(Logger::LOG_WARN, 'Bad signature from client at '.$this->peer[0]);
 				$resp = 'BAD';
 				$this->sendMsg(pack('n', strlen($resp)).$resp);
 				$this->close();
@@ -43,7 +45,7 @@ class TCP_Client extends \pinetd\TCP\Client {
 			// auth OK, enable advanced protocol
 			$this->syncmode = true;
 
-			$resp = $this->getNodeName().pack('N', time());
+			$resp = $this->IPC->getNodeName().pack('N', time());
 			// add signature
 			$resp .= sha1($resp.$this->IPC->getUpdateSignature($node), true);
 
