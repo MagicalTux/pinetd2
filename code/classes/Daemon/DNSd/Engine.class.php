@@ -64,31 +64,49 @@ class Engine {
 			break;
 		}
 
+		$zone = $res['zone'];
+		$ohost = $host;
+
 		$pkt->setDefaultDomain($domain);
 
-		// got host & domain, lookup...
-		$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($res['zone']).' AND `host` = '.$this->sql->quote_escape($host).' AND `type` IN ('.$this->sql->quote_escape($typestr).', \'CNAME\')';
-		$res = $this->sql->query($req);
+		while(1) {
+			// got host & domain, lookup...
+			$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($zone).' AND `host` = '.$this->sql->quote_escape($host).' AND `type` IN ('.$this->sql->quote_escape($typestr).', \'CNAME\')';
+			$res = $this->sql->query($req);
 
-		while($row = $res->fetch_assoc()) {
-			$atype = Type::stringToType($row['type']);
-			if (is_null($atype)) continue;
+			$found = 0;
+			while($row = $res->fetch_assoc()) {
+				++$found;
 
-			$answer = Type::factory($pkt, $atype);
-			switch($atype) {
-				case Type\RFC1035::TYPE_MX:
-					$answer->setValue(array('priority' => $row['mx_priority'], 'host' => $row['data']));
-					break;
-				default:
-					$answer->setValue($row['data']);
+				$atype = Type::stringToType($row['type']);
+				if (is_null($atype)) continue;
+
+				$answer = Type::factory($pkt, $atype);
+				switch($atype) {
+					case Type\RFC1035::TYPE_MX:
+						$answer->setValue(array('priority' => $row['mx_priority'], 'host' => $row['data']));
+						break;
+					default:
+						$answer->setValue($row['data']);
+				}
+				if ($row['host']) $row['host'].='.';
+				$pkt->addAnswer($ohost .'.'. $domain. '.', $answer, $row['ttl']);
+
+				if ($atype == Type\RFC1035::TYPE_CNAME) {
+					$aname = $row['data'];
+					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
+					if (strtolower($aname) != $name) $this->handleInternetQuestion($pkt, $aname, $type);
+				}
 			}
-			if ($row['host']) $row['host'].='.';
-			$pkt->addAnswer($row['host'] . $domain. '.', $answer, $row['ttl']);
+			if ($found) break;
+			if ($host == '*') break; // can't lookup more
+			if ($host[0] == '*') $host = (string)substr($host, 2);
 
-			if ($atype == Type\RFC1035::TYPE_CNAME) {
-				$aname = $row['data'];
-				if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
-				if (strtolower($aname) != $name) $this->handleInternetQuestion($pkt, $aname, $type);
+			$pos = strpos($host, '.');
+			if ($pos === false) {
+				$host = '*';
+			} else {
+				$host = '*' . substr($host, $pos);
 			}
 		}
 	}
