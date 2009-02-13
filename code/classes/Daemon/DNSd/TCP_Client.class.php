@@ -41,7 +41,7 @@ class TCP_Client extends \pinetd\TCP\Client {
 				$this->close();
 				return;
 			}
-
+			
 			// auth OK, enable advanced protocol
 			$this->syncmode = true;
 
@@ -50,6 +50,16 @@ class TCP_Client extends \pinetd\TCP\Client {
 			$resp .= sha1($resp.$this->IPC->getUpdateSignature($node), true);
 
 			$this->sendMsg(pack('n', strlen($resp)).$resp);
+
+			if (!$this->IPC->forkIfYouCan($this->fd, $this->peer, 'TCP_Peer')) {
+				// couldn't fork...
+				Logger::log(Logger::LOG_WARN, 'Could not fork client at '.$this->peer[0]);
+				$resp = 'BAD';
+				$this->sendMsg(pack('n', strlen($resp)).$resp);
+				$this->close();
+				return;
+			}
+
 			return;
 		}
 

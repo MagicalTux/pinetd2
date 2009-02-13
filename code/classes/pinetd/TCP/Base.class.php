@@ -29,7 +29,7 @@ abstract class Base extends \pinetd\DaemonBase {
 	protected $port;
 	protected $daemon;
 	protected $IPC;
-	private $socket;
+	protected $socket;
 	protected $clients = array();
 	protected $fclients = array(); // forked clients
 	protected $protocol = 'tcp';

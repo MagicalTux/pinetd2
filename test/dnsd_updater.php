@@ -3,6 +3,7 @@
 class DNSd_updater {
 	private $fp;
 	private $buf;
+	private $node;
 
 	function __construct($peername, $ip, $secret, $port = 53) {
 		// connect to host
@@ -26,7 +27,11 @@ class DNSd_updater {
 		if (abs(time()-$stamp) > 5) throw new Exception('Invalid time synchronization between client & server');
 
 		$node = substr($pkt, 0, -4);
-		var_dump($node);
+		$this->node = $node;
+	}
+
+	public function getNode() {
+		return $this->node;
 	}
 
 	protected function readPkt() {
@@ -52,5 +57,7 @@ class DNSd_updater {
 }
 
 $dnsd = new DNSd_updater('MyPeer', '127.0.0.1', 'azerty', 10053);
+
+echo 'Connected to '.$dnsd->getNode()."\n";
 
 

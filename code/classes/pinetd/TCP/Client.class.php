@@ -32,7 +32,11 @@ class Client extends \pinetd\ProcessChild {
 
 	public function __construct($fd, $peer, $parent, $protocol) {
 		$this->fd = $fd;
-		$this->peer = explode(':', $peer); // ip:port TODO: handle ipv6
+		if (is_array($peer)) {
+			$this->peer = $peer;
+		} else {
+			$this->peer = explode(':', $peer); // ip:port TODO: handle ipv6
+		}
 		$this->protocol = $protocol;
 		parent::__construct($parent);
 //		var_dump(stream_filter_register('pinetd.autossl', 'pinetd\\TCP\\AutoSSL'));
