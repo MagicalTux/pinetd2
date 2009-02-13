@@ -48,7 +48,7 @@ class SQLite3 {
 	}
 
 	public function query($query) {
-		$res = $this->sqlite->query($query);
+		$res = @$this->sqlite->query($query);
 		if (is_bool($res)) return $res;
 
 		return new SQLite3\Result($res);
@@ -71,6 +71,7 @@ class SQLite3 {
 
 	function col_gen_type($col) {
 		$res = strtolower($col['type']);
+		if ($col['auto_increment']) return 'INTEGER';
 		switch($res) {
 			case 'set': case 'enum': // not supported by sqlite
 				$max_len = 0;
@@ -90,6 +91,7 @@ class SQLite3 {
 	function gen_field_info($cname, $col) {
 		$tmp = '`'.$cname.'` '.$this->col_gen_type($col);
 		if ($col['key'] == 'PRIMARY') $tmp .=' PRIMARY KEY';
+		if ($col['auto_increment']) $tmp.=' AUTOINCREMENT';
 		if (!$col['null']) $tmp.=' NOT NULL';
 		if (array_key_exists('default',$col)) $tmp.=' DEFAULT '.$this->quote_escape($col['default']);
 		return $tmp;

@@ -11,7 +11,7 @@ class UDP extends \pinetd\UDP\Base {
 		parent::__construct($port, $daemon, $IPC, $node);
 
 		$class = relativeclass($this, 'Engine');
-		$this->engine = new $class($this, $this->IPC);
+		$this->engine = new $class($this, $this->IPC, $this->localConfig);
 	}
 
 	protected function handlePacket($pkt, $peer) {

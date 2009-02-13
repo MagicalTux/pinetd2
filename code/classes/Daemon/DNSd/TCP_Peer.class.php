@@ -10,13 +10,20 @@ class TCP_Peer extends \pinetd\TCP\Client {
 	}
 
 	public function sendBanner() {
+//		$this->port = $this->IPC->openPort('DNSd::DbEngine');
 	}
 
 	protected function receivePacket($pkt) {
-		$this->engine->handlePacket($pkt, NULL);
+		$data = unserialize($pkt);
+		try {
+			$res = $this->IPC->callPort('DNSd::DbEngine', $data[0], $data[1]);
+		} catch(Exception $e) {
+			$res = $e;
+		}
+		$this->sendReply(serialize($res));
 	}
 
-	public function sendReply($pkt, $peer) {
+	public function sendReply($pkt, $peer = NULL) {
 		$this->sendMsg(pack('n', strlen($pkt)) . $pkt);
 	}
 

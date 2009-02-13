@@ -67,6 +67,9 @@ class TCP extends \pinetd\TCP\Base {
 		return new $class($socket, $peer, $parent, $protocol);
 	}
 
+	public function getLocalConfig() {
+		return $this->localConfig;
+	}
 
 	public function forkIfYouCan($news, $peer, $class) {
 		if (!$news) return;

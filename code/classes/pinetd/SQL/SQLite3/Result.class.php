@@ -10,7 +10,7 @@ class Result {
 	}
 
 	public function fetch_assoc() {
-		return $this->fetchArray(SQLITE3_ASSOC);
+		return $this->result->fetchArray(SQLITE3_ASSOC);
 	}
 }
 

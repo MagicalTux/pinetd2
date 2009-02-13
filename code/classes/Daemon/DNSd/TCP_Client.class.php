@@ -14,7 +14,7 @@ class TCP_Client extends \pinetd\TCP\Client {
 
 	public function sendBanner() {
 		$class = relativeclass($this, 'Engine');
-		$this->engine = new $class($this, $this->IPC);
+		$this->engine = new $class($this, $this->IPC, $this->IPC->getLocalConfig());
 	}
 
 	protected function receivePacket($pkt) {

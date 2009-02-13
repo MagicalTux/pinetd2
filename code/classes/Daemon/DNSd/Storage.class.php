@@ -12,21 +12,15 @@ class Storage {
 				'auto_increment' => true,
 				'key' => 'PRIMARY',
 			),
-			'parent_key' => array(
-				'type' => 'INT',
-				'size' => 11,
-				'null' => true,
-				'key' => 'piece_lookup',
-			),
 			'domain' => array(
 				'type' => 'VARCHAR',
-				'size' => 63,
+				'size' => 128,
 				'null' => false,
-				'key' => 'piece_lookup',
+				'key' => 'UNIQUE:piece_lookup',
 			),
 			'zone' => array(
-				'type' => 'VARCHAR',
-				'size' => 128,
+				'type' => 'INT',
+				'size' => 11,
 				'null' => false,
 				'key' => 'zone',
 			),
@@ -40,11 +34,13 @@ class Storage {
 				'key' => 'changed',
 			),
 		),
+
 		'zones' => array(
 			'zone_id' => array(
 				'type' => 'INT',
 				'size' => 11,
 				'null' => false,
+				'auto_increment' => true,
 				'key' => 'PRIMARY',
 			),
 			'zone' => array(
@@ -68,6 +64,7 @@ class Storage {
 				'type' => 'INT',
 				'size' => 11,
 				'null' => false,
+				'auto_increment' => true,
 				'key' => 'PRIMARY',
 			),
 			'zone' => array(
@@ -109,27 +106,27 @@ class Storage {
 			'serial' => array(
 				'type' => 'INT',
 				'unsigned' => true,
-				'null' => false,
+				'null' => true,
 			),
 			'refresh' => array(
 				'type' => 'INT',
 				'unsigned' => true,
-				'null' => false,
+				'null' => true,
 			),
 			'retry' => array(
 				'type' => 'INT',
 				'unsigned' => true,
-				'null' => false,
+				'null' => true,
 			),
 			'expire' => array(
 				'type' => 'INT',
 				'unsigned' => true,
-				'null' => false,
+				'null' => true,
 			),
 			'minimum' => array(
 				'type' => 'INT',
 				'unsigned' => true,
-				'null' => false,
+				'null' => true,
 			),
 		),
 		'deletions' => array(
@@ -152,6 +149,7 @@ class Storage {
 				'type' => 'INT',
 				'size' => 11,
 				'null' => false,
+				'auto_increment' => true,
 				'key' => 'PRIMARY',
 			),
 			'updated' => array(

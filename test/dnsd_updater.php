@@ -41,6 +41,7 @@ class DNSd_updater {
 				$first = false;
 			} else {
 				$this->buf .= fread($this->fp, 4096);
+				if (feof($this->fp)) throw new Exception('Lost server while reading data');
 			}
 
 			if (strlen($this->buf) < 2) continue;
@@ -54,10 +55,46 @@ class DNSd_updater {
 			return $pkt;
 		}
 	}
+
+	protected function sendPkt($pkt) {
+		$data = pack('n', strlen($pkt)) . $pkt;
+		return fwrite($this->fp, $data);
+	}
+
+	public function __call($func, $args) {
+		$this->sendPkt(serialize(array($func, $args)));
+		$res = $this->readPkt();
+
+		if ($res === '') return NULL;
+
+		$res = unserialize($res);
+
+		if ((is_object($res)) && ($res instanceof Exception)) throw $res;
+
+		return $res;
+	}
 }
 
 $dnsd = new DNSd_updater('MyPeer', '127.0.0.1', 'azerty', 10053);
 
 echo 'Connected to '.$dnsd->getNode()."\n";
+
+$id = $dnsd->getZone('shigoto');
+if (is_null($id)) { // not found
+	$id = $dnsd->createZone('shigoto');
+
+	var_dump($dnsd->addRecord($id, '', 'A', '192.168.0.1'));
+	var_dump($dnsd->addRecord($id, '', 'A', '192.168.0.2', 600));
+	var_dump($dnsd->addRecord($id, '', 'NS', 'ns1'));
+	var_dump($dnsd->addRecord($id, '', 'MX', array('data' => 'mail.ookoo.org.', 'mx_priority' => 10)));
+	var_dump($dnsd->addRecord($id, 'www', 'A', '127.0.0.1'));
+}
+
+var_dump($id);
+
+var_dump($dnsd->dumpZone('shigoto'));
+
+var_dump($dnsd->createDomain('test.com', $id));
+
 
 
