@@ -427,7 +427,7 @@ class IPC {
 			if ( (isset($c['timeout'])) && ($c['timeout'] > 0)) {
 				if ($c['last_activity'] < ($now - $c['timeout'])) {
 					$c['last_activity'] = $now;
-					call_user_func_array($c['callback_timeout'], &$c['callback_data']);
+					call_user_func_array($c['timeout_callback'], &$c['timeout_data']);
 				}
 			}
 			$r[] = $c['fd'];

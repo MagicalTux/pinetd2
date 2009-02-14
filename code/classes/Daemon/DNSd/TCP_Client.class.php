@@ -23,8 +23,20 @@ class TCP_Client extends \pinetd\TCP\Client {
 			// read packet
 			list(,$stamp) = @unpack('N', substr($pkt, -24, 4));
 			$node = substr($pkt, 0, -24);
+
 			// check signature
-			$signature = sha1(substr($pkt, 0, -20).$this->IPC->getUpdateSignature($node), true);
+			$peer = $this->IPC->getUpdateSignature($node);
+
+			if (is_null($peer)) {
+				// unknown peer
+				Logger::log(Logger::LOG_WARN, 'Unknown DNS peer name (remember, those are case-sensitive) from client at '.$this->peer[0]);
+				$resp = 'BAD';
+				$this->sendMsg(pack('n', strlen($resp)).$resp);
+				$this->close();
+				return;
+			}
+
+			$signature = sha1(substr($pkt, 0, -20).$peer['Signature'], true);
 			if ($signature != substr($pkt, -20)) {
 				// bad signature
 				Logger::log(Logger::LOG_WARN, 'Bad signature from client at '.$this->peer[0]);
@@ -47,7 +59,7 @@ class TCP_Client extends \pinetd\TCP\Client {
 
 			$resp = $this->IPC->getNodeName().pack('N', time());
 			// add signature
-			$resp .= sha1($resp.$this->IPC->getUpdateSignature($node), true);
+			$resp .= sha1($resp.$peer['Signature'], true);
 
 			$this->sendMsg(pack('n', strlen($resp)).$resp);
 
@@ -82,6 +94,5 @@ class TCP_Client extends \pinetd\TCP\Client {
 			$this->receivePacket($dat);
 		}
 	}
-
 }
 

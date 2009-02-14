@@ -94,6 +94,7 @@ class Client extends \pinetd\ProcessChild {
 
 	// overload this to add an action on timeout (eg. sending a msg to client). Please return true
 	public function socketTimedOut() {
+		Logger::log(Logger::LOG_DEBUG, 'Socket timed out, closing');
 		$this->close();
 		return true;
 	}

@@ -42,7 +42,7 @@ class ConfigManager {
 		return $this->xml->$var;
 	}
 
-	public function __construct() {
+	protected function __construct() {
 		if (!is_readable(PINETD_ROOT.'/'.$this->config)) {
 			if (file_exists(PINETD_ROOT.'/config.php')) {
 				$this->parseOldConfig(PINETD_ROOT.'/config.php');

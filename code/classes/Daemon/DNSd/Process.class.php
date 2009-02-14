@@ -7,7 +7,7 @@ class Process extends \pinetd\Process {
 		parent::__construct($id, $daemon, $IPC, $node);
 
 
-		var_dump($this->localConfig['UpdateSignature']['_']);
+		//var_dump($this->localConfig['PeersArray']['Peer']);
 	}
 
 	public function mainLoop() {

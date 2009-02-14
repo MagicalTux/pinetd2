@@ -28,7 +28,12 @@ class TCP extends \pinetd\TCP\Base {
 
 	public function getUpdateSignature($node) {
 		// TODO: use different signatures per node
-		return $this->localConfig['UpdateSignature']['_'];
+		foreach($this->localConfig['PeersArray']['Peer'] as $peernode) {
+			if ($peernode['Name'] == $node) {
+				return $peernode;
+			}
+		}
+		return NULL;
 	}
 
 	public function getNodeName() {
@@ -57,6 +62,7 @@ class TCP extends \pinetd\TCP\Base {
 		);
 		$new->sendBanner();
 		$this->IPC->registerSocketWait($news, array($new, 'readData'), $foo = array());
+		$this->IPC->setTimeOut($news, 15, array($new, 'socketTimedOut'), $foo = array());
 	}
 
 	public function _ChildIPC_forkIfYouCan(&$daemon, $fd) {

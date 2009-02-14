@@ -15,10 +15,14 @@ abstract class DaemonBase {
 	abstract public function mainLoop();
 	abstract public function shutdown(); // must close any existing child before returning
 
-	protected function _readLocalConfig(&$node, &$array) {
+	protected function _readLocalConfig(&$node, &$array, $is_subarray = false) {
 		$x = 0;
 		foreach($node->children() as $var=>$subnode) {
-			$this->_readLocalConfig($subnode, $array[$var]);
+			if ($is_subarray) {
+				$this->_readLocalConfig($subnode, $array[$var][], (substr($var, -5) == 'Array'));
+			} else {
+				$this->_readLocalConfig($subnode, $array[$var], (substr($var, -5) == 'Array'));
+			}
 		}
 		if (!$x) {
 			$array['_'] = (string)$node;
