@@ -20,7 +20,7 @@ class Timer {
 		$this->_timers = new TimerQueue();
 	}
 
-	private function instance() {
+	private static function instance() {
 		if (is_null(self::$self)) self::$self = new self();
 		return self::$self;
 	}
@@ -30,7 +30,7 @@ class Timer {
 		$this->_timers->insert($timer, $next_run);
 	}
 
-	public function addTimer($callback, $delay, &$extra = null, $recurring = false) {
+	public static function addTimer($callback, $delay, &$extra = null, $recurring = false) {
 		$timer = array(
 			'callback' => $callback,
 			'delay' => $delay,
@@ -58,7 +58,7 @@ class Timer {
 		}
 	}
 
-	public function processTimers() {
+	public static function processTimers() {
 		self::instance()->_processTimers();
 	}
 
@@ -66,7 +66,7 @@ class Timer {
 		$this->_timers = new TimerQueue();
 	}
 
-	public function reset() {
+	public static function reset() {
 		self::instance()->_reset();
 	}
 }
