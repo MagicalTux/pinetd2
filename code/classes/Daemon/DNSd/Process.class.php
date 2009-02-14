@@ -13,8 +13,10 @@ class Process extends \pinetd\Process {
 	public function mainLoop() {
 		parent::initMainLoop();
 
+		$tcp = $this->IPC->openPort('DNSd::TCPMaster');
+
 		$class = relativeclass($this, 'DbEngine');
-		$this->db_engine = new $class($this->localConfig);
+		$this->db_engine = new $class($this->localConfig, $tcp);
 		$this->IPC->createPort('DNSd::DbEngine', $this->db_engine);
 
 		while(1) {

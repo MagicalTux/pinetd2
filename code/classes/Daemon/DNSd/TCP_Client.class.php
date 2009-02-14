@@ -54,6 +54,21 @@ class TCP_Client extends \pinetd\TCP\Client {
 				return;
 			}
 			
+			switch($peer['Type']) {
+				case 'control':
+					$class = 'TCP_Peer';
+					break;
+				case 'slave':
+					$class = 'TCP_Slave';
+					break;
+				default:
+					Logger::log(Logger::LOG_WARN, 'Bad type for identified client at '.$this->peer[0]);
+					$resp = 'BAD';
+					$this->sendMsg(pack('n', strlen($resp)).$resp);
+					$this->close();
+					return;
+			}
+
 			// auth OK, enable advanced protocol
 			$this->syncmode = true;
 
@@ -63,7 +78,7 @@ class TCP_Client extends \pinetd\TCP\Client {
 
 			$this->sendMsg(pack('n', strlen($resp)).$resp);
 
-			if (!$this->IPC->forkIfYouCan($this->fd, $this->peer, 'TCP_Peer')) {
+			if (!$this->IPC->forkIfYouCan($this->fd, $this->peer, 'TCP_Peer', $peer['Type'])) {
 				// couldn't fork...
 				Logger::log(Logger::LOG_WARN, 'Could not fork client at '.$this->peer[0]);
 				$resp = 'BAD';

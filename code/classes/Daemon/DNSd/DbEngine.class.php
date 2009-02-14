@@ -6,8 +6,9 @@ use pinetd\SQL;
 
 class DbEngine {
 	protected $localConfig;
+	protected $tcp;
 
-	function __construct($localConfig) {
+	function __construct($localConfig, $tcp) {
 		$this->localConfig = $localConfig;
 
 		// check table struct
@@ -15,15 +16,27 @@ class DbEngine {
 
 		$storage = relativeclass($this, 'Storage');
 		$storage::validateTables($this->sql);
+
+		$this->tcp = $tcp;
 	}
 
 	public function createZone($zone) {
 		// Try to insert zone
 		$zone = strtolower($zone);
-		$res = $this->sql->query('INSERT INTO `zones` (`zone`, `created`, `changed`) VALUES ('.$this->sql->quote_escape($zone).', NOW(), NOW())');
-		if (!$res) return false;
+		$now = $this->sql->now();
 
-		return $this->sql->insert_id;
+		$data = array(
+			'zone' => $zone,
+			'created' => $now,
+			'changed' => $now,
+		);
+
+		if (!$this->sql->insert('zones', $data)) return false;
+
+		$id = $this->sql->insert_id;
+		$this->tcp->dispatch('zones', $id, $data);
+
+		return $id;
 	}
 
 	public function getZone($zone) {

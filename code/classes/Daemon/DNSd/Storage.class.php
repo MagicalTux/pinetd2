@@ -68,8 +68,8 @@ class Storage {
 				'key' => 'PRIMARY',
 			),
 			'zone' => array(
-				'type' => 'VARCHAR',
-				'size' => 128,
+				'type' => 'INT',
+				'size' => 11,
 				'null' => false,
 				'key' => 'domain_lookup',
 			),

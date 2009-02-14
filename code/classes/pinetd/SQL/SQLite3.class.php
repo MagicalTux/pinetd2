@@ -42,6 +42,19 @@ class SQLite3 {
 		return date('Y-m-d H:i:s', $when);
 	}
 
+	public function insert($table, $data) {
+		$fields = '';
+		$values = '';
+		foreach($data as $var => $val) {
+			$fields .= ($fields == ''?'':',').'`'.$var.'`';
+			$values .= ($values == ''?'':',').$this->quote_escape($val);
+		}
+
+		$req = 'INSERT INTO `'.$table.'` ('.$fields.') VALUES('.$values.')';
+
+		return $this->sqlite->exec($req);
+	}
+
 	public function DAO($table, $key) {
 		if (!isset($this->DAO[$table])) $this->DAO[$table] = new \DAO\SQLite3($this, $table, $key);
 		return $this->DAO[$table];
@@ -61,6 +74,7 @@ class SQLite3 {
 
 	public function quote_escape($string) {
 		if (is_null($string)) return 'NULL';
+		if ($string instanceof \pinetd\SQL\Expr) return (string)$string;
 		if (is_array($string)) {
 			$res = '';
 			foreach($string as $elem) $res .= ($res == ''?'':',') . $this->quote_escape($elem);

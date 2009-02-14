@@ -7,10 +7,34 @@ use pinetd\SQL;
 use pinetd\Timer;
 use pinetd\IPC;
 
+class TCP_IPC_Port {
+	private $parent;
+	public function __construct($parent) {
+		$this->parent = $parent;
+	}
+
+	public function dispatch($table, $id, $data) {
+		$this->parent->dispatch($table, $id, $data);
+	}
+}
+
 class TCP extends \pinetd\TCP\Base {
 	protected function handlePacket($pkt, $peer) {
 		$this->engine->handlePacket($pkt, $peer);
 		//Logger::log(Logger::LOG_DEBUG, 'Got an UDP packet from '.$peer);
+	}
+
+	public function mainLoop() {
+		$port = new TCP_IPC_Port($this);
+		$this->IPC->createPort('DNSd::TCPMaster', $port);
+		return parent::mainLoop();
+	}
+
+	public function dispatch($table, $id, $data) {
+		// dispatch to all slaves
+		foreach($this->fclients as &$client) {
+			if ($client['class'] == 'TCP_Slave') $client->IPC->dispatch($table, $id, $data);
+		}
 	}
 
 	public function sendReply($pkt, $peer) {
@@ -27,7 +51,8 @@ class TCP extends \pinetd\TCP\Base {
 	}
 
 	public function getUpdateSignature($node) {
-		// TODO: use different signatures per node
+		if (!isset($this->localConfig['PeersArray'])) return NULL;
+
 		foreach($this->localConfig['PeersArray']['Peer'] as $peernode) {
 			if ($peernode['Name'] == $node) {
 				return $peernode;
@@ -107,6 +132,7 @@ class TCP extends \pinetd\TCP\Base {
 				'socket' => $pair[0],
 				'IPC' => new \pinetd\IPC($pair[0], false, $this, $this->IPC),
 				'connect' => time(),
+				'class' => $class,
 			);
 			$this->IPC->registerSocketWait($pair[0], array($this->fclients[$pid]['IPC'], 'run'), $foobar = array(&$this->fclients[$pid]));
 			return true;
