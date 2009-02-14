@@ -28,7 +28,6 @@ class Client extends \pinetd\ProcessChild {
 	protected $buf = '';
 	protected $ok = true;
 	protected $protocol = 'tcp';
-	protected $timeout = 3600; // default: 1 hour timeout
 
 	public function __construct($fd, $peer, $parent, $protocol) {
 		$this->fd = $fd;
@@ -94,21 +93,13 @@ class Client extends \pinetd\ProcessChild {
 	}
 
 	// overload this to add an action on timeout (eg. sending a msg to client). Please return true
-	protected function socketTimedOut() {
-		// void
+	public function socketTimedOut() {
+		$this->close();
 		return true;
 	}
 
 	protected function pullDataFromSocket() {
-		stream_set_timeout($this->fd, $this->timeout);
 		$res = fread($this->fd, 8192);
-		$info = stream_get_meta_data($this->fd);
-
-		if ($info['timed_out']) {
-			$this->socketTimedOut();
-			return false;
-		}
-		
 		return $res;
 	}
 
@@ -161,6 +152,7 @@ class Client extends \pinetd\ProcessChild {
 		$this->IPC = $IPC;
 		$this->IPC->setParent($this);
 		$this->IPC->registerSocketWait($this->fd, array($this, 'readData'), $foo = array());
+		$this->IPC->setTimeOut($this->fd, 3600, array($this, 'socketTimedOut'), $foo = array());
 		$this->setProcessStatus('resolving');
 		$this->doResolve();
 		$this->sendBanner();

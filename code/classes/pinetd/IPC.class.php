@@ -106,7 +106,14 @@ class IPC {
 	 */
 	public function registerSocketWait($fd, $callback, &$data) {
 		if (!is_array($data)) throw new Exception('No data defined :(');
-		$this->fds[$fd] = array('fd'=>$fd, 'callback' => $callback, 'data' => &$data);
+		$this->fds[(int)$fd] = array('fd'=>$fd, 'last_activity' => time(), 'callback' => $callback, 'data' => &$data);
+	}
+
+	public function setTimeOut($fd, $timeout, $callback, &$data) {
+		if (!is_array($data)) throw new Exception('No data defined!');
+		$this->fds[(int)$fd]['timeout'] = $timeout;
+		$this->fds[(int)$fd]['timeout_callback'] = $callback;
+		$this->fds[(int)$fd]['timeout_data'] = &$data;
 	}
 
 	/**
@@ -415,12 +422,21 @@ class IPC {
 	 */
 	public function selectSockets($timeout) {
 		$r = array();
-		foreach($this->fds as &$c) $r[] = $c['fd'];
+		$now = time();
+		foreach($this->fds as &$c) {
+			if ($c['last_activity'] < ($now - $c['timeout'])) {
+				$c['last_activity'] = $now;
+				call_user_func_array($c['callback_timeout'], &$c['callback_data']);
+			}
+			$r[] = $c['fd'];
+		}
+
 		$n = @stream_select($r, $w=null, $e=null, 0, $timeout);
 		if (($n==0) && (count($r)>0)) $n = count($r); // stream_select returns weird values sometimes Oo
 		if ($n<=0) return $n;
 		foreach($r as $fd) {
 			$info = &$this->fds[$fd];
+			$info['last_activity'] = $now;
 			// somewhat dirty (but not so dirty) workaround for a weird PHP 5.3 behaviour
 			if ( (is_array($info['callback'])) && ($info['callback'][1] == 'run')) {
 				// This function expects one parameter, and by ref
