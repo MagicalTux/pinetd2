@@ -72,7 +72,9 @@ class Engine {
 
 		while(1) {
 			// got host & domain, lookup...
-			$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($zone).' AND `host` = '.$this->sql->quote_escape($host).' AND `type` IN ('.$this->sql->quote_escape($typestr).', \'CNAME\')';
+			$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($zone).' AND `host` = '.$this->sql->quote_escape($host);
+			if ($type != Type\RFC1035::TYPE_ANY)
+				$req.= ' AND `type` IN ('.$this->sql->quote_escape($typestr).', \'CNAME\')';
 			$res = $this->sql->query($req);
 
 			$found = 0;

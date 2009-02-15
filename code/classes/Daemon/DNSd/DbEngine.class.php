@@ -21,12 +21,16 @@ class DbEngine {
 		$this->tcp = $tcp;
 	}
 
+	function __call($func, $args) {
+		return NULL;
+	}
+
 	protected function tableKey($table) {
 		switch($table) {
 			case 'domains': return 'key';
 			case 'zone_records': return 'record_id';
 			case 'zones': return 'zone_id';
-			case 'deletions': return 'deletion_id';
+			case 'deletions': return 'key';
 			default: return NULL;
 		}
 	}
@@ -154,6 +158,48 @@ class DbEngine {
 
 		$this->tcp->dispatch('domains', $id, $insert);
 		return $id;
+	}
+
+	public function getDomain($domain) {
+		$res = $this->sql->query('SELECT `key` FROM `domains` WHERE `domain` = '.$this->sql->quote_escape($domain))->fetch_assoc();
+
+		return $res['key'];
+	}
+
+	protected function doDelete($table, $key, $value) {
+		$this->sql->query('BEGIN TRANSACTION');
+
+		// delete entry
+		if (!$this->sql->query('DELETE FROM `'.$table.'` WHERE `'.$key.'` = '.$this->sql->quote_escape($domain))) {
+			$this->sql->query('ROLLBACK');
+			return false;
+		}
+		
+		// store delete event and dispatch it
+		$insert = array(
+			'deletion_table' => 'domains',
+			'deletion_id' => $domain,
+			'changed' => $this->sql->now(),
+		);
+		if (!$this->sql->insert('deletions', $insert)) {
+			$this->sql->query('ROLLBACK');
+			return false;
+		}
+
+		$insert['key'] = $this->sql->insert_id;
+
+		$this->sql->query('COMMIT');
+
+		$this->tcp->dispatch('deletions', $insert['key'], $insert);
+	}
+
+	public function deleteDomain($domain) {
+		if (!is_numeric($domain)) {
+			$domain = $this->getDomain($domain);
+		}
+		if ($domain) return false;
+
+		return $this->doDelete('domains', 'key', $domain);
 	}
 
 	public function lastUpdateDate() {

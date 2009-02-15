@@ -134,18 +134,25 @@ class Storage {
 			),
 		),
 		'deletions' => array(
-			'changed' => array(
-				'type' => 'DATETIME',
+			'key' => array(
+				'type' => 'INT',
+				'size' => 11,
 				'null' => false,
+				'auto_increment' => true,
+				'key' => 'PRIMARY',
+			),
+			'deletion_table' => array(
+				'type' => 'ENUM',
+				'values' => array('zones', 'domains', 'zone_records'),
 			),
 			'deletion_id' => array(
 				'type' => 'INT',
 				'size' => 11,
 				'null' => false,
 			),
-			'deletion_table' => array(
-				'type' => 'ENUM',
-				'values' => array('zones', 'domains', 'zone_records'),
+			'changed' => array(
+				'type' => 'DATETIME',
+				'null' => false,
 			),
 		),
 		'status' => array(
