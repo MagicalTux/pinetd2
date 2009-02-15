@@ -20,6 +20,7 @@ class SQLite3 {
 
 		// support for missing SQL functions in sqlite
 		$this->sqlite->createFunction('now', array($this, 'now'), 0);
+		$this->sqlite->createFunction('unix_timestamp', array($this, 'unixTimestamp'), 1);
 	}
 
 	public function __call($func, $args) {
@@ -36,6 +37,10 @@ class SQLite3 {
 
 	public function now() {
 		return date('Y-m-d H:i:s');
+	}
+
+	public function unixTimestamp($date) {
+		return strtotime($date); // lazy
 	}
 
 	public function timeStamp($when) {

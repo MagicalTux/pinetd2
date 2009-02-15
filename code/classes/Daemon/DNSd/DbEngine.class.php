@@ -2,6 +2,7 @@
 
 namespace Daemon\DNSd;
 
+use pinetd\Logger;
 use pinetd\SQL;
 
 class DbEngine {
@@ -18,6 +19,44 @@ class DbEngine {
 		$storage::validateTables($this->sql);
 
 		$this->tcp = $tcp;
+	}
+
+	protected function tableKey($table) {
+		switch($table) {
+			case 'domains': return 'key';
+			case 'zone_records': return 'record_id';
+			case 'zones': return 'zone_id';
+			case 'deletions': return 'deletion_id';
+			default: return NULL;
+		}
+	}
+
+	public function processUpdate($table, $data) {
+		$key = $this->tableKey($table);
+		if (is_null($key)) {
+			Logger::log(Logger::LOG_WARN, 'Got update from DNSd master for unknown table '.$table);
+			return;
+		}
+		$key_val = $data[$key];
+
+		if ($this->sql->query('SELECT 1 FROM `'.$table.'` WHERE `'.$key.'` = '.$this->sql->quote_escape($key_val))->fetch_assoc()) {
+			// update
+			unset($data[$key]);
+			$req = '';
+			foreach($data as $var => $val) $req.=($req==''?'':',').'`'.$var.'` = '.$this->sql->quote_escape($val);
+			$req = 'UPDATE `'.$table.'` SET '.$req.' WHERE `'.$key.'` = '.$this->sql->quote_escape($key_val);
+			$this->sql->query($req);
+		} else {
+			$this->sql->insert($table, $data);
+		}
+
+		if ($table == 'deletions') {
+			$delete_key = $this->tableKey($data['deletion_table']);
+			if (!is_null($delete_key)) {
+				$req = 'DELETE FROM `'.$data['deletion_table'].'` WHERE `'.$delete_key.'` = '.$this->sql->quote_escape($data['deletion_id']);
+				$this->sql->query($req);
+			}
+		}
 	}
 
 	public function createZone($zone) {
@@ -100,6 +139,18 @@ class DbEngine {
 		if (!$res) return false;
 
 		return $this->sql->insert_id;
+	}
+
+	public function lastUpdateDate() {
+		$recent = 0;
+
+		foreach(array('deletions', 'domains', 'zone_records', 'zones') as $table) {
+			$req = 'SELECT UNIX_TIMESTAMP(MAX(`changed`)) AS changed FROM `'.$table.'`';
+			$res = $this->sql->query($req)->fetch_assoc();
+			if ($res) $recent = max($recent, $res['changed']);
+		}
+
+		return $recent;
 	}
 }
 
