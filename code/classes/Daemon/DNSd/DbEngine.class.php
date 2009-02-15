@@ -170,15 +170,15 @@ class DbEngine {
 		$this->sql->query('BEGIN TRANSACTION');
 
 		// delete entry
-		if (!$this->sql->query('DELETE FROM `'.$table.'` WHERE `'.$key.'` = '.$this->sql->quote_escape($domain))) {
+		if (!$this->sql->query('DELETE FROM `'.$table.'` WHERE `'.$key.'` = '.$this->sql->quote_escape($value))) {
 			$this->sql->query('ROLLBACK');
 			return false;
 		}
 		
 		// store delete event and dispatch it
 		$insert = array(
-			'deletion_table' => 'domains',
-			'deletion_id' => $domain,
+			'deletion_table' => $table,
+			'deletion_id' => $value,
 			'changed' => $this->sql->now(),
 		);
 		if (!$this->sql->insert('deletions', $insert)) {
@@ -191,13 +191,15 @@ class DbEngine {
 		$this->sql->query('COMMIT');
 
 		$this->tcp->dispatch('deletions', $insert['key'], $insert);
+
+		return true;
 	}
 
 	public function deleteDomain($domain) {
 		if (!is_numeric($domain)) {
 			$domain = $this->getDomain($domain);
 		}
-		if ($domain) return false;
+		if (!$domain) return false;
 
 		return $this->doDelete('domains', 'key', $domain);
 	}
