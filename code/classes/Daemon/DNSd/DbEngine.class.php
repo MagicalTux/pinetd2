@@ -55,6 +55,7 @@ class DbEngine {
 		$insert['host'] = strtolower($host);
 		$insert['type'] = strtoupper($type);
 		$insert['ttl'] = $ttl;
+		$insert['changed'] = $this->sql->now();
 
 		$fields = '';
 		$values = '';

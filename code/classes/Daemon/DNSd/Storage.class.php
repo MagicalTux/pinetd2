@@ -128,9 +128,13 @@ class Storage {
 				'unsigned' => true,
 				'null' => true,
 			),
+			'changed' => array(
+				'type' => 'DATETIME',
+				'null' => false,
+			),
 		),
 		'deletions' => array(
-			'deletion_date' => array(
+			'changed' => array(
 				'type' => 'DATETIME',
 				'null' => false,
 			),
