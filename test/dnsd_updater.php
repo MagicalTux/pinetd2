@@ -91,6 +91,7 @@ if (is_null($id)) { // not found
 	var_dump($dnsd->addRecord($id, 'www', 'A', '127.0.0.1'));
 	var_dump($dnsd->addRecord($id, 'test', 'CNAME', 'www'));
 	var_dump($dnsd->addRecord($id, '*', 'CNAME', 'www'));
+	var_dump($dnsd->addRecord($id, 'ipv6', 'AAAA', '::1'));
 }
 
 var_dump($id);
