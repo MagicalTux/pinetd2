@@ -78,7 +78,7 @@ class TCP_Client extends \pinetd\TCP\Client {
 
 			$this->sendMsg(pack('n', strlen($resp)).$resp);
 
-			if (!$this->IPC->forkIfYouCan($this->fd, $this->peer, 'TCP_Peer', $peer['Type'])) {
+			if (!$this->IPC->forkIfYouCan($this->fd, $this->peer, $class, $peer['Type'])) {
 				// couldn't fork...
 				Logger::log(Logger::LOG_WARN, 'Could not fork client at '.$this->peer[0]);
 				$resp = 'BAD';

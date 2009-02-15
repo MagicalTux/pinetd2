@@ -90,7 +90,7 @@ class TCP extends \pinetd\TCP\Base {
 		$this->IPC->setTimeOut($news, 15, array($new, 'socketTimedOut'), $foo = array());
 	}
 
-	public function _ChildIPC_forkIfYouCan(&$daemon, $fd) {
+	public function _ChildIPC_forkIfYouCan(&$daemon, $fd, $class) {
 		return false; // already forked
 	}
 	function spawnClientClass($socket, $peer, $parent, $protocol, $class) {
