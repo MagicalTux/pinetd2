@@ -73,6 +73,7 @@ class DbEngine {
 		if (!$this->sql->insert('zones', $data)) return false;
 
 		$id = $this->sql->insert_id;
+		$data['zone_id'] = $id;
 		$this->tcp->dispatch('zones', $id, $data);
 
 		return $id;
@@ -103,12 +104,15 @@ class DbEngine {
 			$values .= ($values == ''?'':', ') . $this->sql->quote_escape($val);
 		}
 
-		$req = 'INSERT INTO `zone_records` ('.$fields.') VALUES ('.$values.')';
-
-		$res = $this->sql->query($req);
+		$res = $this->sql->insert('zone_records', $insert);
 		if (!$res) return false;
 
-		return $this->sql->insert_id;
+		$id = $this->sql->insert_id;
+		$insert['record_id'] = $id;
+
+		$this->tcp->dispatch('zone_records', $id, $insert);
+
+		return $id;
 	}
 
 	public function dumpZone($zone, $start = 0, $limit = 50) {
@@ -135,10 +139,21 @@ class DbEngine {
 			$zone = $this->getZone($zone);
 		}
 		$domain = strtolower($domain);
-		$res = $this->sql->query('INSERT INTO `domains` (`domain`, `zone`, `created`, `changed`) VALUES ('.$this->sql->quote_escape($domain).', '.$this->sql->quote_escape($zone).', NOW(), NOW())');
+		$insert = array(
+			'domain' => $domain,
+			'zone' => $zone,
+			'created' => $this->sql->now(),
+			'changed' => $this->sql->now(),
+		);
+
+		$res = $this->sql->insert('domains', $insert);
 		if (!$res) return false;
 
-		return $this->sql->insert_id;
+		$id = $this->sql->insert_id;
+		$insert['key'] = $id;
+
+		$this->tcp->dispatch('domains', $id, $insert);
+		return $id;
 	}
 
 	public function lastUpdateDate() {

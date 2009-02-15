@@ -18,6 +18,10 @@ class TCP_Slave extends \pinetd\TCP\Client {
 		$this->sql = SQL::Factory($localConfig['Storage']);
 	}
 
+	public function _ParentIPC_dispatch($daemon, $table, $key, $data) {
+		$this->sendReply(serialize(array($table, $data)));
+	}
+
 	protected function _slave_DoSync(array $p) {
 		$ts = $p[0];
 		if ($ts > 0) {

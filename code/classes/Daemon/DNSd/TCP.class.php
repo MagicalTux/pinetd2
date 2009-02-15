@@ -33,7 +33,7 @@ class TCP extends \pinetd\TCP\Base {
 	public function dispatch($table, $id, $data) {
 		// dispatch to all slaves
 		foreach($this->fclients as &$client) {
-			if ($client['class'] == 'TCP_Slave') $client->IPC->dispatch($table, $id, $data);
+			if ($client['class'] == 'TCP_Slave') $client['IPC']->dispatch($table, $id, $data);
 		}
 	}
 

@@ -143,9 +143,9 @@ class Storage {
 				'size' => 11,
 				'null' => false,
 			),
-			'deletion_type' => array(
+			'deletion_table' => array(
 				'type' => 'ENUM',
-				'values' => array('zone', 'domain', 'record'),
+				'values' => array('zones', 'domains', 'zone_records'),
 			),
 		),
 		'status' => array(
