@@ -19,10 +19,19 @@ class RFC1035 extends Base {
 				$this->value = inet_ntop($val);
 				break;
 			case self::TYPE_NS:
-				$this->value = $this->pkt->decodeLabel($val);
+				$foo_offset = 0;
+				$this->value = $this->pkt->decodeLabel($val, $foo_offset);
 				break;
 			case self::TYPE_CNAME:
-				$this->value = $this->pkt->decodeLabel($val);
+				$foo_offset = 0;
+				$this->value = $this->pkt->decodeLabel($val, $foo_offset);
+				break;
+			case self::TYPE_SOA:
+				$this->value = array();
+				$offset = 0;
+				$this->value['mname'] = $this->pkt->decodeLabel($val, $offset); // master name
+				$this->value['rname'] = $this->pkt->decodeLabel($val, $offset); // responsible email
+				$next_values = unpack('Nserial/Nrefresh/Nretry/Nexpire/Nminimum', substr($val, $offset));
 				break;
 			case self::TYPE_MX:
 				$tmp = unpack('n', $val);
@@ -63,8 +72,14 @@ class RFC1035 extends Base {
 				return $this->pkt->encodeLabel($val, $offset);
 			case self::TYPE_CNAME:
 				return $this->pkt->encodeLabel($val, $offset);
+			case self::TYPE_SOA:
+				$res = '';
+				$res .= $this->pkt->encodeLabel($val['mname'], $offset);
+				$res .= $this->pkt->encodeLabel($val['rname'], $offset+strlen($res));
+				$res .= pack('NNNNN', $val['serial'], $val['refresh'], $val['retry'], $val['expire'], $val['minimum']);
+				return $res;
 			case self::TYPE_MX:
-				return pack('n', $val['priority']).$this->pkt->encodeLabel($val['host'], $offset);
+				return pack('n', $val['priority']).$this->pkt->encodeLabel($val['host'], $offset+2);
 			case self::TYPE_TXT:
 				return chr(strlen($val)) . $val;
 			case self::TYPE_AXFR:

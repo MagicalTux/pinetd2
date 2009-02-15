@@ -88,6 +88,7 @@ if (is_null($id)) { // not found
 	var_dump($dnsd->addRecord($id, '', 'A', '192.168.0.2', 600));
 	var_dump($dnsd->addRecord($id, '', 'NS', 'ns1'));
 	var_dump($dnsd->addRecord($id, '', 'MX', array('data' => 'mail.ookoo.org.', 'mx_priority' => 10)));
+	var_dump($dnsd->addRecord($id, '', 'SOA', array('data' => 'ns1.ookoo.org.', 'resp_person' => 'root', 'serial' => '2009021500', 'refresh' => 10800, 'retry' => 3600, 'expire' => 604800, 'minimum' => 3600)));
 	var_dump($dnsd->addRecord($id, 'www', 'A', '127.0.0.1'));
 	var_dump($dnsd->addRecord($id, 'test', 'CNAME', 'www'));
 	var_dump($dnsd->addRecord($id, '*', 'CNAME', 'www'));
@@ -99,9 +100,9 @@ if (is_null($id)) { // not found
 
 //var_dump($dnsd->dumpZone('shigoto'));
 
-//var_dump($dnsd->createDomain('test.com', $id));
-//var_dump($dnsd->createDomain('test2.com', $id));
-//var_dump($dnsd->createDomain('test3.com', $id));
+var_dump($dnsd->createDomain('test.com', $id));
+var_dump($dnsd->createDomain('test2.com', $id));
+var_dump($dnsd->createDomain('test3.com', $id));
 
-var_dump($dnsd->deleteDomain('test2.com'));
+//var_dump($dnsd->deleteDomain('test2.com'));
 

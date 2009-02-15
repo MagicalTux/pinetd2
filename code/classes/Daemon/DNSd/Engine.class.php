@@ -130,6 +130,17 @@ class Engine {
 			case Type\RFC1035::TYPE_MX:
 				$answer->setValue(array('priority' => $row['mx_priority'], 'host' => $row['data']));
 				break;
+			case Type\RFC1035::TYPE_SOA:
+				$answer->setValue(array(
+					'mname' => $row['data'],
+					'rname' => $row['resp_person'],
+					'serial' => $row['serial'],
+					'refresh' => $row['refresh'],
+					'retry' => $row['retry'],
+					'expire' => $row['expire'],
+					'minimum' => $row['minimum'],
+				));
+				break;
 			default:
 				$answer->setValue($row['data']);
 		}
