@@ -35,7 +35,43 @@ class DbEngine {
 		}
 	}
 
+	protected function doDelete($table, $key, $value) {
+		$this->sql->query('BEGIN TRANSACTION');
+
+		// delete entry
+		if (!$this->sql->query('DELETE FROM `'.$table.'` WHERE `'.$key.'` = '.$this->sql->quote_escape($value))) {
+			$this->sql->query('ROLLBACK');
+			return false;
+		}
+
+		if ($this->sql->affected_rows < 1) {
+			$this->sql->query('ROLLBACK');
+			return false;
+		}
+		
+		// store delete event and dispatch it
+		$insert = array(
+			'deletion_table' => $table,
+			'deletion_id' => $value,
+			'changed' => $this->sql->now(),
+		);
+		if (!$this->sql->insert('deletions', $insert)) {
+			$this->sql->query('ROLLBACK');
+			return false;
+		}
+
+		$insert['key'] = $this->sql->insert_id;
+
+		$this->sql->query('COMMIT');
+
+		$this->tcp->dispatch('deletions', $insert['key'], $insert);
+
+		return true;
+	}
+
 	public function processUpdate($table, $data) {
+		if (!isset($this->localConfig['Master'])) return NULL; // I GOT NO MASTERS!
+
 		$key = $this->tableKey($table);
 		if (is_null($key)) {
 			Logger::log(Logger::LOG_WARN, 'Got update from DNSd master for unknown table '.$table);
@@ -63,6 +99,10 @@ class DbEngine {
 		}
 	}
 
+	/*****
+	 ** Zones management
+	 *****/
+
 	public function createZone($zone) {
 		// Try to insert zone
 		$zone = strtolower($zone);
@@ -89,12 +129,38 @@ class DbEngine {
 		return $res['zone_id'];
 	}
 
+	public function deleteZone($zone) {
+		if (!is_numeric($zone)) {
+			$zone = $this->getZone($zone);
+		}
+		if (!$zone) return false;
+
+		return $this->doDelete('zones', 'zone_id', $zone);
+	}
+
+	/*****
+	 ** Records management
+	 *****/
+
 	public function addRecord($zone, $host, $type, $value, $ttl = 86400) {
+		if (!is_numeric($zone)) {
+			$zone = $this->getZone($zone);
+		}
+		if (!$zone) return NULL;
+
 		if (!is_array($value)) {
 			$value = array('data' => $value);
 		}
+//CREATE TABLE `zone_records` (`record_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `zone` int(11) NOT NULL, `host` varchar(128) NOT NULL, `ttl` int(11) NOT NULL, `type` varchar(10) NOT NULL, `mx_priority` int(11), `data` text NOT NULL, `resp_person` text, `serial` unsigned , `refresh` unsigned , `retry` unsigned , `expire` unsigned , `minimum` unsigned , `changed` datetime NOT NULL);
 
-		$insert = $value;
+		$allowed = array('mx_priority', 'data', 'resp_person', 'serial', 'refresh', 'retry', 'expire', 'minimum', 'changed');
+
+		$insert = array();
+
+		foreach($allowed as $var) {
+			if (array_key_exists($var, $value)) $insert[$var] = $value[$var];
+		}
+
 		$insert['zone'] = strtolower($zone);
 		$insert['host'] = strtolower($host);
 		$insert['type'] = strtoupper($type);
@@ -119,6 +185,12 @@ class DbEngine {
 		return $id;
 	}
 
+	public function deleteRecord($rid) {
+		if (!$rid) return false;
+
+		return $this->doDelete('zone_records', 'record_id', $rid);
+	}
+
 	public function dumpZone($zone, $start = 0, $limit = 50) {
 		if (!is_numeric($zone)) {
 			$zone = $this->getZone($zone);
@@ -136,6 +208,10 @@ class DbEngine {
 
 		return $final_res;
 	}
+
+	/*****
+	 ** Domains management
+	 *****/
 
 	public function createDomain($domain, $zone) {
 		// Try to insert domain
@@ -166,35 +242,6 @@ class DbEngine {
 		return $res['key'];
 	}
 
-	protected function doDelete($table, $key, $value) {
-		$this->sql->query('BEGIN TRANSACTION');
-
-		// delete entry
-		if (!$this->sql->query('DELETE FROM `'.$table.'` WHERE `'.$key.'` = '.$this->sql->quote_escape($value))) {
-			$this->sql->query('ROLLBACK');
-			return false;
-		}
-		
-		// store delete event and dispatch it
-		$insert = array(
-			'deletion_table' => $table,
-			'deletion_id' => $value,
-			'changed' => $this->sql->now(),
-		);
-		if (!$this->sql->insert('deletions', $insert)) {
-			$this->sql->query('ROLLBACK');
-			return false;
-		}
-
-		$insert['key'] = $this->sql->insert_id;
-
-		$this->sql->query('COMMIT');
-
-		$this->tcp->dispatch('deletions', $insert['key'], $insert);
-
-		return true;
-	}
-
 	public function deleteDomain($domain) {
 		if (!is_numeric($domain)) {
 			$domain = $this->getDomain($domain);
@@ -203,6 +250,10 @@ class DbEngine {
 
 		return $this->doDelete('domains', 'key', $domain);
 	}
+
+	/*****
+	 ** Etc
+	 *****/
 
 	public function lastUpdateDate() {
 		$recent = 0;

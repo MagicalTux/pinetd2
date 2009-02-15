@@ -31,6 +31,7 @@ class SQLite3 {
 		switch($var) {
 			case 'error': return '['.$this->sqlite->lastErrorCode().'] '.$this->sqlite->lastErrorMsg();
 			case 'insert_id': return $this->sqlite->lastInsertRowID();
+			case 'affected_rows': return $this->sqlite->changes();
 		}
 		return $this->sqlite->$var;
 	}
