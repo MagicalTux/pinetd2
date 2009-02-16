@@ -23,7 +23,7 @@ class TCP_Slave extends \pinetd\TCP\Client {
 	}
 
 	protected function _slave_Ping(array $p) {
-		$this->sendReply(serialize('type' => 'pong'));
+		$this->sendReply(serialize(array('type' => 'pong')));
 	}
 
 	protected function _slave_DoSync(array $p) {
