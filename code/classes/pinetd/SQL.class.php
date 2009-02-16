@@ -5,10 +5,22 @@ namespace pinetd;
 class SQL {
 	static private $inst = array(); // instances list
 
+	/**
+	 * @brief Current process has been forked.
+	 * @internal
+	 *
+	 * This method is called by the child after forking.
+	 */
 	static public function forked() {
 		self::$inst = array();
 	}
 
+	/**
+	 * @brief Generate an unique instance of a SQL class
+	 *
+	 * This function will take a "Storage" localConfig entry. Typical call:
+	 * $sql = SQL::factory($this->localConfig['Storage']);
+	 */
 	static public function factory($config) {
 		$type_f = null;
 		foreach($config as $type => $settings) {
@@ -24,6 +36,10 @@ class SQL {
 		return self::$inst[$key];
 	}
 
+	/**
+	 * @brief Parent has forked signal, from parent
+	 * @internal
+	 */
 	static public function parentForked() {
 		foreach(self::$inst as &$class) $class->reconnect();
 	}
@@ -36,6 +52,9 @@ class SQL {
 	}
 }
 
+/**
+ * @brief Class for SQL expressions
+ */
 class Expr {
 	private $value;
 

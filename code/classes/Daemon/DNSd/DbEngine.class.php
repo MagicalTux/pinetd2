@@ -151,7 +151,6 @@ class DbEngine {
 		if (!is_array($value)) {
 			$value = array('data' => $value);
 		}
-//CREATE TABLE `zone_records` (`record_id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `zone` int(11) NOT NULL, `host` varchar(128) NOT NULL, `ttl` int(11) NOT NULL, `type` varchar(10) NOT NULL, `mx_priority` int(11), `data` text NOT NULL, `resp_person` text, `serial` unsigned , `refresh` unsigned , `retry` unsigned , `expire` unsigned , `minimum` unsigned , `changed` datetime NOT NULL);
 
 		$allowed = array('mx_priority', 'data', 'resp_person', 'serial', 'refresh', 'retry', 'expire', 'minimum', 'changed');
 
@@ -161,7 +160,6 @@ class DbEngine {
 			if (array_key_exists($var, $value)) $insert[$var] = $value[$var];
 		}
 
-		$insert['zone'] = strtolower($zone);
 		$insert['host'] = strtolower($host);
 		$insert['type'] = strtoupper($type);
 		$insert['ttl'] = $ttl;
@@ -185,13 +183,53 @@ class DbEngine {
 		return $id;
 	}
 
+	public function changeRecord($record, $host, $type, $value, $ttl = NULL) {
+
+		// load this record
+		$found = $this->sql->query('SELECT 1 FROM `zone_records` WHERE `record_id` = '.$this->sql->escape_string($record))->fetch_assoc();
+		if (!$found) return false;
+
+		$data = array();
+
+		if (is_null($value)) {
+			$value = array();
+		} elseif (!is_array($value)) {
+			$value = array('data' => $value);
+		}
+
+		$allowed = array('mx_priority', 'data', 'resp_person', 'serial', 'refresh', 'retry', 'expire', 'minimum', 'changed');
+
+		foreach($allowed as $var) {
+			if (isset($value[$var])) $data[$var] = $value[$var];
+		}
+
+		if (!is_null($host)) $data['host'] = strtolower($host);
+		if (!is_null($type)) $data['type'] = strtoupper($type);
+		if (!is_null($ttl)) $data['ttl'] = $ttl;
+		$data['changed'] = $this->sql->now();
+
+		$req = '';
+
+		foreach($data as $var => $val) {
+			$req .= ($req == ''?'':', ') . '`' . $var . '` = ' . $this->sql->quote_escape($val);
+		}
+
+		$req = 'UPDATE `zone_records` SET '.$req.' WHERE `record_id` = '.$this->sql->escape_string($record);
+
+		$data['record_id'] = $record;
+
+		$this->tcp->dispatch('zone_records', $record, $data);
+
+		return (bool)$this->sql->query($req);
+	}
+
 	public function deleteRecord($rid) {
 		if (!$rid) return false;
 
 		return $this->doDelete('zone_records', 'record_id', $rid);
 	}
 
-	public function dumpZone($zone, $start = 0, $limit = 50) {
+	public function dumpZone($zone, $start = 0, $limit = 500) {
 		if (!is_numeric($zone)) {
 			$zone = $this->getZone($zone);
 		}

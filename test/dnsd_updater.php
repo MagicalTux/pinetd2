@@ -96,13 +96,13 @@ if (is_null($id)) { // not found
 	var_dump($dnsd->addRecord($id, 'ipv6', 'A', '127.0.0.1'));
 }
 
-var_dump($dnsd->deleteRecord(7));
+//var_dump($dnsd->deleteRecord(7));
 
 //var_dump($id);
 
 //var_dump($dnsd->dumpZone('shigoto'));
 
-//var_dump($dnsd->createDomain('test.com', $id));
+var_dump($dnsd->createDomain('test.com', $id));
 //var_dump($dnsd->createDomain('test2.com', $id));
 //var_dump($dnsd->createDomain('test3.com', $id));
 
