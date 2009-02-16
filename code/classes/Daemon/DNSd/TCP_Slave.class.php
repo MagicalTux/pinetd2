@@ -19,7 +19,11 @@ class TCP_Slave extends \pinetd\TCP\Client {
 	}
 
 	public function _ParentIPC_dispatch($daemon, $table, $key, $data) {
-		$this->sendReply(serialize(array($table, $data)));
+		$this->sendReply(serialize(array('type'=>'dispatch', 'data' => array($table, $data))));
+	}
+
+	protected function _slave_Ping(array $p) {
+		$this->sendReply(serialize('type' => 'pong'));
 	}
 
 	protected function _slave_DoSync(array $p) {
@@ -37,7 +41,7 @@ class TCP_Slave extends \pinetd\TCP\Client {
 			$res = $this->sql->query($req);
 
 			while($row = $res->fetch_assoc()) {
-				$this->sendReply(serialize(array($table, $row)));
+				$this->sendReply(serialize(array('type' => 'dispatch', 'data' => array($table, $row))));
 			}
 		}
 	}

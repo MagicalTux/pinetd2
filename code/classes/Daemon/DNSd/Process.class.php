@@ -15,6 +15,10 @@ class Process extends \pinetd\Process {
 		parent::__construct($id, $daemon, $IPC, $node);
 	}
 
+	public function pingMaster(&$extra = null) {
+		if (!is_null($this->master_link)) $this->sendPkt('Ping');
+	}
+
 	public function checkMaster(&$extra = null) {
 		if (!isset($this->localConfig['Master'])) return true;
 
@@ -100,7 +104,14 @@ class Process extends \pinetd\Process {
 			return;
 		}
 		$pkt = @unserialize($pkt);
-		if (is_array($pkt)) $this->db_engine->processUpdate($pkt[0], $pkt[1]);
+		switch($pkt['type']) {
+			case 'dispatch':
+				$data = $pkt['data'];
+				$this->db_engine->processUpdate($data[0], $data[1]);
+				break;
+			case 'pong':
+				// TODO: compute latency and let user know the master/slave latency :)
+		}
 	}
 
 	protected function sendPkt($cmd, array $params = array()) {
@@ -146,6 +157,7 @@ class Process extends \pinetd\Process {
 		$this->IPC->createPort('DNSd::DbEngine', $this->db_engine);
 
 		Timer::addTimer(array($this, 'checkMaster'), 5, $foo = NULL, true);
+		Timer::addTimer(array($this, 'pingMaster'), 900, $foo = NULL, true);
 		$this->checkMaster();
 
 		while(1) {
