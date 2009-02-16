@@ -131,6 +131,7 @@ class Storage {
 			'changed' => array(
 				'type' => 'DATETIME',
 				'null' => false,
+				'key' => 'changed',
 			),
 		),
 		'deletions' => array(
@@ -153,6 +154,7 @@ class Storage {
 			'changed' => array(
 				'type' => 'DATETIME',
 				'null' => false,
+				'key' => 'changed',
 			),
 		),
 		'status' => array(
