@@ -160,6 +160,7 @@ class DbEngine {
 			if (array_key_exists($var, $value)) $insert[$var] = $value[$var];
 		}
 
+		$insert['zone'] = $zone;
 		$insert['host'] = strtolower($host);
 		$insert['type'] = strtoupper($type);
 		$insert['ttl'] = $ttl;
