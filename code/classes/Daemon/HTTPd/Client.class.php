@@ -3,6 +3,7 @@
 namespace Daemon\HTTPd;
 
 class Client extends \pinetd\TCP\Client {
+	protected $headers_sent = false;
 	protected $header = array();
 	protected $waitlen = 0;
 
@@ -17,12 +18,67 @@ class Client extends \pinetd\TCP\Client {
 		return $this->IPC->getVersionString();
 	}
 
-	public function handleRequest($request, $headers, $cookies) { // should be public to implement function virtual()
-		var_dump($request, $headers, $cookies);
+	protected function initRequest($request, $headers, $cookies, $post = NULL) {
+		$this->headers_sent = false;
+
+		ob_start(array($this, '_outputHandler'));
+
+		$path = parse_url($request['path']);
+
+		// build vars for $_SERVER
+		$s_vars = array(
+			'REMOTE_ADDR' => $this->peer[0],
+			'SERVER_SIGNATURE' => $this->getVersionString(),
+			'SERVER_SOFTWARE' => 'PInetd',
+			'DOCUMENT_ROOT' => $base,
+			'REMOTE_PORT' => $this->peer[1],
+			'GATEWAY_INTERFACE' => 'CGI/1.1',
+			'SERVER_PROTOCOL' => 'HTTP/'.$request['version'],
+			'REQUEST_METHOD' => $request['method'],
+			'QUERY_STRING' => $path['query'],
+			'REQUEST_URI' => $request['path'],
+			'SCRIPT_NAME' => $path['path'],
+			'PHP_SELF' => $path['path'],
+		);
+		foreach($headers as $head => $data) {
+			$head = 'HTTP_'.preg_replace('/[^A-Z0-9_]/', '_', strtoupper($head));
+			$s_vars[$head] = $data[0][1];
+		}
+
+		// GET
+		$g_vars = array();
+		parse_str((string)$path['query'], $g_vars);
+
+		$context = array(
+			'_SERVER' => $s_vars,
+			'_GET' => $g_vars,
+			'_COOKIE' => $cookies,
+		);
+
+		$this->handleRequest($path['path'], $context);
+
+		ob_end_flush();
+		$this->close();
+	}
+
+	public function _outputHandler($str) {
+		// check if headers sent
+		if (!$this->headers_sent) {
+			$headers = 'HTTP/1.0 200 Ok'."\r\n";
+			$headers.= 'Server: '.$this->getVersionString()."\r\n";
+			$headers.= 'Content-Type: text/html'."\r\n";
+			$this->sendMsg($headers."\r\n");
+			$this->headers_sent = true;
+		}
+
+		$this->sendMsg($str);
+		return '';
+	}
+
+	protected function handleRequest($path, $context) {
+		//var_dump($request, $headers, $cookies);
 		$answer = new HTTPAnswerError($this);
 		$answer->send(HTTPAnswerError::NOT_FOUND);
-//		sleep(3);
-		$this->close();
 	}
 
 	protected function decodeRequest($data = null) {
@@ -70,7 +126,7 @@ class Client extends \pinetd\TCP\Client {
 			'path' => $match[2],
 			'version' => $match[3],
 		);
-		$this->handleRequest($request, $headers, $cookies);
+		$this->initRequest($request, $headers, $cookies);
 	}
 
 	protected function parseBuffer() {
@@ -79,7 +135,7 @@ class Client extends \pinetd\TCP\Client {
 				if (strlen($this->buf) < $this->waitlen) return;
 				$data = substr($this->buf, 0, $this->waitlen);
 				$this->buf = substr($this->buf, $this->waitlen);
-				$this->handleRequest($data);
+				$this->initRequest($request, $headers, $cookies, $data);
 				continue;
 			}
 			$pos = strpos($this->buf, "\n");
