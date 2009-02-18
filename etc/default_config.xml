@@ -60,6 +60,7 @@
     <TCP Port="21" Daemon="FTPd" />
     <UDP Port="53" Daemon="DNSd" Service="UDP" />
     <TCP Port="53" Daemon="DNSd" Service="TCP" />
+    <Process Daemon="DNSd" Service="Process" />
     <TCP Port="80" Daemon="HTTPd"/>
     <TCP Port="990" Daemon="FTPd" SSL="main" />
     <TCP Port="25" Daemon="PMaild" Service="SMTP" />
