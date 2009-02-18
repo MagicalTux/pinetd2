@@ -19,33 +19,6 @@ cd "$PHP_VERSION"
 
 NEED_AUTOCONF=no
 
-if [ ! -d "ext/ares" ]; then
-	echo -n "Getting ares..."
-	# login to anoncvs
-	if [ -f ~/.cvspass ]; then
-		if [ `grep -c ':pserver:cvsread@cvs.php.net:2401/repository' ~/.cvspass 2>/dev/null` -eq 0 ]; then
-			echo "/1 :pserver:cvsread@cvs.php.net:2401/repository A" >>~/.cvspass
-		fi
-	else
-		echo "/1 :pserver:cvsread@cvs.php.net:2401/repository A" >>~/.cvspass
-	fi
-	# get ares
-	cvs -Q -d :pserver:cvsread@cvs.php.net:2401/repository checkout pecl/ares
-	# I hate cvs
-	mv pecl/ares ext/ares
-	rm -fr pecl
-	# Fix .cvsignore file in ares to *not* include config*
-	cat ext/ares/.cvsignore | grep -v 'config\*' >ext/ares/.cvsignore~
-	mv -f ext/ares/.cvsignore~ ext/ares/.cvsignore
-	# Fix some other things
-	for foo in ext/ares/*.c; do
-		sed -i -r -e 's/zend_is_callable\(([^)]*)\)/zend_is_callable(\1 TSRMLS_CC)/' "$foo"
-		sed -i 's/ZVAL_ADDREF/Z_ADDREF_P/' "$foo"
-	done
-	echo "done"
-	NEED_AUTOCONF=yes
-fi
-
 if [ ! -d "ext/proctitle" ]; then
 	echo -n "Getting proctitle..."
 	# get
@@ -92,7 +65,7 @@ echo -n "Configuring..."
  --with-mysql="$MYSQLI_DIR" --with-mysqli="$MYSQLI_PATH" --with-mhash --with-config-file-path="$BUILD_ROOT" \
  --enable-libxml --enable-dom --enable-xml --enable-xmlreader --enable-xmlwriter --with-openssl=/usr \
  --with-curl=/usr --with-curlwrappers \
- --with-imap=/usr --with-imap-ssl --with-ares --enable-proctitle --enable-soap
+ --with-imap=/usr --with-imap-ssl --enable-proctitle --enable-soap
 
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
