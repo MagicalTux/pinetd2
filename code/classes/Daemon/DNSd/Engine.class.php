@@ -16,6 +16,7 @@ class Engine {
 	protected $packet_class;
 	protected $localConfig;
 	protected $sql;
+	protected $sql_stmts;
 
 	public function __construct($parent, $IPC, $localConfig) {
 		$this->parent = $parent;
@@ -25,6 +26,13 @@ class Engine {
 		$this->localConfig = $localConfig;
 		// check table struct
 		$this->sql = SQL::Factory($this->localConfig['Storage']);
+
+		$this->sql_stmts = array(
+			'get_domain' => $this->sql->prepare('SELECT `zone` FROM `domains` WHERE `domain` = ?'),
+			'get_record_any' => $this->sql->prepare('SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?'),
+			'get_record' => $this->sql->prepare('SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\')'),
+			'get_authority' => $this->sql->prepare('SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (\'NS\')'),
+		);
 	}
 
 	protected function handleQuestion($pkt, $question) {
@@ -52,7 +60,7 @@ class Engine {
 		$domain = $name;
 		$host = '';
 		while(1) {
-			$res = $this->sql->query('SELECT `zone` FROM `domains` WHERE `domain` = '.$this->sql->quote_escape($domain))->fetch_assoc();
+			$res = $this->sql_stmts['get_domain']->run(array($domain))->fetch_assoc();
 			if (!$res) {
 				$pos = strpos($domain, '.');
 				if ($pos === false) return; // TODO: send SERVFAIL not auth
@@ -72,10 +80,11 @@ class Engine {
 
 		while(1) {
 			// got host & domain, lookup...
-			$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($zone).' AND `host` = '.$this->sql->quote_escape($host);
-			if ($type != Type\RFC1035::TYPE_ANY)
-				$req.= ' AND `type` IN ('.$this->sql->quote_escape($typestr).', \'CNAME\')';
-			$res = $this->sql->query($req);
+			if ($type != Type\RFC1035::TYPE_ANY) {
+				$res = $this->sql_stmts['get_record']->run(array($zone, $host, $typestr));
+			} else {
+				$res = $this->sql_stmts['get_record_any']->run(array($zone, $host));
+			}
 
 			$found = 0;
 			while($row = $res->fetch_assoc()) {
@@ -111,8 +120,7 @@ class Engine {
 		if ($subquery) return;
 
 		// add authority
-		$req = 'SELECT * FROM `zone_records` WHERE `zone` = '.$this->sql->quote_escape($zone).' AND `host` = \'\' AND `type` IN (\'NS\')';
-		$res = $this->sql->query($req);
+		$res = $this->sql_stmts['get_authority']->run(array($zone));
 
 		while($row = $res->fetch_assoc()) {
 			$answer = $this->makeResponse($row, $pkt);

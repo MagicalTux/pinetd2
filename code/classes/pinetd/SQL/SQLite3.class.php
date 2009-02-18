@@ -48,6 +48,12 @@ class SQLite3 {
 		return date('Y-m-d H:i:s', $when);
 	}
 
+	public function prepare($query) {
+		$stmt = $this->sqlite->prepare($query);
+		if (!$stmt) return $stmt;
+		return new SQLite3\Stmt($stmt, $query);
+	}
+
 	public function insert($table, $data) {
 		$fields = '';
 		$values = '';
