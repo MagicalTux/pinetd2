@@ -435,7 +435,11 @@ class IPC {
 
 		$n = @stream_select($r, $w=null, $e=null, 0, $timeout);
 		if (($n==0) && (count($r)>0)) $n = count($r); // stream_select returns weird values sometimes Oo
-		if ($n<=0) return $n;
+		if ($n<=0) {
+			// nothing has happened, let's collect garbage collector cycles
+			gc_collect_cycles();
+			return $n;
+		}
 		foreach($r as $fd) {
 			$info = &$this->fds[$fd];
 			$info['last_activity'] = $now;
