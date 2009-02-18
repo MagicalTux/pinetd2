@@ -749,6 +749,7 @@ class Client extends \pinetd\TCP\Client {
 			if ($data === false) break;
 			if (!$this->updateQuota(strlen($data))) {
 				$this->sendMsg('500 Quota exceed!');
+				break;
 			}
 			fwrite($fp, $data);
 			$bytes += strlen($data);
