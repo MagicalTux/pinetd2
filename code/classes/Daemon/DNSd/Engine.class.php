@@ -16,7 +16,8 @@ class Engine {
 	protected $packet_class;
 	protected $localConfig;
 	protected $sql;
-	protected $sql_stmts;
+	protected $sql_stmts = NULL;
+	protected $sql_stmts_tmp = array();
 
 	public function __construct($parent, $IPC, $localConfig) {
 		$this->parent = $parent;
@@ -30,13 +31,28 @@ class Engine {
 		// check if tables exists
 		// TODO: make this look better
 		while(!$this->sql->query('SELECT 1 FROM `status` LIMIT 1')) usleep(500000);
+	}
 
-		$this->sql_stmts = array(
-			'get_domain' => $this->sql->prepare('SELECT `zone` FROM `domains` WHERE `domain` = ?'),
-			'get_record_any' => $this->sql->prepare('SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?'),
-			'get_record' => $this->sql->prepare('SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\')'),
-			'get_authority' => $this->sql->prepare('SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (\'NS\')'),
+	protected function prepareStatements() {
+		$stmts = array(
+			'get_domain' => 'SELECT `zone` FROM `domains` WHERE `domain` = ?',
+			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
+			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\')',
+			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (\'NS\')',
 		);
+
+		foreach($stmts as $name => $query) {
+			if (isset($this->sql_stmts_tmp[$name])) continue;
+
+			$stmt = $this->sql->prepare($query);
+			if (!$stmt) return false;
+
+			$this->sql_stmts_tmp[$name] = $stmt;
+		}
+
+		$this->sql_stmts = $this->sql_stmts_tmp;
+
+		return true;
 	}
 
 	protected function handleQuestion($pkt, $question) {
@@ -56,7 +72,11 @@ class Engine {
 		// strip ending "."
 		if (substr($name, -1) == '.') $name = substr($name, 0, -1);
 
-		// TODO: create a function to convert a "TYPE" to "TYPESTR"
+		// check sql statements
+		if (is_null($this->sql_stmts)) {
+			if (!$this->prepareStatements()) return;
+		}
+
 		$typestr = Type::typeToString($type);
 		if (is_null($typestr)) return NULL;
 

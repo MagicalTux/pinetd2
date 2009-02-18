@@ -3,9 +3,12 @@
 namespace Daemon\HTTPd;
 
 class Client extends \pinetd\TCP\Client {
-	protected $headers_sent = false;
 	protected $header = array();
 	protected $waitlen = 0;
+
+	// outgoing stuff
+	protected $headers_sent = false;
+	protected $out_headers = array();
 
 	public function welcomeUser() {
 		return true;
@@ -20,6 +23,9 @@ class Client extends \pinetd\TCP\Client {
 
 	protected function initRequest($request, $headers, $cookies, $post = NULL) {
 		$this->headers_sent = false;
+		$this->out_headers = array();
+		$this->header('Server: '.$this->getVersionString());
+		$this->header('Content-Type: text/html');
 
 		ob_start(array($this, '_outputHandler'));
 
@@ -61,12 +67,27 @@ class Client extends \pinetd\TCP\Client {
 		$this->close();
 	}
 
+	public function header($head, $replace = true) {
+		$pos = strpos($head, ':');
+		if ($pos === false) return;
+		$type = strtolower(substr($head, 0, $pos));
+
+		if ($replace) {
+			$this->out_headers[$type] = array($head);
+		} else {
+			$this->out_headers[$type][] = $head;
+		}
+	}
+
 	public function _outputHandler($str) {
 		// check if headers sent
 		if (!$this->headers_sent) {
 			$headers = 'HTTP/1.0 200 Ok'."\r\n";
-			$headers.= 'Server: '.$this->getVersionString()."\r\n";
-			$headers.= 'Content-Type: text/html'."\r\n";
+			// build headers
+			foreach($this->out_headers as $type => $list) {
+				foreach($list as $head)
+					$headers .= $head . "\r\n";
+			}
 			$this->sendMsg($headers."\r\n");
 			$this->headers_sent = true;
 		}
