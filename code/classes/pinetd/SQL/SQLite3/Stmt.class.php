@@ -13,6 +13,8 @@ class Stmt {
 	}
 
 	public function run(array $params = array()) {
+		$this->stmt->reset();
+
 		foreach($params as $key => $val)
 			$this->stmt->bindValue($key +1, $val, SQLITE3_TEXT);
 
