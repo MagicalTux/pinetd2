@@ -659,7 +659,8 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg('150 '.$size.' bytes to send');
 
 		// transmit file
-		$res = stream_copy_to_stream($fp, $sock, $size, $resume);
+		fseek($fp, $resume);
+		$res = stream_copy_to_stream($fp, $sock);
 		
 		if ($res != $size) {
 			$this->sendMsg('500 Xfer connection closed!)');
