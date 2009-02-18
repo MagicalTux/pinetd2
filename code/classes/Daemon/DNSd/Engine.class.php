@@ -24,8 +24,12 @@ class Engine {
 		$this->packet_class = relativeclass($this, 'Packet');
 
 		$this->localConfig = $localConfig;
-		// check table struct
+		// connect to SQL
 		$this->sql = SQL::Factory($this->localConfig['Storage']);
+
+		// check if tables exists
+		// TODO: make this look better
+		while(!$this->sql->query('SELECT 1 FROM `status` LIMIT 1')) usleep(500000);
 
 		$this->sql_stmts = array(
 			'get_domain' => $this->sql->prepare('SELECT `zone` FROM `domains` WHERE `domain` = ?'),
