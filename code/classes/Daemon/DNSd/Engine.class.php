@@ -68,9 +68,11 @@ class Engine {
 		return $this->$handler($pkt, $question['qname'], $question['qtype']);
 	}
 
-	protected function handleInternetQuestion($pkt, $name, $type, $subquery = 0) {
+	protected function handleInternetQuestion($pkt, $name, $type, $subquery = 0, $initial_query = NULL) {
 		// strip ending "."
 		if (substr($name, -1) == '.') $name = substr($name, 0, -1);
+
+		if (is_null($initial_query)) $initial_query = $name;
 
 		// check sql statements
 		if (is_null($this->sql_stmts)) {
@@ -87,7 +89,7 @@ class Engine {
 		$domain = $name;
 		$host = '';
 		while(1) {
-			$res = $this->sql_stmts['get_domain']->run(array($domain))->fetch_assoc();
+			$res = $this->sql_stmts['get_domain']->run(array(strtolower($domain)))->fetch_assoc();
 			if (!$res) {
 				$pos = strpos($domain, '.');
 				if ($pos === false) {
@@ -152,8 +154,10 @@ class Engine {
 
 		if ($subquery < 5) {
 			foreach($add_lookup as $aname) {
-				$this->handleInternetQuestion($pkt, $aname, $type, $subquery + 1);
+				$this->handleInternetQuestion($pkt, $aname, $type, $subquery + 1, $initial_query);
 			}
+		} elseif($add_lookup) {
+			Logger::log(Logger::LOG_WARN, 'Query reached recursivity limit (query against '.$initial_query.' reaching '.$name.' and with lookup of '.implode(', ', $add_lookup).')');
 		}
 
 		if ($subquery) return;
