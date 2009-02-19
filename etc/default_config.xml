@@ -1,8 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Config>
+	<!--
+			 Global
+
+			 Global settings for all daemons.
+
+			 Settings here will be set for all daemons, and for Core.
+			 They can be overloaded after this
+	-->
   <Global>
+		<!--
+				 Global/RemoveMe
+
+				 annoying line to make sure you noticed there is a config file.
+				 Only works in global context.
+
+				 Example:
+
+				 <RemoveMe>The config thou shall edit</RemoveMe>
+		-->
     <RemoveMe>Please edit config.xml and remove the line containing this text</RemoveMe>
+		<!--
+				 Name
+
+				 Define this node's name
+
+				 Can be used in any context
+
+				 Example:
+
+				 <Name>mail.example.com</Name>
+		-->
     <Name>GiveMeAName</Name>
+		<!--
+				 PidFile
+
+				 Name of the file where the core daemon's pid is written
+				 
+				 Not implemented
+
+				 Example:
+
+				 <PidFile>system.pid</PidFile>
+		-->
     <PidFile>system.pid</PidFile>
     <Security Strict="0">
       <Fork/>
