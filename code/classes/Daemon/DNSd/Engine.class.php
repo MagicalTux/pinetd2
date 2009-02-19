@@ -111,6 +111,7 @@ class Engine {
 			}
 
 			$found = 0;
+			$add_lookup = array();
 			while($row = $res->fetch_assoc()) {
 				++$found;
 
@@ -121,8 +122,8 @@ class Engine {
 					$aname = $row['data'];
 					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
 					if (strtolower($aname) != $ohost . $domain. '.') {
+						$add_lookup[strtolower($aname)] = $aname;
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
-						$this->handleInternetQuestion($pkt, $aname, $type, true);
 					}
 				} else {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
@@ -139,6 +140,10 @@ class Engine {
 			} else {
 				$host = '*' . substr($host, $pos);
 			}
+		}
+
+		foreach($add_lookup as $aname) {
+			$this->handleInternetQuestion($pkt, $aname, $type, true);
 		}
 
 		if ($subquery) return;
