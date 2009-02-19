@@ -132,7 +132,7 @@ class Engine {
 				if ($answer->getType() == Type\RFC1035::TYPE_CNAME) {
 					$aname = $row['data'];
 					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
-					if (strtolower($aname) != $ohost . $domain. '.') {
+					if (strtolower($aname) != strtolower($ohost . $domain. '.')) {
 						$add_lookup[strtolower($aname)] = $aname;
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 					}
