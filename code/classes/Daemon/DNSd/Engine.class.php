@@ -68,7 +68,7 @@ class Engine {
 		return $this->$handler($pkt, $question['qname'], $question['qtype']);
 	}
 
-	protected function handleInternetQuestion($pkt, $name, $type, $subquery = false) {
+	protected function handleInternetQuestion($pkt, $name, $type, $subquery = 0) {
 		// strip ending "."
 		if (substr($name, -1) == '.') $name = substr($name, 0, -1);
 
@@ -142,8 +142,10 @@ class Engine {
 			}
 		}
 
-		foreach($add_lookup as $aname) {
-			$this->handleInternetQuestion($pkt, $aname, $type, true);
+		if ($subquery < 5) {
+			foreach($add_lookup as $aname) {
+				$this->handleInternetQuestion($pkt, $aname, $type, $subquery + 1);
+			}
 		}
 
 		if ($subquery) return;
