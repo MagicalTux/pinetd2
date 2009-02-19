@@ -78,7 +78,10 @@ class Engine {
 		}
 
 		$typestr = Type::typeToString($type);
-		if (is_null($typestr)) return NULL;
+		if (is_null($typestr)) {
+			$pkt->setFlag('rcode', Packet::RCODE_NOTIMP);
+			return;
+		}
 
 		// search this domain
 		$domain = $name;
@@ -87,7 +90,10 @@ class Engine {
 			$res = $this->sql_stmts['get_domain']->run(array($domain))->fetch_assoc();
 			if (!$res) {
 				$pos = strpos($domain, '.');
-				if ($pos === false) return; // TODO: send SERVFAIL not auth
+				if ($pos === false) {
+					$pkt->setFlag('rcode', Packet::RCODE_NXDOMAIN);
+					return;
+				}
 				$host .= ($host==''?'':'.').substr($domain, 0, $pos);
 				$domain = substr($domain, $pos + 1);
 				continue;
@@ -95,6 +101,8 @@ class Engine {
 
 			break;
 		}
+
+		$pkt->setFlag('aa', 1);
 
 		$zone = $res['zone'];
 		$ohost = $host;
@@ -212,7 +220,7 @@ class Engine {
 		}
 
 		$pkt->setFlag('qr', 1);
-		$pkt->setFlag('aa', 1);
+		$pkt->setFlag('ra', 1);
 
 		$pkt = $pkt->encode();
 		//$test = new $this->packet_class();

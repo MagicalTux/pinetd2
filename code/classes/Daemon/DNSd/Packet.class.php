@@ -3,6 +3,17 @@
 namespace Daemon\DNSd;
 
 class Packet {
+	const RCODE_FORMERR = 1; /*!< Format error (parser) */
+	const RCODE_SERVFAIL = 2; /*!< Internal problem */
+	const RCODE_NXDOMAIN = 3; /*!< No authority over provided domain */
+	const RCODE_NOTIMP = 4;
+	const RCODE_REFUSED = 5;
+	const RCODE_YXDOMAIN = 6;
+	const RCODE_YXRRSET = 7;
+	const RCODE_NXRRSET = 8;
+	const RCODE_NOTAUTH = 9;
+	const RCODE_NOTZONE = 10;
+
 	protected $packet_id = NULL;
 	protected $flags = array();
 
