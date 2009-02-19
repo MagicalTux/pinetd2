@@ -456,7 +456,7 @@ class Core {
 						} else {
 							$tmpport = (string)$Entry['Daemon'] . '\\' . (string)$Entry['Service'];
 						}
-						$tmpkey = $tmpport . strtolower($Type);
+						$tmpkey = $tmpport . '/' . strtolower($Type);
 						if ($tmpkey != $key) continue; // we don't want to start this one
 
 						$startfunc = 'load'.$Type.'Daemon';
