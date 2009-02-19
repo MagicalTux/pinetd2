@@ -4,6 +4,7 @@ namespace Daemon\DNSd;
 
 use Daemon\DNSd\Type\RFC1035;
 use pinetd\SQL;
+use pinetd\Logger;
 
 class Engine {
 	const DNS_CLASS_IN = 1; // Teh Internet
