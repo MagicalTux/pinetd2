@@ -63,8 +63,29 @@ class Client extends \pinetd\TCP\Client {
 
 		$this->handleRequest($path['path'], $context);
 
+		if (isset($context['_SESSION_ID'])) $this->IPC->setSession($context['_SESSION_ID'], serialize($context['_SESSION']));
+
 		ob_end_flush();
 		$this->close();
+	}
+
+	protected function setCookie($cookie, $value) {
+		$this->header('Set-Cookie: '.urlencode($cookie).'='.urlencode($value), false);
+	}
+
+	protected function sessionStart(array &$context) {
+		if (isset($context['_COOKIE']['SESSID'])) {
+			$session = $this->IPC->getSession($context['_COOKIE']['SESSID']);
+			if (!is_null($session)) {
+				$context['_SESSION_ID'] = $context['_COOKIE']['SESSID'];
+				$context['_SESSION'] = unserialize($session);
+				return true;
+			}
+		}
+		$context['_SESSION_ID'] = $this->IPC->createSession();
+		$context['_SESSION'] = array();
+		$this->setCookie('SESSID', $context['_SESSION_ID']);
+		return true;
 	}
 
 	public function header($head, $replace = true) {
@@ -96,7 +117,7 @@ class Client extends \pinetd\TCP\Client {
 		return '';
 	}
 
-	protected function handleRequest($path, $context) {
+	protected function handleRequest($path, &$context) {
 		//var_dump($request, $headers, $cookies);
 		$answer = new HTTPAnswerError($this);
 		$answer->send(HTTPAnswerError::NOT_FOUND);
@@ -122,16 +143,19 @@ class Client extends \pinetd\TCP\Client {
 			$val = ltrim(substr($head, $pos+1));
 			$key = strtolower($var);
 			if ($key == 'cookie') {
-				$pos = strpos($val, '=');
-				if ($pos === false) {
-					$answer = new HTTPAnswerError($this);
-					$answer->send(HTTPAnswerError::BAD_REQUEST);
-					$this->close();
-					return;
+				$val = explode(';', $val);
+				foreach($val as $cook) {
+					$pos = strpos($cook, '=');
+					if ($pos === false) {
+						$answer = new HTTPAnswerError($this);
+						$answer->send(HTTPAnswerError::BAD_REQUEST);
+						$this->close();
+						return;
+					}
+					$var = urldecode(trim(substr($cook, 0, $pos)));
+					$val = urldecode(trim(substr($cook, $pos+1)));
+					$cookies[$var] = $val;
 				}
-				$var = substr($val, 0, $pos);
-				$val = substr($val, $pos+1);
-				$cookies[$var] = $val;
 				continue;
 			}
 			$headers[$key][] = array($var, $val);

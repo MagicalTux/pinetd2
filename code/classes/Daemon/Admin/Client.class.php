@@ -3,10 +3,11 @@
 namespace Daemon\Admin;
 
 use Daemon\HTTPd\HTTPAnswerError;
+use \JSRuntime;
 
 class Client extends \Daemon\HTTPd\Client {
 
-	protected function handleRequest($path, $context) {
+	protected function handleRequest($path, &$context) {
 		while($path[0] == '/')
 			$path = substr($path, 1);
 
@@ -20,8 +21,12 @@ class Client extends \Daemon\HTTPd\Client {
 		$root = __DIR__;
 		$static = $root . '/static';
 
+		$this->sessionStart($context);
+
+		echo ++$context['_SESSION']['foo'];
+
 		// test
-		var_dump($elem);
+//		var_dump($elem);
 //		var_dump($request, $headers, $cookies);
 	}
 
