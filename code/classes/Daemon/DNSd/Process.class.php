@@ -161,7 +161,7 @@ class Process extends \pinetd\Process {
 		$this->IPC->createPort('DNSd::DbEngine', $this->db_engine);
 
 		Timer::addTimer(array($this, 'checkMaster'), 5, $foo = NULL, true);
-		Timer::addTimer(array($this, 'pingMaster'), 900, $foo = NULL, true);
+		Timer::addTimer(array($this, 'pingMaster'), 120, $foo = NULL, true);
 		$this->checkMaster();
 
 		while(1) {

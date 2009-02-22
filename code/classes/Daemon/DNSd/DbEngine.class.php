@@ -32,7 +32,7 @@ class DbEngine {
 	}
 
 	public function processHits() {
-		if (!$this->domainHitCache) return;
+		if (!$this->domainHitCache) return true;
 
 		if (!isset($this->localConfig['Master'])) {
 			// we are master
