@@ -108,7 +108,10 @@ class Core {
 
 		$key = $this->fdlist[$next]['key'];
 		$daemon = &$this->daemons[$key];
-		$daemon['IPC']->sendcmd(IPC::RES_CALLPORT, $reply);
+		
+		$code = IPC::RES_CALLPORT;
+		if ($is_exception) $code = IPC::RES_CALLPORT_EXCEPT;
+		$daemon['IPC']->sendcmd($code, $reply);
 	}
 
 	public function openPort($port) {
@@ -124,7 +127,7 @@ class Core {
 			$exception = array(
 				$call[0],
 				$call[1],
-				new Exception('Requested port '.$call[0].' does not exists!'),
+				'Requested port '.$call[0].' does not exists!',
 			);
 			$this->routePortReply($exception, true);
 			return;
@@ -137,11 +140,11 @@ class Core {
 			$method = $call[2];
 			try {
 				$res = call_user_func_array(array($class, $method), $call[3]);
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$exception = array(
 					$call[0],
 					$call[1],
-					$e,
+					$e->getMessage(),
 				);
 				$this->routePortReply($exception, true);
 				return;
@@ -245,7 +248,7 @@ class Core {
 						$daemon = new $class($port, $this->daemons[$key], $IPC, $node);
 						$IPC->setParent($daemon);
 						$daemon->mainLoop();
-					} catch(Exception $e) {
+					} catch(\Exception $e) {
 						$IPC->Exception($e);
 						exit;
 					}
@@ -261,7 +264,7 @@ class Core {
 		try {
 			$this->daemons[$key]['daemon'] = new $class($port, $this->daemons[$key], $this, $node);
 			$this->daemons[$key]['status'] = 'I'; // Invoked (nofork)
-		} catch(Exception $e) {
+		} catch(\Exception $e) {
 			$this->daemons[$key]['status'] = 'Z';
 			$this->daemons[$key]['deadline'] = time() + 60;
 			Logger::log(Logger::LOG_ERR, 'From daemon on '.$key.': '.$e->getMessage());
@@ -297,7 +300,7 @@ class Core {
 	}
 
 	public function Error($errstr) {
-		throw new Exception($errstr);
+		throw new \Exception($errstr);
 	}
 
 	public function _ChildIPC_killSelf(&$daemon) {
@@ -316,7 +319,7 @@ class Core {
 
 	private function killDaemon($key, $timeout) {
 		// kill it!
-		if (!isset($this->daemons[$key])) throw new Exception('Unknown daemon '.$key);
+		if (!isset($this->daemons[$key])) throw new \Exception('Unknown daemon '.$key);
 		if ($this->daemons[$key]['status'] == 'I') {
 			// not forked
 			$this->daemons[$key]['daemon']->shutdown();

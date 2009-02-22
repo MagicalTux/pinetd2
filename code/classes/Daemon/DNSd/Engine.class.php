@@ -106,6 +106,7 @@ class Engine {
 		}
 
 		$pkt->setFlag('aa', 1);
+		$this->IPC->callPort('DNSd::DbEngine', 'domainHit', array($domain), false); // do not wait for reply
 
 		$zone = $res['zone'];
 		$ohost = $host;

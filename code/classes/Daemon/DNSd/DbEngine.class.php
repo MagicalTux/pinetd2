@@ -3,13 +3,16 @@
 namespace Daemon\DNSd;
 
 use pinetd\Logger;
+use pinetd\Timer;
 use pinetd\SQL;
 
 class DbEngine {
 	protected $localConfig;
 	protected $tcp;
+	protected $parent;
+	protected $domainHitCache = array();
 
-	function __construct($localConfig, $tcp) {
+	function __construct($parent, $localConfig, $tcp) {
 		$this->localConfig = $localConfig;
 
 		// check table struct
@@ -19,10 +22,31 @@ class DbEngine {
 		$storage::validateTables($this->sql);
 
 		$this->tcp = $tcp;
+		$this->parent = $parent;
+
+		Timer::addTimer(array($this, 'processHits'), 30, $extra = null, true);
 	}
 
 	function __call($func, $args) {
 		return NULL;
+	}
+
+	public function processHits() {
+		if (!$this->domainHitCache) return;
+
+		if (!isset($this->localConfig['Master'])) {
+			// we are master
+			var_dump($this->domainHitCache);
+		} else {
+			// we are slave
+			foreach($this->domainHitCache as $domain => $hits) {
+				$this->parent->domainHit($domain, $hits);
+			}
+		}
+
+
+		$this->domainHitCache = array();
+		return true;
 	}
 
 	protected function tableKey($table) {
@@ -97,6 +121,10 @@ class DbEngine {
 				$this->sql->query($req);
 			}
 		}
+	}
+
+	public function domainHit($domain, $hit_count = 1) {
+		$this->domainHitCache[$domain] += $hit_count;
 	}
 
 	/*****

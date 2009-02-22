@@ -114,6 +114,10 @@ class Process extends \pinetd\Process {
 		}
 	}
 
+	public function domainHit($domain, $hit_count) {
+		return $this->sendPkt('domainHit', array($domain, $hit_count));
+	}
+
 	protected function sendPkt($cmd, array $params = array()) {
 		$data = serialize(array($cmd, $params));
 
@@ -153,7 +157,7 @@ class Process extends \pinetd\Process {
 		$tcp = $this->IPC->openPort('DNSd::TCPMaster');
 
 		$class = relativeclass($this, 'DbEngine');
-		$this->db_engine = new $class($this->localConfig, $tcp);
+		$this->db_engine = new $class($this, $this->localConfig, $tcp);
 		$this->IPC->createPort('DNSd::DbEngine', $this->db_engine);
 
 		Timer::addTimer(array($this, 'checkMaster'), 5, $foo = NULL, true);

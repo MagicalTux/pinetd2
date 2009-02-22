@@ -46,6 +46,10 @@ class TCP_Slave extends \pinetd\TCP\Client {
 		}
 	}
 
+	protected function _slave_domainHit(array $p) {
+		$this->IPC->callPort('DNSd::DbEngine', 'domainHit', $p, false); // do not wait for reply
+	}
+
 	protected function receivePacket($pkt) {
 		$data = unserialize($pkt);
 		$func = '_slave_'.$data[0];

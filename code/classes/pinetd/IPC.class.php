@@ -87,7 +87,7 @@ class IPC {
 			$cmd = $this->readcmd();
 			// TODO: handle exceptions too?
 			if ($cmd[0] == self::RES_CALL_EXCEPT) {
-				throw $cmd[1]; // throw exception again in this process
+				throw new Exception($cmd[1]); // throw exception again in this process
 			} elseif ($cmd[0] != self::RES_CALL) {
 				$this->handlecmd($cmd, $foo = null);
 			} else {
@@ -172,14 +172,27 @@ class IPC {
 		return new IPC_Port($this, $port);
 	}
 
-	public function callPort($port_name, $method, array $args) {
+	/**
+	 * \brief Call a port method
+	 * \param $port_name Name of the port to call
+	 * \param $method Port method to call
+	 * \param $args Arguements to be passed to this port
+	 * \param $wait Shall we wait for reply [default=true]
+	 * \return Port call result, or NULL if \a $wait is false
+	 *
+	 * This method will call an IPC port's method. See createPort
+	 * for more details.
+	 */
+	public function callPort($port_name, $method, array $args, $wait = true) {
 		if (!$this->ischld) throw new Exception('This is not possible either, man!');
 		$this->sendcmd(self::CMD_CALLPORT, array($port_name, array(), $method, $args));
+		if (!$wait) return NULL;
+
 		while(!feof($this->pipe)) {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
 			$cmd = $this->readcmd();
 			if ($cmd[0] == self::RES_CALLPORT_EXCEPT) {
-				throw $cmd[1];
+				throw new Exception($cmd[1]);
 			} elseif ($cmd[0] != self::RES_CALLPORT) {
 				$this->handlecmd($cmd, $foo = null);
 			} else {
@@ -246,11 +259,11 @@ class IPC {
 			$method = $call[2];
 			try {
 				$res = call_user_func_array(array($class, $method), $call[3]);
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$exception = array(
 					$call[0],
 					$call[1],
-					$e,
+					$e->getMessage(),
 				);
 				$this->routePortReply($exception, true);
 				return;
@@ -268,7 +281,7 @@ class IPC {
 	protected function routePortReply($reply, $exception = false) {
 		$target = array_pop($reply[1]);
 		if ($target == '@parent') {
-			$this->sendcmd(self::RES_CALLPORT, $reply);
+			$this->sendcmd($exception ? self::RES_CALLPORT_EXCEPT : self::RES_CALLPORT, $reply);
 		} else {
 			var_dump($target, $reply);
 			exit;
@@ -309,7 +322,7 @@ class IPC {
 				try {
 					$res = call_user_func_array($func, $cmd[1]);
 				} catch(Exception $e) {
-					if(!$this->ischld) $this->sendcmd(self::RES_CALL_EXCEPT, $e);
+					if(!$this->ischld) $this->sendcmd(self::RES_CALL_EXCEPT, $e->getMessage());
 					break;
 				}
 				if(!$this->ischld) $this->sendcmd(self::RES_CALL, $res);
@@ -355,13 +368,15 @@ class IPC {
 				}
 				break;
 			case self::RES_CALLPORT:
+			case self::RES_CALLPORT_EXCEPT:
 				$port = $cmd[1][0];
+				if (!$cmd[1][1]) break; // this result reached us, but we don't care anymore
 				$next = array_pop($cmd[1][1]);
 				if ($next == '@parent') {
 					if ($this->parentipc instanceof IPC) {
-						$this->parentipc->sendcmd(self::CALLPORT, $cmd[1]);
+						$this->parentipc->sendcmd($cmd[0], $cmd[1]);
 					} else {
-						$this->parentipc->routePortReply($cmd[1]);
+						$this->parentipc->routePortReply($cmd[1], $cmd[0] == self::RES_CALLPORT_EXCEPT);
 					}
 					break;
 				}
@@ -369,7 +384,7 @@ class IPC {
 				$info = &$this->fds[$next];
 				if ( (is_array($info['callback'])) && ($info['callback'][1] == 'run') && ($info['callback'][0] instanceof IPC)) {
 					$class = $info['callback'][0];
-					$class->sendcmd(self::RES_CALLPORT, $cmd[1]);
+					$class->sendcmd($cmd[0], $cmd[1]);
 				} else {
 					var_dump('huh?');
 				}
@@ -470,7 +485,7 @@ class IPC {
 	 * \internal
 	 */
 	public function Exception($e) {
-		Logger::log(Logger::LOG_ERR, 'Got error: '.$e);
+		Logger::log(Logger::LOG_ERR, 'Got error: '.$e->getMessage());
 		$this->killSelf();
 		$this->ping();
 	}
