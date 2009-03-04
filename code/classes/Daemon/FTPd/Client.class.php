@@ -720,7 +720,7 @@ class Client extends \pinetd\TCP\Client {
 
 		$this->sendMsg('350 Please provide new name...');
 
-		$this->rnfr = $fil;
+		$this->rnfr = $fullarg;
 	}
 
 	function _cmd_rnto($argv, $cmd, $fullarg) {
@@ -734,7 +734,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		if (!$this->fs->rename($this->rnfr, $out_file)) {
+		if (!$this->fs->rename($this->rnfr, $fullarg)) {
 			$this->sendMsg('500 Rename failed');
 			return;
 		}

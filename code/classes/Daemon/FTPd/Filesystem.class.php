@@ -255,6 +255,7 @@ class Filesystem {
 	}
 
 	public function rename($from, $to) {
+
 		if (!$this->isWritable($from)) return false;
 		if (!$this->isWritable($to)) return false;
 
@@ -263,7 +264,7 @@ class Filesystem {
 		$to = $this->convertPath($to);
 		if ((is_null($to)) || ($to === false)) return false;
 
-		return @rename($from, $to);
+		return @rename($this->root . $from, $this->root . $to);
 	}
 
 	public function fileExists($fil) {
