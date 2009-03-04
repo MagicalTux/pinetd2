@@ -17,10 +17,9 @@ class Client extends \pinetd\TCP\Client {
 	private $mode = null;
 	private $noop = 0; /*!< noop counter */
 	private $resume = 0; /*!< resume RECV or STOR */
-	private $root = null;
 	private $tmp_login = null;
-	private $cwd = '/';
 	private $rnfr = null; /*!< RENAME FROM (RNFR) state */
+	protected $fs;
 
 	function __construct($fd, $peer, $parent, $protocol) {
 		parent::__construct($fd, $peer, $parent, $protocol);
@@ -43,13 +42,18 @@ class Client extends \pinetd\TCP\Client {
 		list($cur, $max) = $this->IPC->getUserCount();
 		$this->sendMsg('220-You are user '.$cur.' on a maximum of '.$max.' users');
 		$this->sendMsg('220 You are '.$this->getHostName().', connected to '.$this->IPC->getName());
+
+		// let's get a filesystem
+		$class = relativeclass($this, 'Filesystem');
+		$this->fs = new $class();
+
 		return true;
 	}
 
 	protected function setProcessStatus($msg = '') {
 		if ($msg == '') $msg = 'idle';
 		if (is_null($this->login)) return parent::setProcessStatus('(not logged in) ' . $msg);
-		return parent::setProcessStatus('('.$this->login.':'.$this->getCwd().') '.$msg);
+		return parent::setProcessStatus('('.$this->login.':'.$this->fs->getCwd().') '.$msg);
 	}
 
 	/**
@@ -65,7 +69,7 @@ class Client extends \pinetd\TCP\Client {
 	protected function canWriteFile($fil) {
 		if (is_null($this->login)) return false;
 		if ($this->login == 'ftp') return false;
-		return true;
+		return $this->fs->isWritable($fil);
 	}
 
 	/**
@@ -73,78 +77,6 @@ class Client extends \pinetd\TCP\Client {
 	 */
 	protected function checkAccess($login, $pass) {
 		return $this->IPC->checkAccess($login, $pass, $this->peer);
-	}
-
-	/**
-	 * \brief Get CWD relative to the FTP root
-	 */
-	protected function getCwd() {
-		$dir = $this->cwd;
-		if (substr($dir, -1) != '/') $dir.='/';
-		$root = $this->root;
-		if (substr($root, -1) != '/') $root.='/';
-		if (substr($dir, 0, strlen($root)) != $root) {
-			$this->doChdir('/');
-			$cwd = '/';
-		} else {
-			$cwd = substr($dir, strlen($root)-1);
-			if (strlen($cwd) > 1) $cwd = substr($cwd, 0, -1); // strip trailing /
-		}
-		return $cwd;
-	}
-
-	/**
-	 * \brief Do a chdir to a new directory
-	 */
-	protected function doChdir($dir) {
-		$new_dir = $this->convertPath($dir);
-		if ((is_null($new_dir)) || ($new_dir === false)) return false;
-		$new_dir = $this->root . $new_dir;
-		if (!is_dir($new_dir)) return false;
-		$this->cwd = $new_dir;
-		return true;
-	}
-
-	/**
-	 * \brief Convert a given path by resolving links, and make sure we stay within the FTP root
-	 */
-	protected function convertPath($path, $cwd = null, $depth = 0) {
-		$final_path = array();
-		if ($path[0] != '/') {
-			// start with CWD value splitted
-			if (is_null($cwd)) $cwd = $this->getCwd();
-			$start = explode('/', $cwd);
-			foreach($start as $elem) if ($elem != '') $final_path[] = $elem;
-		}
-
-		$path = explode('/', $path);
-
-		foreach($path as $elem) {
-			if (($elem == '') || ($elem == '.')) continue; // no effect
-			if ($elem == '..') {
-				array_pop($final_path);
-				continue;
-			}
-			$realpath = $this->root . '/' . implode('/', $final_path). '/' . $elem; // final path to $elem
-
-			if (!file_exists($realpath)) return false;
-
-			if (is_link($realpath)) {
-				if ($depth > 15) {
-					// WTF?!!!
-					return NULL;
-				}
-				$link = readlink($realpath);
-				$new_path = $this->convertPath($link, $this->root . '/' . implode('/', $final_path), $depth + 1);
-				if (is_null($new_path)) return NULL; // infinite symlink?
-				$new_path = explode('/', $new_path);
-				$final_path = array();
-				foreach($new_path as $xelem) if ($xelem != '') $final_path[] = $xelem;
-				continue;
-			}
-			$final_path[] = $elem;
-		}
-		return '/' . implode('/', $final_path);
 	}
 
 	/**
@@ -226,23 +158,19 @@ class Client extends \pinetd\TCP\Client {
 				$this->sendMsg('500 Too many anonymous users logged in, please try again later!');
 				return;
 			}
-			if ((!$root) || (!is_dir($root))) {
+			if (!$root) {
 				$this->sendMsg('500 Anonymous FTP access is disabled on this server');
 				return;
 			}
 			$SUID = $this->IPC->canSUID();
 			if ($SUID) $SUID = new SUID($SUID['User'], $SUID['Group']);
-			if ($this->IPC->canChroot()) {
-				if (!chroot($root)) {
-					$this->sendMsg('500 An error occured while trying to access anonymous root');
-					$this->log(Logger::LOG_ERR, 'chroot() failed for anonymous login in  '.$root);
-					return;
-				} else {
-					$this->root = '/';
-				}
-			} else {
-				$this->root = $root;
+
+			if (!$this->fs->setRoot($root, $this->IPC->canChroot())) {
+				$this->sendMsg('500 An error occured while trying to access anonymous root');
+				$this->log(Logger::LOG_ERR, 'chroot() failed for anonymous login in  '.$root);
+				return;
 			}
+
 			if ($SUID) {
 				if (!$SUID->setIt()) {
 					$this->sendMsg('500 An error occured while trying to access anonymous root');
@@ -256,7 +184,6 @@ class Client extends \pinetd\TCP\Client {
 			$this->login = 'ftp'; // keyword for "anonymous"
 			$this->IPC->setLoggedIn($this->fd, $this->login);
 			$this->sendMsg('230 Anonymous user logged in, welcome!');
-			$this->doChdir('/');
 			return;
 		}
 		$this->tmp_login = $login;
@@ -285,11 +212,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 		$root = $res['root'];
-		if ((!is_dir($root)) || (!chdir($root))) {
-			$this->sendMsg('500 An error occured, please contact system administrator and try again later');
-			$this->log(Logger::LOG_ERR, 'Could not find/chdir in root '.$root.' while logging in user '.$login);
-			return;
-		}
+
 		$SUID = $this->IPC->canSUID();
 		if ($SUID) {
 			$user = null;
@@ -306,17 +229,13 @@ class Client extends \pinetd\TCP\Client {
 			$this->log(Logger::LOG_ERR, 'Could not SUID while SUID is required by underlying auth mechanism while logging in user '.$login);
 			return;
 		}
-		if ($this->IPC->canChroot()) {
-			if (!chroot($root)) {
-				$this->sendMsg('500 An error occured, please contact system administrator and try again later');
-				$this->log(Logger::LOG_ERR, 'chroot() failed for login '.$login.' in '.$root);
-				return;
-			} else {
-				$this->root = '/';
-			}
-		} else {
-			$this->root = $root;
+
+		if (!$this->fs->setRoot($root, $this->IPC->canChroot())) {
+			$this->sendMsg('500 An error occured, please contact system administrator and try again later');
+			$this->log(Logger::LOG_ERR, 'chroot() failed for login '.$login.' in '.$root);
+			return;
 		}
+
 		if ($SUID) {
 			if (!$SUID->setIt()) {
 				$this->sendMsg('500 An error occured, please contact system administrator and try again later');
@@ -327,17 +246,17 @@ class Client extends \pinetd\TCP\Client {
 				return;
 			}
 		}
+
 		$this->login = $login;
 		$this->IPC->setLoggedIn($this->fd, $this->login);
 		if (isset($res['banner'])) {
 			foreach($res['banner'] as $lin) $this->sendMsg('230-'.$lin);
 		}
 		$this->sendMsg('230 Login success, welcome to your FTP');
-		if (isset($res['chdir'])) {
-			$this->doChdir($res['chdir']);
-		} else {
-			$this->doChdir('/');
-		}
+
+		if (isset($res['chdir']))
+			$this->fs->chDir($res['chdir']);
+
 		$this->updateQuota();
 	}
 
@@ -373,7 +292,7 @@ class Client extends \pinetd\TCP\Client {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
-		$cwd = $this->getCwd();
+		$cwd = $this->fs->getCwd();
 		$this->sendMsg('257 "'.$cwd.'" is your Current Working Directory');
 	}
 
@@ -387,7 +306,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 		// new path in $fullarg
-		if (!$this->doChdir($fullarg)) {
+		if (!$this->fs->chDir($fullarg)) {
 			$this->sendMsg('500 Couldn\'t change location');
 		} else {
 			$this->sendMsg('250 Directory changed');
@@ -513,12 +432,12 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	function _cmd_list($argv, $cmd, $fullarg) {
-		// TODO: Implement handling of options/path to list
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
 
+		// TODO: Implement handling of options to list
 		if ($fullarg[0] == '-') {
 			// parameters passed? (-l, -la, -m, etc...)
 			$pos = strpos($fullarg, ' ');
@@ -529,17 +448,9 @@ class Client extends \pinetd\TCP\Client {
 			}
 		}
 
-		$fil = $this->convertPath($fullarg);
-		if ((is_null($fil)) || ($fil === false)) {
+		$list = $this->fs->listDir($fullarg);
+		if (is_null($list)) {
 			$this->sendMsg('500 LIST: Directory not found or too many symlink levels');
-			return;
-		}
-
-		clearstatcache();
-		$dir = @opendir($this->root . $fil);
-
-		if (!$dir) {
-			$this->sendMsg('500 LIST: Could not open this directory');
 			return;
 		}
 
@@ -558,49 +469,42 @@ class Client extends \pinetd\TCP\Client {
 
 		$this->sendMsg('150 Connection with '.$ip.':'.$port.' is established');
 
-		if (!$dir) {
+		if (!$list) {
 			fclose($sock);
 			$this->sendMsg('226 Transmission complete');
 			return;
 		}
 
 		if ($argv[0] == 'NLST') {
-			while(($fil = readdir($dir)) !== false) {
-				fputs($sock, $fil."\r\n");
+			foreach($list as $fdata) {
+				fputs($sock, $fdata['name']."\r\n");
 			}
 		} else {
-			while(($fil = readdir($dir)) !== false) {
-				$stat = stat($this->cwd.'/'.$fil);
-				$flag = '-rwx';
-				if (is_dir($this->cwd.'/'.$fil)) $flag='drwx';
-				if (is_link($this->cwd.'/'.$fil)) $flag='lrwx';
-				$mode=substr(decbin($stat["mode"]),-3);
-				if (substr($mode,0,1)=="1") $xflg ="r"; else $xflg ="-";
-				if (substr($mode,1,1)=="1") $xflg.="w"; else $xflg.="-";
-				if (substr($mode,2,1)=="1") $xflg.="x"; else $xflg.="-";
-				$flag.=$xflg.$xflg;
-				$blocks=$stat["nlink"];
+			foreach($list as $fdata) {
+				$fil = $fdata['name'];
+				$flag = $fdata['flags'];
+				$blocks = $fdata['blocks'];
+
 				$res=$flag." ".$blocks." ";
 				$res .= '0	'; // user
 				$res .= '0	'; // group
-				$siz = str_pad($stat["size"], 8, ' ', STR_PAD_LEFT);
+				$siz = str_pad($fdata["size"], 8, ' ', STR_PAD_LEFT);
 				$res.=$siz." "; // file size
-				$ftime = filemtime($this->cwd.'/'.$fil); // moment de modification
+				$ftime = $fdata['mtime']; // moment de modification
 				$res.=date("M",$ftime); // month in 3 letters
 				$day = date("j",$ftime);
 				while(strlen($day)<3) $day=" ".$day;
 				$res.=$day;
 				$res.=" ".date("H:i",$ftime);
 				$res.=" ".$fil;
-				if (is_link($this->cwd.'/'.$fil)) {
+
+				if (isset($fdata['link'])) {
 					// read the link
-					$dest = readlink($this->cwd.'/'.$fil);
-					$res.=" -> ".$dest;
+					$res.=" -> ".$fdata['link'];
 				}
 				fputs($sock, $res."\r\n");
 			}
 		}
-		closedir($dir);
 		$this->sendMsg('226 Transmission complete');
 		fclose($sock);
 	}
@@ -610,32 +514,18 @@ class Client extends \pinetd\TCP\Client {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
-		$fil = $this->convertPath($fullarg);
-		if ((is_null($fil)) || ($fil === false)) {
+
+		$resume = $this->restore;
+		$this->restore = 0;
+		$info = $this->fs->open($fullarg, false, $resume);
+
+		if (!$info) {
 			$this->sendMsg('500 RETR: File not found or too many symlink levels');
 			return;
 		}
-		$fil = $this->root . $fil;
 
-		if (!is_file($fil)) {
-			$this->sendMsg('500 RETR: file is not a file');
-			return;
-		}
-
-		$fp = @fopen($fil, 'rb');
-		if (!$fp) {
-			$this->sendMsg('500 Could not open file for reading');
-			return;
-		}
-
-		$size = filesize($fil);
-		$resume = $this->resume;
-		$this->resume = 0;
-		if ($resume > $size) {
-			$this->sendMsg('500 can\'t resume from after EOF');
-			fclose($fp);
-			return;
-		}
+		$fp = $info['fp'];
+		$size = $info['size'];
 
 		$size -= $resume;
 
@@ -659,11 +549,10 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg('150 '.$size.' bytes to send');
 
 		// transmit file
-		fseek($fp, $resume);
 		$res = stream_copy_to_stream($fp, $sock);
 		
 		if ($res != $size) {
-			$this->sendMsg('500 Xfer connection closed!)');
+			$this->sendMsg('500 Xfer connection closed!');
 		} else {
 			$this->sendMsg('226 Send terminated');
 		}
@@ -679,49 +568,25 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_stor($argv, $cmd, $fullarg) {
 		$appe = ($argv[0] == 'APPE');
+
 		if (is_null($this->login)) {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
 
-		$fil = $fullarg;
-		$dir = $this->convertPath(dirname($fil));
-		$fil = basename($fil);
-		if ($dir === false) {
-			$this->sendMsg('500 Before uploading a file to a dir, make sure this dir exists');
-			return;
-		}
-
-		if (!$this->canWriteFile($dir.'/'.$fil)) {
-			$this->sendMsg('500 Permission Denied');
-			return;
-		}
-
-		$dir = $this->root . $dir;
-
-		if (!is_dir($dir)) {
-			$this->sendMsg('500 Provided path for uploaded file is not a directory');
-			return;
-		}
-
-		$fp = fopen($dir.'/'.$fil, 'ab');
-
-		if (!$fp) {
-			$this->sendMsg('500 Failed to open file for writing, check chmod');
-			return;
-		}
-
 		if (!$appe) {
-			fseek($fp, 0, SEEK_END);
-			$size = ftell($fp);
-			if ($size < $this->restore) {
-				$this->sendMsg('500 Can\'t REST over EOF');
-				fclose($fp);
-				return;
-			}
-			fseek($fp, $this->restore);
-			ftruncate($fp, $this->restore); // blah!
+			$resume = $this->restore;
+			$this->restore = 0;
+		} else {
+			$resume = -1;
 		}
+		$info = $this->fs->open($fullarg, true, $resume);
+		if (!$info) {
+			$this->sendMsg('500 Failed to open file for writing');
+			return;
+		}
+
+		$fp = $info['fp'];
 
 		$this->setProcessStatus(strtoupper($cmd[0]).' '.$fil);
 
@@ -789,22 +654,6 @@ class Client extends \pinetd\TCP\Client {
 		return $this->_cmd_dele($argv, $cmd, $fullarg);
 	}
 
-	function doRecursiveRMD($dir) {
-		$dh = opendir($dir);
-		while(($fil = readdir($dh)) !== false) {
-			if (($fil == '.') || ($fil == '..')) continue;
-			$f = $dir.'/'.$fil;
-			if (is_dir($f)) {
-				$this->doRecursiveRMD($f);
-			} else {
-				@unlink($f);
-			}
-		}
-		closedir($dh);
-		@rmdir($dir);
-		$this->updateQuota();
-	}
-
 	function _cmd_dele($argv, $cmd, $fullarg) {
 		// DELETE A file (unlink)
 		if (is_null($this->login)) {
@@ -812,31 +661,18 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$fil = $this->convertPath($fullarg);
-		if ((is_null($fil)) || ($fil === false)) {
-			$this->sendMsg('500 Entry not found');
-			return;
-		}
-
-		if (!$this->canWriteFile($fil)) {
-			$this->sendMsg('500 Permission Denied');
-			return;
-		}
-
-		$fil = $this->root . $fil;
-
 		switch($argv[0]) {
 			case 'RRMD':
-				$this->doRecursiveRMD($fil);
+				$this->fs->doRecursiveRMD($fil);
 				break;
 			case 'RMD':
-				@rmdir($fil);
+				$this->fs->rmDir($fil);
 				break;
 			default:
-				@unlink($fil);
+				$this->fs->unLink($fil);
 		}
 
-		if (file_exists($fil)) {
+		if ($this->fs->fileExists($fil)) {
 			$this->sendMsg('500 Operation failed');
 			return;
 		}
@@ -851,31 +687,12 @@ class Client extends \pinetd\TCP\Client {
 		}
 
 		$fil = $argv[1];
-		$dir = $this->convertPath(dirname($fil));
-		$fil = basename($fil);
-		if ($dir === false) {
-			$this->sendMsg('500 Before uploading a file to a dir, make sure this dir exists');
-			return;
-		}
 
-		if (!$this->canWriteFile($dir.'/'.$fil)) {
-			$this->sendMsg('500 Permission Denied');
-			return;
-		}
-
-		$dir = $this->root . $dir;
-		$fil = $dir . '/' . $fil;
-
-		if (file_exists($fil)) {
-			$this->sendMsg('500 An entry with same name already exists');
-			return;
-		}
-
-		@mkdir($fil);
-		if (!file_exists($fil)) {
+		if (!$this->fs->mkDir($fil)) {
 			$this->sendMsg('500 MKD failed');
 			return;
 		}
+
 		$this->sendMsg('221 Directory created');
 		$this->updateQuota();
 	}
@@ -885,19 +702,13 @@ class Client extends \pinetd\TCP\Client {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
-		$fil = $this->convertPath($fullarg);
-		if ((is_null($fil)) || ($fil === false)) {
+
+		$size = $this->fs->size($fullarg);
+		if ($size === false) {
 			$this->sendMsg('500 File not found or too many symlink levels');
 			return;
 		}
-		$fil = $this->root . $fil;
 
-		if (!is_file($fil)) {
-			$this->sendMsg('500 file is not a file');
-			return;
-		}
-
-		$size = filesize($fil);
 		$this->sendMsg('213 '.$size);
 	}
 
@@ -907,13 +718,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$fil = $this->convertPath($fullarg);
-		if ((is_null($fil)) || ($fil === false)) {
-			$this->sendMsg('500 File not found or too many symlink levels');
-			return;
-		}
-
-		$this->sendMsg('350 File found. Please provide new name...');
+		$this->sendMsg('350 Please provide new name...');
 
 		$this->rnfr = $fil;
 	}
@@ -929,31 +734,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$out_file = basename($fullarg);
-		$out = $this->convertPath(dirname($fullarg));
-		$out .= '/' . $out_file;
-
-		if (!$this->canWriteFile($out)) {
-			$this->sendMsg('500 Unable to open output for writing: access denied');
-			return;
-		}
-
-		$out = $this->root . $out;
-
-		if (!is_dir(dirname($out))) {
-			$this->sendMsg('500 If you move a file to a directory, make sure you move it to a directory');
-			return;
-		}
-
-		if (!$this->canWriteFile(dirname($this->rnfr))) {
-			$this->sendMsg('500 Can\'t remove origin file');
-			return;
-		}
-
-		$fil = $this->root . $this->rnfr;
-		$this->rnfr = null;
-
-		if (!rename($fil, $out)) {
+		if (!$this->fs->rename($this->rnfr, $out_file)) {
 			$this->sendMsg('500 Rename failed');
 			return;
 		}
@@ -983,16 +764,15 @@ class Client extends \pinetd\TCP\Client {
 			$this->sendMsg('500 Please login first!');
 			return;
 		}
-		$fil = $this->convertPath($fullarg);
-		if ((is_null($fil)) || ($fil === false)) {
+
+		$stat = $this->fs->stat($fullarg);
+
+		if (!$stat) {
 			$this->sendMsg('500 File not found or too many symlink levels');
 			return;
 		}
-		$fil = $this->root . $fil;
 
-		clearstatcache();
-		$mtime = filemtime($fil);
-		$this->sendMsg('213 '.date('YmdHis', $mtime));
+		$this->sendMsg('213 '.date('YmdHis', $stat['mtime']));
 	}
 
 	function _cmd_feat() {

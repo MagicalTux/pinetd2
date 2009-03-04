@@ -23,8 +23,6 @@
 
 namespace pinetd;
 
-use \Exception;
-
 /**
  * \class IPC
  * \brief IPC (Inter-Process Communications) class, used by parents and children
@@ -85,9 +83,8 @@ class IPC {
 		while(!feof($this->pipe)) {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
 			$cmd = $this->readcmd();
-			// TODO: handle exceptions too?
 			if ($cmd[0] == self::RES_CALL_EXCEPT) {
-				throw new Exception($cmd[1]); // throw exception again in this process
+				throw new \Exception($cmd[1]); // throw exception again in this process
 			} elseif ($cmd[0] != self::RES_CALL) {
 				$this->handlecmd($cmd, $foo = null);
 			} else {
@@ -105,12 +102,12 @@ class IPC {
 	 * \param $data Data to be passed to the callback, by reference
 	 */
 	public function registerSocketWait($fd, $callback, &$data) {
-		if (!is_array($data)) throw new Exception('No data defined :(');
+		if (!is_array($data)) throw new \Exception('No data defined :(');
 		$this->fds[(int)$fd] = array('fd'=>$fd, 'last_activity' => time(), 'callback' => $callback, 'data' => &$data);
 	}
 
 	public function setTimeOut($fd, $timeout, $callback, &$data) {
-		if (!is_array($data)) throw new Exception('No data defined!');
+		if (!is_array($data)) throw new \Exception('No data defined!');
 		$this->fds[(int)$fd]['timeout'] = $timeout;
 		$this->fds[(int)$fd]['timeout_callback'] = $callback;
 		$this->fds[(int)$fd]['timeout_data'] = &$data;
@@ -147,7 +144,7 @@ class IPC {
 	 * \param $class Object handling calls to this port
 	 */
 	public function createPort($port_name, &$class) {
-		if (!$this->ischld) throw new Exception('This is not possible, man!');
+		if (!$this->ischld) throw new \Exception('This is not possible, man!');
 		$this->sendcmd(self::CMD_NEWPORT, $port_name);
 		while(!feof($this->pipe)) {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
@@ -184,7 +181,7 @@ class IPC {
 	 * for more details.
 	 */
 	public function callPort($port_name, $method, array $args, $wait = true) {
-		if (!$this->ischld) throw new Exception('This is not possible either, man!');
+		if (!$this->ischld) throw new \Exception('This is not possible either, man!');
 		$this->sendcmd(self::CMD_CALLPORT, array($port_name, array(), $method, $args));
 		if (!$wait) return NULL;
 
@@ -192,7 +189,7 @@ class IPC {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
 			$cmd = $this->readcmd();
 			if ($cmd[0] == self::RES_CALLPORT_EXCEPT) {
-				throw new Exception($cmd[1]);
+				throw new \Exception($cmd[1]);
 			} elseif ($cmd[0] != self::RES_CALLPORT) {
 				$this->handlecmd($cmd, $foo = null);
 			} else {
@@ -297,7 +294,7 @@ class IPC {
 	private function handlecmd($cmd, &$daemon, $fd = -1) {
 		if ($cmd === false) return;
 		if (is_null($cmd)) {
-			if (!$this->parent) throw new Exception('Peer got away');
+			if (!$this->parent) throw new \Exception('Peer got away');
 			$this->removeSocket($this->pipe);
 //			unset($this->fds[$this->pipe]);
 			$this->parent->IPCDied($this->pipe);
@@ -321,7 +318,7 @@ class IPC {
 				$cmd[1][0] = &$daemon;
 				try {
 					$res = call_user_func_array($func, $cmd[1]);
-				} catch(Exception $e) {
+				} catch(\Exception $e) {
 					if(!$this->ischld) $this->sendcmd(self::RES_CALL_EXCEPT, $e->getMessage());
 					break;
 				}
@@ -390,7 +387,7 @@ class IPC {
 				}
 				break;
 			default:
-				throw new Exception('Unknown command '.$cmd[0]);
+				throw new \Exception('Unknown command '.$cmd[0]);
 		}
 		return true;
 	}
@@ -400,7 +397,7 @@ class IPC {
 	 * \internal
 	 */
 	public function log() {
-		if (!$this->ischld) throw new Exception('Parent sending logs to child makes no sense');
+		if (!$this->ischld) throw new \Exception('Parent sending logs to child makes no sense');
 		$n = func_get_args();
 		return $this->sendcmd(self::CMD_LOG, $n);
 	}
@@ -409,7 +406,7 @@ class IPC {
 	 * /brief Stop attached child
 	 */
 	public function stop() {
-		if ($this->ischld) throw new Exception('Children can\'t tell their parents to go to sleep');
+		if ($this->ischld) throw new \Exception('Children can\'t tell their parents to go to sleep');
 		return $this->sendcmd(self::CMD_STOP);
 	}
 
@@ -484,7 +481,7 @@ class IPC {
 	 * \param $e Exception
 	 * \internal
 	 */
-	public function Exception($e) {
+	public function Exception(\Exception $e) {
 		Logger::log(Logger::LOG_ERR, 'Got error: '.$e->getMessage());
 		$this->killSelf();
 		$this->ping();
