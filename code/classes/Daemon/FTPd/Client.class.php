@@ -663,16 +663,16 @@ class Client extends \pinetd\TCP\Client {
 
 		switch($argv[0]) {
 			case 'RRMD':
-				$this->fs->doRecursiveRMD($fil);
+				$this->fs->doRecursiveRMD($fullarg);
 				break;
 			case 'RMD':
-				$this->fs->rmDir($fil);
+				$this->fs->rmDir($fullarg);
 				break;
 			default:
-				$this->fs->unLink($fil);
+				$this->fs->unLink($fullarg);
 		}
 
-		if ($this->fs->fileExists($fil)) {
+		if ($this->fs->fileExists($fullarg)) {
 			$this->sendMsg('500 Operation failed');
 			return;
 		}
