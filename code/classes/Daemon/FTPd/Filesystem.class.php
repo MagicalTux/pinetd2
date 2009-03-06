@@ -104,7 +104,7 @@ class Filesystem {
 	}
 
 	public function listDir($dir) {
-		$fil = $this->convertPath($fullarg);
+		$fil = $this->convertPath($dir);
 		if ((is_null($fil)) || ($fil === false)) return NULL;
 
 		$full_path = $this->root . $fil;

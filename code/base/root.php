@@ -19,7 +19,7 @@
 
 declare(ticks = 1); // for signals
 
-define('PINETD_VERSION', '2.0.0alpha');
+define('PINETD_VERSION', '2.0.0beta1');
 
 require_once(PINETD_CODE.'/base/classfunc.php');
 require_once(PINETD_CODE.'/base/basefunc.php');
