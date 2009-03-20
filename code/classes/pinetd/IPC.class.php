@@ -82,6 +82,7 @@ class IPC {
 		if (!$this->ischld) return null;
 		while(!feof($this->pipe)) {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
+			pcntl_signal_dispatch();
 			$cmd = $this->readcmd();
 			if ($cmd[0] == self::RES_CALL_EXCEPT) {
 				throw new \Exception($cmd[1]); // throw exception again in this process
@@ -148,6 +149,7 @@ class IPC {
 		$this->sendcmd(self::CMD_NEWPORT, $port_name);
 		while(!feof($this->pipe)) {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
+			pcntl_signal_dispatch();
 			$cmd = $this->readcmd();
 			// TODO: handle exceptions too?
 			if ($cmd[0] != self::RES_NEWPORT) {
@@ -187,6 +189,7 @@ class IPC {
 
 		while(!feof($this->pipe)) {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
+			pcntl_signal_dispatch();
 			$cmd = $this->readcmd();
 			if ($cmd[0] == self::RES_CALLPORT_EXCEPT) {
 				throw new \Exception($cmd[1]);
@@ -446,6 +449,7 @@ class IPC {
 		}
 
 		$n = @stream_select($r, $w=null, $e=null, 0, $timeout);
+		pcntl_signal_dispatch();
 		if (($n==0) && (count($r)>0)) $n = count($r); // stream_select returns weird values sometimes Oo
 		if ($n<=0) {
 			// nothing has happened, let's collect garbage collector cycles

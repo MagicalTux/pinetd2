@@ -408,6 +408,7 @@ class Core {
 		$r = array();
 		foreach($this->fdlist as $dat) $r[] = $dat['fd'];
 		$res = @stream_select($r, $w = null, $e = null, 0, $timeout);
+		pcntl_signal_dispatch();
 		if (($res == 0) && (count($r) > 0)) $res = count($r);
 		if ($res > 0) {
 			foreach($r as $fd) {

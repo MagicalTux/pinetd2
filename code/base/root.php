@@ -17,8 +17,6 @@
  *   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-declare(ticks = 1); // for signals
-
 define('PINETD_VERSION', '2.0.0beta1');
 
 require_once(PINETD_CODE.'/base/classfunc.php');
