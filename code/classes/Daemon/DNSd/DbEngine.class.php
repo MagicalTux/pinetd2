@@ -215,7 +215,7 @@ class DbEngine {
 	public function changeRecord($record, $host, $type, $value, $ttl = NULL) {
 
 		// load this record
-		$found = $this->sql->query('SELECT 1 FROM `zone_records` WHERE `record_id` = '.$this->sql->escape_string($record))->fetch_assoc();
+		$found = $this->sql->query('SELECT 1 FROM `zone_records` WHERE `record_id` = '.$this->sql->quote_escape($record))->fetch_assoc();
 		if (!$found) return false;
 
 		$data = array();
@@ -243,7 +243,7 @@ class DbEngine {
 			$req .= ($req == ''?'':', ') . '`' . $var . '` = ' . $this->sql->quote_escape($val);
 		}
 
-		$req = 'UPDATE `zone_records` SET '.$req.' WHERE `record_id` = '.$this->sql->escape_string($record);
+		$req = 'UPDATE `zone_records` SET '.$req.' WHERE `record_id` = '.$this->sql->quote_escape($record);
 
 		$data['record_id'] = $record;
 
