@@ -95,6 +95,7 @@ class Engine {
 				$pos = strpos($domain, '.');
 				if ($pos === false) {
 					$pkt->setFlag('rcode', Packet::RCODE_REFUSED); // We do not want to resolve you (won't recursive resolve)
+					$pkt->setFlag('ra', 1);
 					return;
 				}
 				$host .= ($host==''?'':'.').substr($domain, 0, $pos);
@@ -106,6 +107,7 @@ class Engine {
 		}
 
 		$pkt->setFlag('aa', 1);
+		$pkt->setFlag('ra', 1);
 		$this->IPC->callPort('DNSd::DbEngine', 'domainHit', array($domain), false); // do not wait for reply
 
 		$zone = $res['zone'];
@@ -226,7 +228,6 @@ class Engine {
 		}
 
 		$pkt->setFlag('qr', 1);
-		$pkt->setFlag('ra', 1);
 
 		$pkt = $pkt->encode();
 		//$test = new $this->packet_class();
