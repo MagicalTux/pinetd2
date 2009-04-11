@@ -102,6 +102,10 @@ class TCP extends \pinetd\TCP\Base {
 		return $this->localConfig;
 	}
 
+	public function callPort($port_name, $method, array $args, $wait = true) {
+		return $this->IPC->callPort($port_name, $method, $args, $wait);
+	}
+
 	public function forkIfYouCan($news, $peer, $class) {
 		if (!$news) return;
 
