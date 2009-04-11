@@ -318,7 +318,7 @@ class DbEngine {
 		if (!$found) return false;
 
 		$data = $found;
-		unset$($data['key']);
+		unset($data['key']);
 
 		$data['changed'] = $this->sql->now();
 		$data['zone'] = $zone;
