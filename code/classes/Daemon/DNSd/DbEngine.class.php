@@ -124,7 +124,7 @@ class DbEngine {
 	}
 
 	public function domainHit($domain, $hit_count = 1) {
-		$this->domainHitCache[$domain] += $hit_count;
+		$this->domainHitCache[strtolower($domain)] += $hit_count;
 	}
 
 	/*****
