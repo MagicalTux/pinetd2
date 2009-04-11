@@ -94,8 +94,10 @@ class Engine {
 			if (!$res) {
 				$pos = strpos($domain, '.');
 				if ($pos === false) {
-					$pkt->setFlag('rcode', Packet::RCODE_REFUSED); // We do not want to resolve you (won't recursive resolve)
-					$pkt->setFlag('ra', 0);
+					if (!$subquery) {
+						$pkt->setFlag('rcode', Packet::RCODE_REFUSED); // We do not want to resolve you (won't recursive resolve)
+						$pkt->setFlag('ra', 0);
+					}
 					return;
 				}
 				$host .= ($host==''?'':'.').substr($domain, 0, $pos);
