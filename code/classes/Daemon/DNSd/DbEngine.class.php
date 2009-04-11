@@ -303,6 +303,43 @@ class DbEngine {
 		return $id;
 	}
 
+	// connect a domain to another zone
+	public function changeDomain($domain, $zone) {
+		if (!is_numeric($zone)) {
+			$zone = $this->getZone($zone);
+		}
+
+		if (!is_numeric($domain)) {
+			$domain = $this->getDomain($domain);
+		}
+
+		// load this domain
+		$found = $this->sql->query('SELECT * FROM `domains` WHERE `key` = '.$this->sql->quote_escape($domain))->fetch_assoc();
+		if (!$found) return false;
+
+		$data = $found;
+		unset$($data['key']);
+
+		$data['changed'] = $this->sql->now();
+		$data['zone'] = $zone;
+
+		$req = '';
+
+		foreach($data as $var => $val) {
+			$req .= ($req == ''?'':', ') . '`' . $var . '` = ' . $this->sql->quote_escape($val);
+		}
+
+		$req = 'UPDATE `domains` SET '.$req.' WHERE `key` = '.$this->sql->quote_escape($domain);
+
+		$data['key'] = $domain;
+
+		if (!$this->sql->query($req)) return false;
+
+		$this->tcp->dispatch('domains', $domain, $data);
+
+		return true;
+	}
+
 	public function getDomain($domain) {
 		$res = $this->sql->query('SELECT `key` FROM `domains` WHERE `domain` = '.$this->sql->quote_escape($domain))->fetch_assoc();
 
