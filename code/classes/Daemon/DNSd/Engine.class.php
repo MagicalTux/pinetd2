@@ -38,8 +38,8 @@ class Engine {
 		$stmts = array(
 			'get_domain' => 'SELECT `zone` FROM `domains` WHERE `domain` = ?',
 			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
-			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\')',
-			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (\'NS\')',
+			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\', \'NS\')',
+			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (\'SOA\')',
 		);
 
 		foreach($stmts as $name => $query) {
@@ -141,6 +141,8 @@ class Engine {
 						$add_lookup[strtolower($aname)] = $aname;
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 					}
+				} elseif (($answer->getType() == Type\RFC1035::TYPE_NS) && ($type != Type\RFC1035::TYPE_NS)) {
+					$pkt->addAuthority($ohost. $domain. '.', $answer, $row['ttl']);
 				} else {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
