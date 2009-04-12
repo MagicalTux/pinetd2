@@ -481,22 +481,28 @@ class Client extends \pinetd\TCP\Client {
 			}
 		} else {
 			foreach($list as $fdata) {
-				$fil = $fdata['name'];
 				$flag = $fdata['flags'];
-				$blocks = $fdata['blocks'];
 
-				$res=$flag." ".$blocks." ";
-				$res .= '0	'; // user
-				$res .= '0	'; // group
-				$siz = str_pad($fdata["size"], 8, ' ', STR_PAD_LEFT);
-				$res.=$siz." "; // file size
-				$ftime = $fdata['mtime']; // moment de modification
-				$res.=date("M",$ftime); // month in 3 letters
-				$day = date("j",$ftime);
-				while(strlen($day)<3) $day=" ".$day;
-				$res.=$day;
-				$res.=" ".date("H:i",$ftime);
-				$res.=" ".$fil;
+				list($year, $month, $day, $hour, $mins) = explode('|', date('Y|M|d|H|i', $fdata['mtime']));
+
+				// $timeline: same year: "HH:SS". Other: " YYYY" (%5d)
+				if ($year == date('Y')) {
+					$timeline = sprintf('%02d:%02d', $hour, $mins);
+				} else {
+					$timeline = sprintf('%05d', $year);
+				}
+
+				$res = sprintf('%s %4u %-8d %-8d %8u %s %2d %s %s',
+					$flag,
+					1, /* TODO: nlinks */
+					0, /* owner id */
+					0, /* group id */
+					$fdata['size'], /* size */
+					$month, /* month name */
+					$day,
+					$timeline,
+					$fdata['name']
+				);
 
 				if (isset($fdata['link'])) {
 					// read the link
