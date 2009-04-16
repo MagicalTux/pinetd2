@@ -121,9 +121,9 @@ class Engine {
 		while(1) {
 			// got host & domain, lookup...
 			if ($type != Type\RFC1035::TYPE_ANY) {
-				$res = $this->sql_stmts['get_record']->run(array($zone, $host, $typestr));
+				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), $typestr));
 			} else {
-				$res = $this->sql_stmts['get_record_any']->run(array($zone, $host));
+				$res = $this->sql_stmts['get_record_any']->run(array($zone, strtolower($host)));
 			}
 
 			$found = 0;
