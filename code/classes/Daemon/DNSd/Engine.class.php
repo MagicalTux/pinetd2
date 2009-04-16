@@ -39,7 +39,7 @@ class Engine {
 			'get_domain' => 'SELECT `zone` FROM `domains` WHERE `domain` = ?',
 			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
 			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\')',
-			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (\'NS\')',
+			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (?)',
 		);
 
 		foreach($stmts as $name => $query) {
@@ -169,7 +169,7 @@ class Engine {
 		if ($subquery) return;
 
 		// add authority
-		$res = $this->sql_stmts['get_authority']->run(array($zone));
+		$res = $this->sql_stmts['get_authority']->run(array($zone, $pkt->hasAnswer()?'NS':'SOA'));
 
 		while($row = $res->fetch_assoc()) {
 			$answer = $this->makeResponse($row, $pkt);
