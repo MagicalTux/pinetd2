@@ -37,8 +37,9 @@ class Engine {
 	protected function prepareStatements() {
 		$stmts = array(
 			'get_domain' => 'SELECT `zone` FROM `domains` WHERE `domain` = ?',
+			'get_zone' => 'SELECT `zone_id` FROM `zones` WHERE `zone` = ?',
 			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
-			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\')',
+			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\',\'ZONE\')',
 			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (?)',
 		);
 
@@ -67,6 +68,84 @@ class Engine {
 				break;
 		}
 		return $this->$handler($pkt, $question['qname'], $question['qtype']);
+	}
+
+	protected function buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery = 0, $initial_query = NULL) {
+		$ohost = $host;
+		if ($ohost != '') $ohost .= '.';
+		$typestr = Type::typeToString($type);
+
+		while(1) {
+			// got host & domain, lookup...
+			if ($type != Type\RFC1035::TYPE_ANY) {
+				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), $typestr));
+			} else {
+				$res = $this->sql_stmts['get_record_any']->run(array($zone, strtolower($host)));
+			}
+
+			$found = 0;
+			$add_lookup = array();
+			$res_list = array();
+			while($row = $res->fetch_assoc())
+				$res_list[] = $row;
+			foreach($res_list as $row) {
+				++$found;
+
+				if (strtolower($row['type']) == 'zone') {
+					// special type: linking to another zone
+					$link_zone = $this->sql_stmts['get_zone']->run(array(strtolower($row['data'])))->fetch_assoc();
+					if ($link_zone) {
+						$this->buildInternetQuestionReply($pkt, substr($ohost, 0, -1), $link_zone['zone_id'], $domain, $type, $subquery, $initial_query);
+					}
+					continue;
+				}
+
+				$answer = $this->makeResponse($row, $pkt);
+				if (is_null($answer)) continue;
+
+				if ($answer->getType() == Type\RFC1035::TYPE_CNAME) {
+					$aname = $row['data'];
+					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
+					if (strtolower($aname) != strtolower($ohost . $domain. '.')) {
+						$add_lookup[strtolower($aname)] = $aname;
+						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
+					}
+				} else {
+					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
+				}
+			}
+			if ($found) break;
+			if ($host == '') break;
+			if ($host == '*') break; // can't lookup more
+			if ($host[0] == '*') $host = (string)substr($host, 2);
+
+			$pos = strpos($host, '.');
+			if ($pos === false) {
+				$host = '*';
+			} else {
+				$host = '*' . substr($host, $pos);
+			}
+		}
+
+		if ($subquery < 5) {
+			foreach($add_lookup as $aname) {
+				$this->handleInternetQuestion($pkt, $aname, $type, $subquery + 1, $initial_query);
+			}
+		} elseif($add_lookup) {
+			Logger::log(Logger::LOG_WARN, 'Query reached recursivity limit (query against '.$initial_query.' reaching '.$name.' and with lookup of '.implode(', ', $add_lookup).')');
+		}
+
+		if ($subquery) return;
+
+		// add authority
+		$res = $this->sql_stmts['get_authority']->run(array($zone, $pkt->hasAnswer()?'NS':'SOA'));
+
+		while($row = $res->fetch_assoc()) {
+			$answer = $this->makeResponse($row, $pkt);
+			if (is_null($answer)) continue;
+			if (!$pkt->hasAnswer()) $row['ttl'] = 0; // trick to avoid remote dns daemon caching the fact that this doesn't exists
+			$pkt->addAuthority($domain . '.', $answer, $row['ttl']);
+		}
 	}
 
 	protected function handleInternetQuestion($pkt, $name, $type, $subquery = 0, $initial_query = NULL) {
@@ -113,69 +192,10 @@ class Engine {
 		$this->IPC->callPort('DNSd::DbEngine', 'domainHit', array($domain), false); // do not wait for reply
 
 		$zone = $res['zone'];
-		$ohost = $host;
-		if ($ohost != '') $ohost .= '.';
 
 		$pkt->setDefaultDomain($domain);
 
-		while(1) {
-			// got host & domain, lookup...
-			if ($type != Type\RFC1035::TYPE_ANY) {
-				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), $typestr));
-			} else {
-				$res = $this->sql_stmts['get_record_any']->run(array($zone, strtolower($host)));
-			}
-
-			$found = 0;
-			$add_lookup = array();
-			while($row = $res->fetch_assoc()) {
-				++$found;
-
-				$answer = $this->makeResponse($row, $pkt);
-				if (is_null($answer)) continue;
-
-				if ($answer->getType() == Type\RFC1035::TYPE_CNAME) {
-					$aname = $row['data'];
-					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
-					if (strtolower($aname) != strtolower($ohost . $domain. '.')) {
-						$add_lookup[strtolower($aname)] = $aname;
-						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
-					}
-				} else {
-					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
-				}
-			}
-			if ($found) break;
-			if ($host == '') break;
-			if ($host == '*') break; // can't lookup more
-			if ($host[0] == '*') $host = (string)substr($host, 2);
-
-			$pos = strpos($host, '.');
-			if ($pos === false) {
-				$host = '*';
-			} else {
-				$host = '*' . substr($host, $pos);
-			}
-		}
-
-		if ($subquery < 5) {
-			foreach($add_lookup as $aname) {
-				$this->handleInternetQuestion($pkt, $aname, $type, $subquery + 1, $initial_query);
-			}
-		} elseif($add_lookup) {
-			Logger::log(Logger::LOG_WARN, 'Query reached recursivity limit (query against '.$initial_query.' reaching '.$name.' and with lookup of '.implode(', ', $add_lookup).')');
-		}
-
-		if ($subquery) return;
-
-		// add authority
-		$res = $this->sql_stmts['get_authority']->run(array($zone, $pkt->hasAnswer()?'NS':'SOA'));
-
-		while($row = $res->fetch_assoc()) {
-			$answer = $this->makeResponse($row, $pkt);
-			if (is_null($answer)) continue;
-			$pkt->addAuthority($domain . '.', $answer, $row['ttl']);
-		}
+		$this->buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery, $initial_query);
 	}
 
 	protected function makeResponse($row, $pkt) {
