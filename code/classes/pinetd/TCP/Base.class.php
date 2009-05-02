@@ -42,6 +42,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		// create tcp server socket
 		$this->loadLocalConfig($node);
 		$ip = $this->localConfig['Network']['Bind']['Ip']['_'];
+		if (isset($this->daemon['Ip'])) $ip = $this->daemon['Ip'];
 		Logger::log(Logger::LOG_INFO, 'Loading '.get_class($this).' on port '.$port.', bound to ip '.$ip);
 		$protocol = 'tcp';
 		$context = stream_context_create(array());

@@ -41,6 +41,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		// create tcp server socket
 		$this->loadLocalConfig($node);
 		$ip = $this->localConfig['Network']['Bind']['Ip']['_'];
+		if (isset($this->daemon['Ip'])) $ip = $this->daemon['Ip'];
 		Logger::log(Logger::LOG_INFO, 'Loading '.get_class($this).' on port '.$port.', bound to ip '.$ip);
 		$context = stream_context_create(array());
 		if ($this->daemon['SSL']) {
@@ -63,7 +64,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		$this->protocol = 'udp';
 		$this->socket = @stream_socket_server('udp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND, $context);
 		if (!$this->socket) {
-			throw new Exception('Error creating listening socket: ['.$errno.'] '.$errstr);
+			throw new \Exception('Error creating listening socket: ['.$errno.'] '.$errstr);
 		}
 		$this->IPC->registerSocketWait($this->socket, array(&$this, 'doRecv'), $foo = array(&$this->socket));
 	}

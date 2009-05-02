@@ -196,21 +196,21 @@ class Core {
 	}
 
 	private function loadProcessDaemon($port, $node) {
-		return $this->loadDaemon($port, $node, $port . '/process');
+		return $this->loadDaemon($port, $node, $this->makeDaemonKey($node, 'Process'));
 	}
 
 	private function loadTCPDaemon($port, $node) {
-		return $this->loadDaemon($port, $node, $port . '/tcp');
+		return $this->loadDaemon($port, $node, $this->makeDaemonKey($node, 'TCP'));
 	}
 	
 	private function loadUDPDaemon($port, $node) {
-		return $this->loadDaemon($port, $node, $port . '/udp');
+		return $this->loadDaemon($port, $node, $this->makeDaemonKey($node, 'UDP'));
 	}
 
 	private function loadDaemon($port, $node, $key) {
 		// determine HERE if we should fork...
 		$daemon = &$this->daemons[$key];
-		$good_keys = array('Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Service' => 1);
+		$good_keys = array('Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Ip' => 1, 'Service' => 1);
 		foreach(array_keys($daemon) as $_key) {
 			if (!isset($good_keys[$_key])) unset($daemon[$_key]);
 		}
@@ -271,25 +271,29 @@ class Core {
 		}
 	}
 
+	protected function makeDaemonKey($daemon, $type) {
+		if(isset($daemon['Port'])) {
+			$ip = (string)$this->config->Global->Network->Bind->Ip;
+			if (isset($daemon['Ip'])) $ip = $daemon['Ip'];
+			$port = '['.$ip.']:'.(int)$daemon['Port'];
+		} else {
+			$port = $daemon['Daemon'] . '::' . $daemon['Service'];
+		}
+		return $port . '/' .strtolower($type);
+	}
+
 	function startMissing() {
-		$offset = (int)$this->config->Processes['PortOffset'];
 		foreach($this->config->Processes->children() as $Type => $Entry) {
-			$data = array(
-				'Daemon' => (string)$Entry['Daemon'],
-				'Service' => (string)$Entry['Service'],
-				'SSL' => (string)$Entry['SSL'],
-			);
-			if (isset($Entry['Port'])) {
-				$data['Port'] = (int)$Entry['Port'] + $offset;
-			} else {
-				$data['Port'] = $data['Daemon'] . '\\' . $data['Service'];
-			}
-			$key = $data['Port'] . '/' . strtolower($Type);
+			$data = array();
+			foreach($Entry->attributes() as $attr => $aval) $data[$attr] = (string)$aval;
+			$offset = (int)$this->config->Processes['PortOffset'];
+			$data['Port'] += $offset;
+			$key = $this->makeDaemonKey($Entry, $Type);
 			if (isset($this->daemons[$key]))
 				continue; // no care
 			$this->daemons[$key] = $data;
 			$startfunc = 'load'.$Type.'Daemon';
-			$this->$startfunc($data['Port'], $Entry);
+			$this->$startfunc((int)$data['Port'], $Entry);
 		}
 	}
 
@@ -453,14 +457,8 @@ class Core {
 					if ($data['deadline'] > $now) break;
 
 					// Restart this daemon
-					$offset = (int)$this->config->Processes['PortOffset'];
 					foreach($this->config->Processes->children() as $Type => $Entry) {
-						if (isset($Entry['Port'])) {
-							$tmpport = (int)$Entry['Port'] + $offset;
-						} else {
-							$tmpport = (string)$Entry['Daemon'] . '\\' . (string)$Entry['Service'];
-						}
-						$tmpkey = $tmpport . '/' . strtolower($Type);
+						$tmpkey = $this->makeDaemonKey($Entry, $Type);
 						if ($tmpkey != $key) continue; // we don't want to start this one
 
 						$startfunc = 'load'.$Type.'Daemon';
