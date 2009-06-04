@@ -175,7 +175,7 @@
 		<TCP Port="25" Daemon="PMaild" Service="SMTP" />
 		<TCP Port="110" Daemon="PMaild" Service="POP3" />
 		<TCP Port="995" Daemon="PMaild" Service="POP3" SSL="main" />
-		<TCP Port="143" Daemon="PMaild" Service="IMAP4" />
+		<TCP Port="143" Daemon="PMaild" Service="IMAP4" SSL="~main"/>
 		<TCP Port="993" Daemon="PMaild" Service="IMAP4" SSL="main" />
 		<Process Daemon="PMaild" Service="MTA"/>
 	</Processes>
