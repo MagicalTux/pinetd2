@@ -3,8 +3,18 @@
 namespace Daemon\PMaild\MTA\MailFilter;
 
 use pinetd\Logger;
+use \Exception;
 
 class AntiVirus extends \Daemon\PMaild\MTA\MailFilter\MailFilter {
+	private function _clam_read($sock, &$reqid = NULL) {
+		$res = rtrim(fgets($sock));
+		$pos = strpos($res, ':');
+		if ($pos === false) throw new Exception('Malformed reply from clamd');
+
+		$reqid = substr($res, 0, $pos);
+		return ltrim(substr($res, $pos+1));
+	}
+
 	protected function run_clam(&$txn) {
 		if (isset($txn['clam'])) {
 			if ($txn['clam'] === false) return NULL;
@@ -18,26 +28,25 @@ class AntiVirus extends \Daemon\PMaild\MTA\MailFilter\MailFilter {
 			Logger::log(Logger::LOG_ERR, 'Failed to connect to clamd while trying to check an email for viruses');
 			return '400 Antivirus seems down, your mail can\'t be checked, and because of that I can\'t accept it';
 		}
-		fputs($sock, "SESSION\n");
+		fputs($sock, "nIDSESSION\n");
+//		fputs($sock, "nVERSIONCOMMANDS\n");
+//		var_dump($this->_clam_read($sock));
 		fputs($sock, "nVERSION\n");
-		$clam_version = rtrim(fgets($sock));
-		fputs($sock, "nSTREAM\n"); // send file to clamd using stream
-		$port = rtrim(fgets($sock));
-		if (substr($port, 0, 5) != 'PORT ') {
-			fputs($sock, "END\n");
-			return '400 Problem while communicating with clamd';
-		}
-		$sock_stream = fsockopen('localhost', substr($port, 5));
-		if (!$sock_stream) {
-			fputs($sock, "END\n");
-			return '400 Problem while communicating with clamd';
-		}
-		rewind($txn['fd']);
-		stream_copy_to_stream($txn['fd'], $sock_stream); // copy to out
-		fclose($sock_stream);
+		$clam_version = $this->_clam_read($sock);
 
-		$res = fgets($sock); // answer from clamd
-		fputs($sock, "END\n");
+		// send file to clamd as inline stream
+		fputs($sock, "nINSTREAM\n");
+		rewind($txn['fd']);
+		while(!feof($txn['fd'])) {
+			// read chunks and pass them to clamd
+			$buf = fread($txn['fd'], 8192);
+			fwrite($sock, pack('N', strlen($buf)).$buf);
+		}
+		// send a NULL chunk ("end of data")
+		fwrite($sock, pack('N', 0));
+
+		$res = $this->_clam_read($sock); // answer from clamd
+		fputs($sock, "nEND\n");
 		fclose($sock);
 
 		$res = explode(':', $res); // stream: ANSWER
