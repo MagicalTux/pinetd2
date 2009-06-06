@@ -77,6 +77,11 @@ abstract class Base extends \pinetd\DaemonBase {
 		return $this->TLS;
 	}
 
+	public function getDebug() {
+		if (!isset($this->localConfig['Debug']['Target'])) return NULL;
+		return $this->localConfig['Debug']['Target'];
+	}
+
 	public function _ChildIPC_canSUID() {
 		if (!PINETD_CAN_SUID) return false;
 		if (!isset($this->localConfig['Security']['SUID'])) return false;

@@ -25,6 +25,7 @@ class Client extends \pinetd\ProcessChild {
 	protected $fd;
 	protected $peer;
 	private $send_end = '';
+	private $debug_fd = NULL;
 	protected $buf = '';
 	protected $ok = true;
 	protected $protocol = 'tcp';
@@ -37,6 +38,16 @@ class Client extends \pinetd\ProcessChild {
 			$this->peer = explode(':', $peer); // ip:port TODO: handle ipv6
 		}
 		$this->protocol = $protocol;
+		$debug = $parent->getDebug();
+		if (!is_null($debug)) {
+			// we got debugging
+			$file = $debug.date('Ymd-His_').$this->peer[0].'_'.microtime(true).'.log';
+			$fd = fopen($file, 'w');
+			if ($fd)
+				$this->debug_fd = $fd;
+		} else {
+			$this->debug_fd = NULL;
+		}
 		parent::__construct($parent);
 //		var_dump(stream_filter_register('pinetd.autossl', 'pinetd\\TCP\\AutoSSL'));
 //		var_dump(stream_filter_prepend($this->fd, 'pinetd.autossl', STREAM_FILTER_READ));
@@ -45,6 +56,12 @@ class Client extends \pinetd\ProcessChild {
 	public function doResolve() {
 		if (!is_null($this->dns)) return;
 		$this->peer[2] = gethostbyaddr($this->peer[0]);
+		$this->debug('Resolved to: '.$this->peer[2]);
+	}
+
+	protected function debug($msg) {
+		if ($this->debug_fd)
+			fwrite($this->debug_fd, '***** '.$msg."\n");
 	}
 
 	public function shutdown() {
@@ -61,6 +78,8 @@ class Client extends \pinetd\ProcessChild {
 
 	public function sendMsg($msg) {
 		if (!$this->ok) return false;
+		if ($this->debug_fd)
+			fwrite($this->debug_fd, '> '.$msg."\n");
 		return fwrite($this->fd, $msg . $this->send_end);
 	}
 
@@ -87,6 +106,10 @@ class Client extends \pinetd\ProcessChild {
 			$pos++;
 			$lin = substr($this->buf, 0, $pos);
 			$this->buf = substr($this->buf, $pos);
+
+			if ($this->debug_fd)
+				fwrite($this->debug_fd, '< '.rtrim($lin)."\n");
+
 			$this->parseLine($lin);
 		}
 		$this->setProcessStatus(); // back to idle

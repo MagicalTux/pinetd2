@@ -18,6 +18,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $queryId = null;
 	protected $selectedFolder = null;
 	protected $uidmap = array();
+	protected $reverseMap = array();
 
 	function __construct($fd, $peer, $parent, $protocol) {
 		parent::__construct($fd, $peer, $parent, $protocol);
@@ -136,16 +137,21 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 
 	protected function updateUidMap() {
 		// compute uidmap and uidnext
-		$this->uidmap = array(0 => null);
+		$this->debug('Updating UID map');
+		$this->uidmap = array();
+		$this->reverseMap = array();
 		$pos = $this->selectedFolder;
 		$req = 'SELECT `mailid` FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' ';
 		$req.= 'AND `folder`=\''.$this->sql->escape_string($pos).'\' ';
 		$req.= 'ORDER BY `mailid` ASC';
 		$res = $this->sql->query($req);
+		$id = 1;
 		while($row = $res->fetch_assoc()) {
-			$this->uidmap[] = $row['mailid'];
+			$this->uidmap[$id] = $row['mailid'];
+			$this->reverseMap[$row['mailid']] = $id++;
 			$uidnext = $row['mailid'] + 1;
 		}
+		return $uidnext;
 	}
 
 	function shutdown() {
@@ -225,6 +231,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('BYE TLS negociation failed!', '*');
 			$this->close();
 		}
+		$this->debug('SSL mode enabled');
 		$this->protocol = 'tls';
 	}
 
@@ -421,7 +428,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			if (isset($flags['recent'])) $recent+=$row['num'];
 			$total += $row['num'];
 		}
-		$this->updateUidMap();
+		$uidnext = $this->updateUidMap();
 
 		if ($recent > 0) {
 			// got a recent mail, fetch its ID
@@ -547,11 +554,20 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('OK DELETE completed');
 	}
 
+	function _cmd_append($argv) {
+		var_dump($argv);
+		// $argv[1] = mailbox
+		// $argv[2...] = (\flags)
+		// $argv[n] = date/time string (optionnal)
+		// $argv[n] = message
+		$this->sendMsg('BAD Not Implemented');
+	}
+
 	function fetchMailByUid($uid, $param, $id = NULL) {
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
 		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
 
-		if (is_null($id)) $id = $uid;
+		if (is_null($id)) $id = $this->reverseMap[$uid];
 
 		$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
 		if (!$result) return false;
@@ -690,6 +706,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 
 	function fetchBody($mail, $param) {
 		$file = $this->mailPath($mail->uniqname);
+		if (count($param) == 0)
+			$param = array('');
 		$len = sizeof($param);
 		$var = array();
 		$res = array();
@@ -747,6 +765,11 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					}
 					$var[] = 'TEXT';
 					$res[] = $str;
+					break;
+				case '':
+					// fetch whole file
+					$var[] = '';
+					$res[] = file_get_contents($file);
 					break;
 				default:
 					var_dump('BODY UNKNOWN: '.$p);
@@ -835,17 +858,22 @@ A OK FETCH completed
 		
 		// UID COPY, UID FETCH, UID STORE
 		// UID SEARCH
-		if (strtoupper($fetch) != 'FETCH') {
-			$this->sendMsg('BAD Should have been "UID FETCH"');
-			return;
-		}
+		$func = '_cmd_uid_'.strtolower($fetch);
+		if (function_exists(array($this, $func)))
+			return $this->$func($argv);
 
+		$this->sendMsg('BAD Unsupported UID command');
+		return;
+	}
+
+	protected function _cmd_uid_fetch($argv) {
 		$id = array_shift($argv); // 1:*
 
 		// parse param
 		$param = implode(' ', $argv);
 		// ok, let's parse param
 		$param = $this->parseFetchParam($param);
+		$param[] = 'UID';
 
 		$last = null;
 		while(strlen($id) > 0) {
@@ -871,6 +899,66 @@ A OK FETCH completed
 			}
 		}
 		$this->sendMsg('OK FETCH completed');
+	}
+
+	protected function storeFlags($uid, $flags) {
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+
+		$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
+		// FIXME
+	}
+
+	protected function _cmd_uid_store($argv) {
+		$id = array_shift($argv); // 1:*
+		$what = strtolower(array_shift($argv));
+
+		$mode = 'set';
+		$silent = false;
+
+		if ($what[0] == '+') {
+			$mode = 'add';
+			$what = substr($what, 1);
+		} else if ($what[0] == '-') {
+			$mode = 'sub';
+			$what = substr($what, 1);
+		}
+
+		if (substr($what, -7) == '.silent') {
+			$what = substr($what, 0, -7);
+			$silent = true;
+		}
+
+		if ($what != 'flags') {
+			$this->sendMsg('BAD Setting '.strtoupper($what).' not supported');
+			return;
+		}
+
+		$last = null;
+		while(strlen($id) > 0) {
+			$pos = strpos($id, ':');
+			$pos2 = strpos($id, ',');
+			if ($pos === false) $pos = strlen($id);
+			if ($pos2 === false) $pos2 = strlen($id);
+			if ($pos < $pos2) {
+				// got an interval. NB: 1:3:5 is impossible, must be 1:3,5 or something like that
+				$start = substr($id, 0, $pos);
+				$end = substr($id, $pos+1, $pos2 - $pos - 1);
+				$id = substr($id, $pos2+1);
+				if ($end == '*') {
+					$end = 999; // TODO: convert to WHERE statement instead
+				}
+				for($i=$start; $i <= $end; $i++) {
+					if (!$silent)
+						$this->fetchMailByUid($i, array('FLAGS'));
+				}
+			} else {
+				$i = substr($id, 0, $pos2);
+				$id = substr($id, $pos2+1);
+				if (!$silent)
+					$this->fetchMailByUid($i, array('FLAGS'));
+			}
+		}
+		$this->sendMsg('OK STORE completed');
 	}
 }
 
