@@ -8,6 +8,7 @@
 namespace Daemon\PMaild;
 
 use pinetd\SQL;
+use pinetd\SQL\Expr;
 
 class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $login = null;
@@ -19,6 +20,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $selectedFolder = null;
 	protected $uidmap = array();
 	protected $reverseMap = array();
+	protected $uidmap_next = 0;
 
 	function __construct($fd, $peer, $parent, $protocol) {
 		parent::__construct($fd, $peer, $parent, $protocol);
@@ -146,12 +148,21 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$req.= 'ORDER BY `mailid` ASC';
 		$res = $this->sql->query($req);
 		$id = 1;
+		$uidnext = 1;
 		while($row = $res->fetch_assoc()) {
 			$this->uidmap[$id] = $row['mailid'];
 			$this->reverseMap[$row['mailid']] = $id++;
 			$uidnext = $row['mailid'] + 1;
 		}
+		$this->uidmap_next = $id;
 		return $uidnext;
+	}
+
+	protected function allocateQuickId($uid) {
+		$id = $this->uidmap_next++;
+		$this->uidmap[$id] = $uid;
+		$this->reverseMap[$uid] = $id;
+		return $id;
 	}
 
 	function shutdown() {
@@ -418,7 +429,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		if (isset($flags['noselect'])) return $this->sendMsg('NO This folder has \\Noselect flag');
 		$this->selectedFolder = $pos;
 		// TODO: find a way to do this without MySQL specific code
-		$req = 'SELECT `flags`, COUNT(1) AS num FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' GROUP BY `flags`';
+		$req = 'SELECT `flags`, COUNT(1) AS num FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' AND `folder` = \''.$this->sql->escape_string($this->selectedFolder).'\' GROUP BY `flags`';
 		$res = $this->sql->query($req);
 		$total = 0;
 		$recent = 0;
@@ -439,7 +450,9 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			if ($res) $res = $res->fetch_assoc();
 			if ($res) {
 				$unseen = $res['mailid'];
-				$unseen = array_search($unseen, $this->uidmap);
+				// TODO: clear "recent" flag where mailid <= unseen
+				$unseen = $this->reverseMap[$unseen];
+//				$unseen = array_search($unseen, $this->uidmap);
 			}
 		}
 
@@ -563,40 +576,52 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('BAD Not Implemented');
 	}
 
-	function fetchMailByUid($uid, $param, $id = NULL) {
+	function _cmd_expunge() {
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
+		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder, new Expr('FIND_IN_SET(\'deleted\',`flags`)>0')));
+		
+		foreach($result as $mail) {
+			$DAO_mailheaders->delete(array('userid' => $this->info['account']->id, 'mailid' => $mail->mailid));
+			@unlink($this->mailPath($mail->uniqname));
+			$this->sendMsg($this->reverseMap[$mail->mailid].' EXPUNGE', '*');
+			$mail->delete();
+		}
+		$this->sendMsg('OK EXPUNGE completed');
+	}
+
+	function fetchMailByUid(array $where, $param) {
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
 		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
 
-		if (is_null($id)) $id = $this->reverseMap[$uid];
-
-		$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
+		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder) + $where);
 		if (!$result) return false;
-		$mail = $result[0];
-		$tmp_headers = $DAO_mailheaders->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
-		$headers = array();
-		foreach($tmp_headers as $h) {
-			$headers[strtolower($h->header)][] = $h;
+		foreach($result as $mail) {
+			$uid = $mail->mailid;
+			if (!isset($this->reverseMap[$uid])) {
+				// we do not know this mail, allocate an id quickly
+				$id = $this->allocateQuickId($uid);
+			} else {
+				$id = $this->reverseMap[$uid];
+			}
+
+			$tmp_headers = $DAO_mailheaders->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
+			$headers = array();
+			foreach($tmp_headers as $h) {
+				$headers[strtolower($h->header)][] = $h;
+			}
+			$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $headers, $param), '*');
 		}
-		$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $headers, $param), '*');
 		return true;
 	}
 
 	function fetchMailById($id, $param) {
-		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
-		while(1) {
-			// not in the current uidmap?
-			if (!isset($this->uidmap[$id])) {
-				return false;
-			}
-			$uid = $this->uidmap[$id];
-			$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
-			if (!$result) {
-				// update uid map, if we have a non-existant UID in our map that means something was deleted
-				$this->updateUidMap();
-				continue; // and retry lookup
-			}
-			return $this->fetchMailByUid($uid, $param, $id);
+		// not in the current uidmap?
+		if (!isset($this->uidmap[$id])) {
+			return false;
 		}
+		$uid = $this->uidmap[$id];
+		return $this->fetchMailByUid(array('mailid' => $uid), $param);
 	}
 
 	function fetchParamByMail($mail, $headers, $param) {
@@ -859,7 +884,7 @@ A OK FETCH completed
 		// UID COPY, UID FETCH, UID STORE
 		// UID SEARCH
 		$func = '_cmd_uid_'.strtolower($fetch);
-		if (function_exists(array($this, $func)))
+		if (method_exists($this, $func))
 			return $this->$func($argv);
 
 		$this->sendMsg('BAD Unsupported UID command');
@@ -875,6 +900,39 @@ A OK FETCH completed
 		$param = $this->parseFetchParam($param);
 		$param[] = 'UID';
 
+		foreach($this->transformRange($id) as $where) {
+			$this->fetchMailByUid($where, $param);
+		}
+		$this->sendMsg('OK FETCH completed');
+	}
+
+	protected function storeFlags($where, $mode, $flags) {
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+
+		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder)+$where);
+		foreach($result as $mail) {
+			$tmpfl = explode(',', $mail->flags);
+			array_flip($tmpfl);
+			switch($mode) {
+				case 'set':
+					$tmpfl = array();
+				case 'add':
+					foreach($flags as $f)
+						$tmpfl[strtolower(substr($f, 1))] = strtolower(substr($f, 1));
+					break;
+				case 'sub':
+					foreach($flags as $f)
+						unset($tmpfl[strtolower(substr($f, 1))]);
+					break;
+			}
+			$mail->flags = implode(',', array_flip($tmpfl));
+			$mail->commit();
+		}
+	}
+
+	protected function transformRange($id) {
+		$res = array();
+
 		$last = null;
 		while(strlen($id) > 0) {
 			$pos = strpos($id, ':');
@@ -887,25 +945,22 @@ A OK FETCH completed
 				$end = substr($id, $pos+1, $pos2 - $pos - 1);
 				$id = substr($id, $pos2+1);
 				if ($end == '*') {
-					$end = 999; // TODO: convert to WHERE statement instead
+					$where = array(new Expr('`mailid` >= '.$this->sql->quote_escape($start)));
+				} else {
+					$where = array();
+					$where[] = new Expr('`mailid` >= '.$this->sql->quote_escape($start));
+					$where[] = new Expr('`mailid` <= '.$this->sql->quote_escape($end));
 				}
-				for($i=$start; $i <= $end; $i++) {
-					$this->fetchMailByUid($i, $param);
-				}
+				$res[] = $where;
 			} else {
 				$i = substr($id, 0, $pos2);
 				$id = substr($id, $pos2+1);
-				$this->fetchMailByUid($i, $param);
+				$res[] = array('mailid' => $i);
+
 			}
 		}
-		$this->sendMsg('OK FETCH completed');
-	}
 
-	protected function storeFlags($uid, $flags) {
-		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
-
-		$result = $DAO_mails->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
-		// FIXME
+		return $res;
 	}
 
 	protected function _cmd_uid_store($argv) {
@@ -933,31 +988,15 @@ A OK FETCH completed
 			return;
 		}
 
-		$last = null;
-		while(strlen($id) > 0) {
-			$pos = strpos($id, ':');
-			$pos2 = strpos($id, ',');
-			if ($pos === false) $pos = strlen($id);
-			if ($pos2 === false) $pos2 = strlen($id);
-			if ($pos < $pos2) {
-				// got an interval. NB: 1:3:5 is impossible, must be 1:3,5 or something like that
-				$start = substr($id, 0, $pos);
-				$end = substr($id, $pos+1, $pos2 - $pos - 1);
-				$id = substr($id, $pos2+1);
-				if ($end == '*') {
-					$end = 999; // TODO: convert to WHERE statement instead
-				}
-				for($i=$start; $i <= $end; $i++) {
-					if (!$silent)
-						$this->fetchMailByUid($i, array('FLAGS'));
-				}
-			} else {
-				$i = substr($id, 0, $pos2);
-				$id = substr($id, $pos2+1);
-				if (!$silent)
-					$this->fetchMailByUid($i, array('FLAGS'));
-			}
+		$argv = implode(' ', $argv);
+		$flags = $this->parseFetchParam($argv);
+
+		foreach($this->transformRange($id) as $where) {
+			$this->storeFlags($where, $mode, $flags);
+			if (!$silent)
+				$this->fetchMailByUid($where, array('FLAGS'));
 		}
+
 		$this->sendMsg('OK STORE completed');
 	}
 }

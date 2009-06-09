@@ -21,6 +21,7 @@ abstract class Base implements ArrayAccess {
 	}
 
 	abstract public function deleteBean($bean);
+	abstract public function delete(array $where);
 	abstract public function createUpdateQuery($data, $table, $qwhere);
 	abstract public function insertValues($data);
 	abstract public function createSelectQuery($qtype = 'SELECT', $qfields = '*', $qtable = null, $qwhere = null, $order_by = null, $limit = null);

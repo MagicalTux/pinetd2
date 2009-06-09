@@ -25,6 +25,11 @@ class MySQL extends \DAO\Base {
 		return $this->SQL->query($query);
 	}
 
+	public function delete(array $where) {
+		$query = 'DELETE FROM '.$this->formatTable($this->table).' WHERE '.$this->buildQuickWhere($where);
+		return $this->SQL->query($query);
+	}
+
 	public function formatTable($table) {
 		if (is_array($table)) {
 			return '`'.implode('`.`',$table).'`';
@@ -66,6 +71,24 @@ class MySQL extends \DAO\Base {
 		return $this->SQL->query($query);
 	}
 
+	protected function buildQuickWhere(array $qwhere) {
+		$first = true;
+		$query = '';
+		foreach($qwhere as $var=>$val) {
+			if ((is_int($var)) && (is_object($val))) {
+				if (!($val instanceof \pinetd\SQL\Expr))
+					throw new Exception('Expression of wrong type');
+				$query.=($first?'':' AND ').$val;
+			} else if (is_int($var)) {
+				$query.=($first?'':' AND ').$this->buildWhere($val[0], $val[1]);
+			} else {
+				$query.=($first?'':' AND ').'`'.$var.'` '.(is_null($val)?'IS NULL':'= \''.$this->SQL->escape_string($val).'\'');
+			}
+			$first = false;
+		}
+		return $query;
+	}
+
 	public function createSelectQuery($qtype = 'SELECT', $qfields = '*', $qtable = null, $qwhere = null, $order_by = null, $limit = null) {
 		$query = $qtype.' ';
 		if (is_array($qfields)) {
@@ -81,16 +104,7 @@ class MySQL extends \DAO\Base {
 		if (!is_null($qtable)) $query.='FROM '.$this->formatTable($qtable).' ';
 		if (!is_null($qwhere)) {
 			if (is_array($qwhere)) {
-				$query.='WHERE ';
-				$first = true;
-				foreach($qwhere as $var=>$val) {
-					if (is_int($var)) {
-						$query.=($first?'':' AND ').$this->buildWhere($val[0], $val[1]);
-					} else {
-						$query.=($first?'':' AND ').'`'.$var.'` '.(is_null($val)?'IS NULL':'= \''.$this->SQL->escape_string($val).'\'');
-					}
-					$first = false;
-				}
+				$query.='WHERE ' . $this->buildQuickWhere($qwhere);
 			} else {
 				$query.='WHERE '.$qwhere;
 			}
