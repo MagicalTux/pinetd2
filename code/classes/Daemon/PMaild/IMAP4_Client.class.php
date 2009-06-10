@@ -1068,13 +1068,16 @@ A OK FETCH completed
 				// copy this mail, but first generate an unique id
 				$new = $mailTarget->makeUniq('domains', $this->info['domainid'], $this->info['account']->id);
 				link($this->mailPath($mail->uniqname), $new);
+				$flags = array_flip(explode(',', $mail->flags));
+				$flags['recent'] = 'recent';
+				$flags = implode(',', array_flip($flags));
 				// insert mail
 				$DAO_mails->insertValues(array(
 					'folder' => $box['id'],
 					'userid' => $this->info['account']->id,
 					'size' => $mail->size,
 					'uniqname' => basename($new),
-					'flags' => 'recent',
+					'flags' => $flags,
 				));
 				$newid = $this->sql->insert_id;
 				// copy headers
@@ -1089,6 +1092,59 @@ A OK FETCH completed
 		}
 
 		$this->sendMsg('OK COPY completed');
+	}
+
+	function _cmd_status($argv) {
+		// We got STATUS folder (...)
+		array_shift($argv); // "STATUS"
+		$box_name = array_shift($argv);
+		$box = $this->lookupFolder($box_name);
+		$opt = $this->parseFetchParam(implode(' ', $argv));
+
+		if (isset($box['flags']['noselect'])) return $this->sendMsg('NO This folder has \\Noselect flag');
+		$this->selectedFolder = $box['id'];
+		// TODO: find a way to do this without SQL code?
+		$req = 'SELECT `flags`, COUNT(1) AS num, (MAX(`mailid`)+1) AS uidnext FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' AND `folder` = \''.$this->sql->escape_string($this->selectedFolder).'\' GROUP BY `flags`';
+		$res = $this->sql->query($req);
+		$total = 0;
+		$recent = 0;
+		$unseen = 0;
+		$uidnext = 0;
+
+		while($row = $res->fetch_assoc()) {
+			$flags = array_flip(explode(',', $row['flags']));
+			if (isset($flags['recent'])) $recent+=$row['num'];
+			$total += $row['num'];
+			if ($uidnext < $row['uidnext']) $uidnext = $row['uidnext'];
+		}
+
+		$res = array();
+		foreach($opt as $o) {
+			switch($o) {
+				case 'MESSAGES': // How many messsages
+					$res[] = 'MESSAGES';
+					$res[] = $total;
+					break;
+				case 'RECENT': // How many recent msg
+					$res[] = 'RECENT';
+					$res[] = $recent;
+					break;
+				case 'UIDNEXT': // next UID
+					$res[] = 'UIDNEXT';
+					$res[] = $uidnext;
+				case 'UIDVALIDITY': // uid validity
+					$res[] = 'UIDVALIDITY';
+					$res[] = $this->info['account']->id;
+					break;
+				case 'UNSEEN': // how many message do not have \seen
+					$res[] = 'UNSEEN';
+					$res[] = $unseen;
+					break;
+			}
+		}
+
+		$this->sendMsg('STATUS '.$box_name.' ('.implode(' ', $res).')', '*');
+		$this->sendMsg('OK STATUS completed');
 	}
 }
 

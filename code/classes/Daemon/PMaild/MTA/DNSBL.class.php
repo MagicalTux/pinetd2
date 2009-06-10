@@ -35,6 +35,7 @@ class DNSBL {
 			$resolved = gethostbyname($dns);
 			if ($resolved == $dns) continue; // nothing found
 			if (!isset(self::$dnsbl[$bl][1])) {
+				syslog(LOG_NOTICE, 'pinetd DNSBL blocking host '.$peer[0].': '.$bl);
 				return 'You were found in bl '.$bl.' - possible spam source, mail denied!';
 			}
 		}

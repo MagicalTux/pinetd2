@@ -422,10 +422,11 @@ class Storage {
 			$option = str_pad($id, 10, '0', STR_PAD_LEFT);
 
 			foreach(self::$tables_struct as $name => $struct) {
+				$old_name = sprintf($name, $option);
 				$name = sprintf($name, $id);
 				// check for legacy table
-				$old_name = sprintf($name, $option);
 				if ($SQL->query('SELECT 1 FROM `'.$old_name.'` LIMIT 1')) {
+					$SQL->query('DROP TABLE `'.$name.'`');
 					$SQL->query('RENAME TABLE `'.$old_name.'` TO `'.$name.'`');
 				}
 

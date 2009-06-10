@@ -68,6 +68,7 @@ class AntiVirus extends \Daemon\PMaild\MTA\MailFilter\MailFilter {
 		$virus=str_replace(' FOUND','',$res);
 		if ($virus != $res) {
 			$txn['clam'] = $virus;
+			syslog(LOG_NOTICE, 'pinetd clamav found virus '.$virus);
 			return '500 5.7.1 Virus '.$virus.' found in your mail, refusing mail...';
 		}
 		return '400 4.0.0 Antivirus unknown answer: '.$res;
