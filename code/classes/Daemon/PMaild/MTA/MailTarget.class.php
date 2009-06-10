@@ -19,7 +19,7 @@ class MailTarget {
 		$this->sql = SQL::Factory($this->localConfig['Storage']);
 	}
 
-	function makeUniq($path, $domain=null, $account=null) {
+	public function makeUniq($path, $domain=null, $account=null) {
 		$path = $this->localConfig['Mails']['Path'].'/'.$path;
 		if ($path[0] != '/') $path = PINETD_ROOT . '/' . $path; // make it absolute
 		if (!is_null($domain)) {

@@ -402,13 +402,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('OK LIST completed');
 	}
 
-	function _cmd_select($argv) {
-		if (!$this->loggedin) return $this->sendMsg('BAD Login needed');
-		if (count($argv) != 2) {
-			$this->sendMsg('BAD Please provide only one parameter to SELECT');
-			return;
-		}
-		$box = mb_convert_encoding($argv[1], 'UTF-8', 'UTF7-IMAP,UTF-8'); // RFC says we should accept UTF-8
+	protected function lookupFolder($box) {
+		$box = mb_convert_encoding($box, 'UTF-8', 'UTF7-IMAP,UTF-8'); // RFC says we should accept UTF-8
 		$box = explode('/', $box);
 		$pos = null;
 		$DAO_folders = $this->sql->DAO('z'.$this->info['domainid'].'_folders', 'id');
@@ -420,15 +415,28 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			}
 			$result = $DAO_folders->loadByField(array('account' => $this->info['account']->id, 'name' => $name, 'parent' => $pos));
 			if (!$result) {
-				$this->sendMsg('NO No such mailbox');
-				return;
+				return NULL;
 			}
 			$pos = $result[0]->id;
 		}
 		$flags = array_flip(explode(',', $result[0]->flags));
-		if (isset($flags['noselect'])) return $this->sendMsg('NO This folder has \\Noselect flag');
-		$this->selectedFolder = $pos;
-		// TODO: find a way to do this without MySQL specific code
+		return array('id' => $pos, 'flags' => $flags);
+	}
+
+	function _cmd_select($argv) {
+		if (!$this->loggedin) return $this->sendMsg('BAD Login needed');
+		if (count($argv) != 2) {
+			$this->sendMsg('BAD Please provide only one parameter to SELECT');
+			return;
+		}
+		$box = $this->lookupFolder($argv[1]);
+		if (is_null($box)) {
+			$this->sendMsg('NO No such mailbox');
+			return;
+		}
+		if (isset($box['flags']['noselect'])) return $this->sendMsg('NO This folder has \\Noselect flag');
+		$this->selectedFolder = $box['id'];
+		// TODO: find a way to do this without SQL code?
 		$req = 'SELECT `flags`, COUNT(1) AS num FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' AND `folder` = \''.$this->sql->escape_string($this->selectedFolder).'\' GROUP BY `flags`';
 		$res = $this->sql->query($req);
 		$total = 0;
@@ -999,6 +1007,50 @@ A OK FETCH completed
 
 		$this->sendMsg('OK STORE completed');
 	}
-}
 
+	protected function _cmd_uid_copy($argv) {
+		// we will assume we never modify a file once received, and use link()
+		$id = array_shift($argv);
+		$box = $this->lookupFolder(array_shift($argv));
+		if (is_null($box)) {
+			$this->sendMsg('NO [TRYCREATE] No such mailbox');
+			return;
+		}
+		if (isset($box['flags']['noselect'])) return $this->sendMsg('NO This folder has \\Noselect flag');
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
+
+		// invoke MailTarget
+		$class = relativeclass($this, 'MTA\\MailTarget');
+		$mailTarget = new $class('', '', $this->localConfig);
+
+		foreach($this->transformRange($id) as $where) {
+			$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder)+$where);
+			foreach($result as $mail) {
+				// copy this mail, but first generate an unique id
+				$new = $mailTarget->makeUniq('domains', $this->info['domainid'], $this->info['account']->id);
+				link($this->mailPath($mail->uniqname), $new);
+				// insert mail
+				$DAO_mails->insertValues(array(
+					'folder' => $box['id'],
+					'userid' => $this->info['account']->id,
+					'size' => $mail->size,
+					'uniqname' => basename($new),
+					'flags' => 'recent',
+				));
+				$newid = $this->sql->insert_id;
+				// copy headers
+				$headers = $DAO_mailheaders->loadByField(array('mailid' => $mail->mailid, 'userid' => $this->info['account']->id));
+				foreach($headers as $head) {
+					$head = $head->getProperties();
+					unset($head['id']);
+					$head['mailid'] = $newid;
+					$DAO_mailheaders->insertValues($head);
+				}
+			}
+		}
+
+		$this->sendMsg('OK COPY completed');
+	}
+}
 
