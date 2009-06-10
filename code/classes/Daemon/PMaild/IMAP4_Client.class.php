@@ -575,15 +575,6 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('OK DELETE completed');
 	}
 
-	function _cmd_append($argv) {
-		var_dump($argv);
-		// $argv[1] = mailbox
-		// $argv[2...] = (\flags)
-		// $argv[n] = date/time string (optionnal)
-		// $argv[n] = message
-		$this->sendMsg('BAD Not Implemented');
-	}
-
 	function _cmd_expunge() {
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
 		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
@@ -1145,6 +1136,105 @@ A OK FETCH completed
 
 		$this->sendMsg('STATUS '.$box_name.' ('.implode(' ', $res).')', '*');
 		$this->sendMsg('OK STATUS completed');
+	}
+
+	function _cmd_append($argv) {
+		// APPEND Folder Flagz Length
+		$length = array_pop($argv); // {xxx}
+		if (($length[0] != '{') || (substr($length, -1) != '}')) {
+			$this->sendMsg('NO Bad length');
+			return;
+		}
+		$length = (int)substr($length, 1, -1);
+		if (!$length) {
+			$this->sendMsg('NO Bad length');
+			return;
+		}
+
+		array_shift($argv); // "APPEND"
+		$box = $this->lookupFolder(array_shift($argv));
+		if (is_null($box)) {
+			$this->sendMsg('NO Mailbox not found');
+			return;
+		}
+		// we might get flags, and date? let's say we only have flags
+		$tmpflags = $this->parseFetchParam(implode(' ', $argv));
+		$flags = array();
+		foreach($tmpflags as $f) {
+			$f = strtolower(substr($f, 1));
+			$flags[$f] = $f;
+		}
+		// invoke MailTarget
+		$class = relativeclass($this, 'MTA\\MailTarget');
+		$mailTarget = new $class('', '', $this->localConfig);
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
+
+		// store this mail, but first generate an unique id
+		$new = $mailTarget->makeUniq('domains', $this->info['domainid'], $this->info['account']->id);
+		$fp = fopen($new, 'w+');
+
+		$this->sendMsg('Ready for literal data', '+');
+
+		$pos = 0;
+		while($pos < $length) {
+			$blen = $length - $pos;
+			if ($blen > 8192) $blen = 8192;
+			$buf = fread($this->fd, $blen);
+			fwrite($fp, $buf);
+			$pos += strlen($buf);
+
+			// failed upload ?
+			if (feof($this->fd)) {
+				fclose($fp);
+				@unlink($new);
+				return;
+			}
+		}
+
+		$headers = array();
+		$last = null;
+		rewind($fp);
+		while(!feof($fp)) {
+			$lin = rtrim(fgets($fp, 4096));
+			if ($lin == '') break;
+			if (($lin[0] == ' ') || ($lin[0] == "\t")) {
+				$last['value'] .= ' ' . ltrim($lin);
+				continue;
+			}
+			$pos = strpos($lin, ':');
+			if ($pos === false) continue;
+			unset($last);
+			$last = array('header' => strtolower(trim(substr($lin, 0, $pos))), 'value' => ltrim(substr($lin, $pos+1)));
+			$headers[] = &$last;
+		}
+
+		fclose($fp);
+		$size = filesize($new);
+
+		// insert mail
+		$DAO_mails->insertValues($f = array(
+			'folder' => $box['id'],
+			'userid' => $this->info['account']->id,
+			'size' => $size,
+			'uniqname' => basename($new),
+			'flags' => implode(',', $flags),
+		));
+		$newid = $this->sql->insert_id;
+		var_dump($f, $newid);
+
+		// read headers
+		foreach($headers as $head) {
+			$head = array(
+				'userid' => $this->info['account']->id,
+				'mailid' => $newid,
+				'header' => $head['header'],
+				'content' => $head['value'],
+			);
+			$DAO_mailheaders->insertValues($head);
+		}
+
+		$this->sendMsg('OK APPEND completed');
 	}
 }
 
