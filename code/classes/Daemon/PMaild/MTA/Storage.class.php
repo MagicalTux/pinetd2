@@ -413,6 +413,94 @@ class Storage {
 				'key'=>'FULLTEXT:content',
 			),
 		),
+		'z%s_filter' => array(
+			'id' => array(
+				'type'=>'BIGINT',
+				'size'=>20,
+				'null'=>false,
+				'unsigned'=>true,
+				'auto_increment'=>true,
+				'key'=>'PRIMARY',
+			),
+			'userid' => array(
+				'type'=>'BIGINT',
+				'size'=>20,
+				'unsigned'=>true,
+				'null'=>false,
+				'key'=>'usermail',
+			),
+			'name' => array(
+				'type' => 'VARCHAR',
+				'size' => 128,
+				'null' => false,
+			),
+		),
+		'z%s_filter_cond' => array(
+			'id' => array(
+				'type'=>'BIGINT',
+				'size'=>20,
+				'null'=>false,
+				'unsigned'=>true,
+				'auto_increment'=>true,
+				'key'=>'PRIMARY',
+			),
+			'filterid' => array(
+				'type'=>'BIGINT',
+				'size'=>20,
+				'null'=>false,
+				'unsigned'=>true,
+				'key' => 'filterid',
+			),
+			'priority' => array(
+				'type' => 'INT',
+				'size' => 10,
+				'default' => 0,
+			),
+			'source' => array(
+				'type' => 'ENUM',
+				'values' => array('header'),
+				'default' => 'header',
+			),
+			'type' => array(
+				'type' => 'ENUM',
+				'values' => array('exact', 'contains', 'preg'),
+				'default' => 'contains',
+			),
+			'arg1' => array(
+				'type' => 'VARCHAR',
+				'size' => 255,
+			),
+			'arg2' => array(
+				'type' => 'VARCHAR',
+				'size' => 255,
+			),
+		),
+		'z%s_filter_act' => array(
+			'id' => array(
+				'type'=>'BIGINT',
+				'size'=>20,
+				'null'=>false,
+				'unsigned'=>true,
+				'auto_increment'=>true,
+				'key'=>'PRIMARY',
+			),
+			'filterid' => array(
+				'type'=>'BIGINT',
+				'size'=>20,
+				'null'=>false,
+				'unsigned'=>true,
+				'key' => 'filterid',
+			),
+			'action' => array(
+				'type' => 'ENUM',
+				'values' => array('move', 'copy', 'drop', 'flags'),
+				'default' => 'move',
+			),
+			'arg1' => array(
+				'type' => 'VARCHAR',
+				'size' => 255,
+			),
+		),
 	);
 
 	function validateTables($SQL, $id = null) {

@@ -61,11 +61,10 @@ class MailTarget {
 		$DAO_accounts = $this->sql->DAO('z'.$this->target['domainid'].'_accounts', 'id');
 		$DAO_mails = $this->sql->DAO('z'.$this->target['domainid'].'_mails', 'mailid');
 		$DAO_mailheaders = $this->sql->DAO('z'.$this->target['domainid'].'_mailheaders', 'id');
-		$DAO_filters = $this->sql->DAO('z'.$this->target['domainid'].'_filters', 'id');
-//		$DAO_folders = $this->sql->DAO('z'.$this->target['domainid'].'_folders', 'id');
 
-		// get root folder for this user
-		$folder = 0; // root folder, for all accounts
+		$DAO_filter = $this->sql->DAO('z'.$this->target['domainid'].'_filter', 'id');
+		$DAO_filter_cond = $this->sql->DAO('z'.$this->target['domainid'].'_filter_cond', 'id');
+		$DAO_filter_act = $this->sql->DAO('z'.$this->target['domainid'].'_filter_act', 'id');
 
 		// need to store mail, index headers, etc
 		$store = $this->makeUniq('domains', $this->target['domainid'], $this->target['target']);
@@ -96,12 +95,68 @@ class MailTarget {
 		unset($last);
 		fclose($out);
 		$size = filesize($store); // final stored size
+		$quick_headers = array();
+		foreach($headers as $h) $quick_headers[trim(strtolower($h['header']))] = trim($h['value']);
+
+		// get root folder for this user
+		$folder = 0; // root folder, for all accounts
+		$flags = 'recent';
+
+		// manage filters
+		foreach($DAO_filter->loadByField(array('userid' => $this->target['target'])) as $rule) {
+			$match = true;
+			foreach($DAO_filter_cond->loadByField(array('filterid' => $rule->id), array('priority' => 'DESC')) as $cond) {
+				switch($cond->source) {
+					case 'header':
+						$arg = strtolower($cond->arg1);
+						if (!isset($quick_headers[$arg])) {
+							$match = false;
+							break;
+						}
+						$value = $quick_headers[$arg];
+						break;
+				}
+				if (!$match) break;
+				switch($cond->type) {
+					case 'exact':
+						if ($value != $cond->arg2)
+							$match = false;
+						break;
+					case 'contains':
+						if (strpos($value, $cond->arg2) === false)
+							$match = false;
+						break;
+					case 'preg':
+						if (!preg_match($cond->arg2, $value))
+							$match = false;
+						break;
+				}
+				if (!$match) break;
+			}
+			if (!$match) continue;
+
+			foreach($DAO_filter_act->loadByField(array('filterid' => $rule->id)) as $act) {
+				switch($act->action) {
+					case 'move':
+						$folder = $act->arg1;
+						break;
+//					case 'drop':
+//						$folder = -1;
+//						break;
+					case 'flags':
+						$flags = $act->arg1;
+						break;
+				}
+			}
+		}
+
 		// store mail
 		$insert = array(
-			'folder' => 0, // root
+			'folder' => $folder, // root
 			'userid' => $this->target['target'],
 			'size' => $size,
 			'uniqname' => basename($store),
+			'flags' => $flags,
 		);
 		$DAO_mails->insertValues($insert);
 		$new = $DAO_mails->loadLast();
