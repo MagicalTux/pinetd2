@@ -328,6 +328,13 @@ class Storage {
 				'default'=>'',
 				'null'=>false,
 			),
+			'subscribed' => array(
+				'type' => 'INT',
+				'size' => 10,
+				'unsigned' => true,
+				'null' => false,
+				'default' => 0,
+			),
 		),
 		'z%s_mails' => array(
 			'mailid' => array(

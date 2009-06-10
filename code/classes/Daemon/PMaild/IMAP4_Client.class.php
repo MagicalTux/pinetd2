@@ -304,7 +304,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		// TODO: Find doc and fix that according to correct process
 		$this->sendMsg('LSUB () "/" INBOX', '*');
 		$DAO_folders = $this->sql->DAO('z'.$this->info['domainid'].'_folders', 'id');
-		$list = $DAO_folders->loadByField(array('account'=>$this->info['account']->id));
+		$list = $DAO_folders->loadByField(array('account'=>$this->info['account']->id, 'subscribed' => 1));
 		// cache list
 		$cache = array(
 			0 => array(
@@ -811,6 +811,44 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$var = array('BODY' => $var);
 		foreach($res as $r) $var[] = $r;
 		return $var;
+	}
+
+	function _cmd_subscribe($argv) {
+		$box = $this->lookupFolder($argv[1]);
+		if (is_null($box)) {
+			$this->sendMsg('NO Folder not found');
+			return;
+		}
+		if ($box['id'] == 0) {
+			$this->sendMsg('NO INBOX cannot be subscribed');
+			return;
+		}
+
+		// load bean
+		$DAO_folders = $this->sql->DAO('z'.$this->info['domainid'].'_folders', 'id');
+		$folder = $DAO_folders[$box['id']];
+		$folder->subscribed = 1;
+		$folder->commit();
+		$this->sendMsg('OK SUBSCRIBE completed');
+	}
+
+	function _cmd_unsubscribe($argv) {
+		$box = $this->lookupFolder($argv[1]);
+		if (is_null($box)) {
+			$this->sendMsg('NO Folder not found');
+			return;
+		}
+		if ($box['id'] == 0) {
+			$this->sendMsg('NO INBOX cannot be unsubscribed');
+			return;
+		}
+
+		// load bean
+		$DAO_folders = $this->sql->DAO('z'.$this->info['domainid'].'_folders', 'id');
+		$folder = $DAO_folders[$box['id']];
+		$folder->subscribed = 0;
+		$folder->commit();
+		$this->sendMsg('OK UNSUBSCRIBE completed');
 	}
 /*
 A FETCH 1 (UID ENVELOPE BODY.PEEK[HEADER.FIELDS (Newsgroups Content-MD5 Content-Disposition Content-Language Content-Location Followup-To References)] INTERNALDATE RFC822.SIZE FLAGS)
