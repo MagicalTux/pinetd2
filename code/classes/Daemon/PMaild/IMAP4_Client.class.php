@@ -10,6 +10,18 @@ namespace Daemon\PMaild;
 use pinetd\SQL;
 use pinetd\SQL\Expr;
 
+class Quoted {
+	private $value;
+
+	public function __construct($value) {
+		$this->value = $value;
+	}
+
+	public function __toString() {
+		return $this->value;
+	}
+}
+
 class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $login = null;
 	protected $info = null;
@@ -100,6 +112,9 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				return $label.'['.$res.']';
 			}
 			return '('.$res.')';
+		}
+		if ((is_object($str)) && ($str instanceof Quoted)) {
+			return '"'.addcslashes($str, '"').'"';
 		}
 		if ($str === '') return '""';
 		if (strpos($str, "\n") !== false) {
@@ -274,11 +289,13 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$res = $this->readLine();
 		if ($res == '*') return $this->sendMsg('BAD AUTHENTICATE cancelled');
 		$this->login = base64_decode($res);
+		$this->debug('Login: '.$this->login);
 
 		parent::sendMsg('+ '.base64_encode('Password')); // avoid tag
 		$res = $this->readLine();
 		if ($res == '*') return $this->sendMsg('BAD AUTHENTICATE cancelled');
 		$pass = base64_decode($res);
+		$this->debug('Pass: '.$pass);
 
 		if(!$this->identify($pass)) {
 			$this->sendMsg('NO AUTHENTICATE failed; login or password are invalid');
@@ -707,6 +724,13 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						$res[] = $v;
 					}
 					break;
+				case 'BODYSTRUCTURE':
+					// XXX TODO FIXME
+					$res[] = 'BODYSTRUCTURE';
+					$size = 1234;
+					$lines = 100;
+					$res[] = array(new Quoted('TEXT'), new Quoted('PLAIN'), array(new Quoted('CHARSET'), new Quoted('ISO-8859-15')), NULL, NULL, new Quoted('7BIT'), $size, $lines);
+					break;
 				case 'RFC822.SIZE': // TODO: determine if we should include headers in size
 					$res[] = 'RFC822.SIZE';
 					$res[] = filesize($file);
@@ -774,7 +798,23 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					$var[] = array_flip($list);
 					$res[] = $head;
 					break;
+				case 'HEADER':
+					$head = "";
+
+					// read file
+					$fp = fopen($file, 'r'); // read headers
+					if (!$fp) break;
+
+					while(!feof($fp)) {
+						$lin = fgets($fp);
+						if (trim($lin) === '') break;
+						$head .= $lin;
+					}
+					$var[] = 'HEADER';
+					$res[] = $head;
+					break;
 				case 'TEXT':
+				case '1':
 					// fetch body text
 					// read file
 					$fp = fopen($file, 'r'); // read headers
@@ -791,7 +831,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						}
 						$str .= $lin;
 					}
-					$var[] = 'TEXT';
+					$var[] = strtoupper($p);
 					$res[] = $str;
 					break;
 				case '':
