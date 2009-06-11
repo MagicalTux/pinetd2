@@ -94,7 +94,11 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			foreach($str as $lbl => $var) {
 				$res.=($res == ''?'':' ').$this->imapParam($var, $lbl);
 			}
-			if (is_string($label)) return $label.'['.$res.']';
+			if (is_string($label)) {
+				if ($res == '""')
+					$res = '';
+				return $label.'['.$res.']';
+			}
 			return '('.$res.')';
 		}
 		if ($str === '') return '""';
@@ -1192,6 +1196,8 @@ A OK FETCH completed
 			}
 		}
 
+		fgets($this->fd); // final ending empty line
+
 		$headers = array();
 		$last = null;
 		rewind($fp);
@@ -1221,7 +1227,6 @@ A OK FETCH completed
 			'flags' => implode(',', $flags),
 		));
 		$newid = $this->sql->insert_id;
-		var_dump($f, $newid);
 
 		// read headers
 		foreach($headers as $head) {
