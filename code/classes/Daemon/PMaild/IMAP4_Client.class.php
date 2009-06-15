@@ -43,12 +43,16 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		return true;
 	}
 
-	protected function parseFetchParam($param) {
+	protected function parseFetchParam($param, $kw = NULL) {
 		// support for macros
-		switch(strtoupper($param)) {
-			case 'ALL': $param = '(FLAGS INTERNALDATE RFC822.SIZE ENVELOPE)'; break;
-			case 'FAST': $param = '(FLAGS INTERNALDATE RFC822.SIZE)'; break;
-			case 'FULL': $param = '(FLAGS INTERNALDATE RFC822.SIZE ENVELOPE BODY)'; break;
+		switch($kw) {
+			case 'fetch':
+				switch(strtoupper($param)) {
+					case 'ALL': $param = '(FLAGS INTERNALDATE RFC822.SIZE ENVELOPE)'; break;
+					case 'FAST': $param = '(FLAGS INTERNALDATE RFC822.SIZE)'; break;
+					case 'FULL': $param = '(FLAGS INTERNALDATE RFC822.SIZE ENVELOPE BODY)'; break;
+				}
+				break;
 		}
 		$result = array();
 		$string = null;
@@ -927,7 +931,7 @@ A OK FETCH completed
 		// parse param
 		$param = implode(' ', $argv);
 		// ok, let's parse param
-		$param = $this->parseFetchParam($param);
+		$param = $this->parseFetchParam($param, 'fetch');
 
 		$last = null;
 		while(strlen($id) > 0) {
@@ -978,7 +982,7 @@ A OK FETCH completed
 		// parse param
 		$param = implode(' ', $argv);
 		// ok, let's parse param
-		$param = $this->parseFetchParam($param);
+		$param = $this->parseFetchParam($param, 'fetch');
 		$param[] = 'UID';
 
 		foreach($this->transformRange($id) as $where) {

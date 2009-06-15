@@ -47,6 +47,8 @@ var_dump($res);
 
 var_dump(imap_fetch_overview($mbox, '1'));
 
+var_dump(imap_search($mbox, 'test', 0, 'UTF-8'));
+
 /*
 var_dump(imap_headerinfo($mbox, 1));
 */
