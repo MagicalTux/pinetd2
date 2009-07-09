@@ -84,7 +84,14 @@ class Mail {
 		}
 		if ( (is_null($this->login)) && (!is_null($this->peer)) ) {
 			if ($mail['type'] == 'remote') {
-				if (!$this->allowRemote) return $this->err('503 5.1.2 Relaying denied');
+				// check for global whitelist
+				$SQL = SQL::Factory($this->localConfig['Storage']);
+				$DAO_hosts = $SQL->DAO('hosts', 'ip');
+				$host = $DAO_hosts[$this->peer[0]];
+				// not in global whitelist?
+				if ((!$host) || ($host->type != 'trust')) {
+					if (!$this->allowRemote) return $this->err('503 5.1.2 Relaying denied');
+				}
 			} else {
 				$class = relativeclass($this, 'DNSBL');
 				$bl = $class::check($this->peer, $mail, $this->localConfig);

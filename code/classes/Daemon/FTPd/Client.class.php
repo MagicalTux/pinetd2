@@ -540,14 +540,14 @@ class Client extends \pinetd\TCP\Client {
 		$sock = $this->initiateXfer();
 		if (!$sock) {
 			$this->sendMsg('500 Unable to initiate connection, please provide PORT/PASV, and make sure your firewall is configured correctly');
-			fclose($fp);
+			$this->fs->close($fp);
 			return;
 		}
 
 		list($ip, $port) = explode(':', stream_socket_get_name($sock, true));
 		if (($this->login == 'ftp') && ($this->peer[0] != $ip)) {
 			fclose($sock);
-			fclose($fp);
+			$this->fs->close($fp);
 			$this->sendMsg('500 FXP unallowed for anonymous users!');
 			return;
 		}
@@ -564,7 +564,7 @@ class Client extends \pinetd\TCP\Client {
 		}
 
 		fclose($sock);
-		fclose($fp);
+		$this->fs->close($fp);
 	}
 
 	function _cmd_appe($argv, $cmd, $fullarg) {
@@ -600,14 +600,14 @@ class Client extends \pinetd\TCP\Client {
 		$sock = $this->initiateXfer();
 		if (!$sock) {
 			$this->sendMsg('500 Unable to initiate connection, please provide PORT/PASV, and make sure your firewall is configured correctly');
-			fclose($fp);
+			$this->fs->close($fp);
 			return;
 		}
 
 		list($ip, $port) = explode(':', stream_socket_get_name($sock, true));
 		if (($this->login == 'ftp') && ($this->peer[0] != $ip)) {
 			fclose($sock);
-			fclose($fp);
+			$this->fs->close($fp);
 			$this->sendMsg('500 FXP unallowed for anonymous users!');
 			return;
 		}
@@ -629,7 +629,7 @@ class Client extends \pinetd\TCP\Client {
 		}
 		$this->sendMsg('226 '.$bytes.' bytes written');
 		fclose($sock);
-		fclose($fp);
+		$this->fs->close($fp);
 		$this->updateQuota();
 	}
 

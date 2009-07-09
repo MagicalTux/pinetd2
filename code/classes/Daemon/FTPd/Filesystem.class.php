@@ -194,6 +194,10 @@ class Filesystem {
 		return array('fp' => $fp, 'size' => $size);
 	}
 
+	public function close($fp) {
+		return fclose($fp);
+	}
+
 	public function doRecursiveRMD($dir) {
 		if (!$this->isWritable($dir)) return false;
 		
