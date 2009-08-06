@@ -22,7 +22,7 @@ NEED_AUTOCONF=no
 if [ ! -d "ext/proctitle" ]; then
 	echo -n "Getting proctitle..."
 	# get
-	svn co -q http://ookoo.org/svn/proctitle/ ext/proctitle
+	svn co -q http://svn.php.net/repository/pecl/proctitle/trunk/ ext/proctitle
 	echo "done"
 	NEED_AUTOCONF=yes
 fi
