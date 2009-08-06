@@ -64,7 +64,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		$this->protocol = 'udp';
 		$this->socket = @stream_socket_server('udp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND, $context);
 		if (!$this->socket) {
-			throw new \Exception('Error creating listening socket: ['.$errno.'] '.$errstr);
+			throw new \Exception('Error creating listening socket '.$ip.':'.$this->daemon['Port'].': ['.$errno.'] '.$errstr);
 		}
 		$this->IPC->registerSocketWait($this->socket, array(&$this, 'doRecv'), $foo = array(&$this->socket));
 	}
