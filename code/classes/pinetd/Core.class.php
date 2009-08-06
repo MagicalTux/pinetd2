@@ -278,6 +278,7 @@ class Core {
 			$port = '['.$ip.']:'.(int)$daemon['Port'];
 		} else {
 			$port = $daemon['Daemon'] . '::' . $daemon['Service'];
+			if (isset($daemon['Ip'])) $port.='::'.$daemon['Ip'];
 		}
 		return $port . '/' .strtolower($type);
 	}
