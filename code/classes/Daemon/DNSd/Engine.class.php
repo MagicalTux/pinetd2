@@ -189,7 +189,7 @@ class Engine {
 
 		$pkt->setFlag('aa', 1);
 		$pkt->setFlag('ra', 0);
-		$this->IPC->callPort('DNSd::DbEngine', 'domainHit', array($domain), false); // do not wait for reply
+		$this->IPC->callPort('DNSd::DbEngine::'.$this->sql->unique(), 'domainHit', array($domain), false); // do not wait for reply
 
 		$zone = $res['zone'];
 

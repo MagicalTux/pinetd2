@@ -26,7 +26,8 @@ class TCP extends \pinetd\TCP\Base {
 
 	public function mainLoop() {
 		$port = new TCP_IPC_Port($this);
-		$this->IPC->createPort('DNSd::TCPMaster', $port);
+		$sql = SQL::Factory($this->localConfig['Storage']);
+		$this->IPC->createPort('DNSd::TCPMaster::'.$sql->unique(), $port);
 		return parent::mainLoop();
 	}
 

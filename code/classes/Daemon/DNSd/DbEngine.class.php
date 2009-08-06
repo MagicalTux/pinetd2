@@ -12,7 +12,7 @@ class DbEngine {
 	protected $parent;
 	protected $domainHitCache = array();
 
-	function __construct($parent, $localConfig, $tcp) {
+	function __construct($parent, $localConfig, $IPC) {
 		$this->localConfig = $localConfig;
 
 		// check table struct
@@ -20,6 +20,8 @@ class DbEngine {
 
 		$storage = relativeclass($this, 'Storage');
 		$storage::validateTables($this->sql);
+
+		$tcp = $IPC->openPort('DNSd::TCPMaster::'.$this->sql->unique());
 
 		$this->tcp = $tcp;
 		$this->parent = $parent;
@@ -29,6 +31,10 @@ class DbEngine {
 
 	function __call($func, $args) {
 		return NULL;
+	}
+
+	function unique() {
+		return $this->sql->unique();
 	}
 
 	public function processHits() {

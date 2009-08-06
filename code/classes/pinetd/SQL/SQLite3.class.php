@@ -7,6 +7,7 @@ use \Exception;
 class SQLite3 {
 	private $settings;
 	private $sqlite;
+	private $unique;
 	private $DAO = array();
 
 	public function __construct(array $settings) {
@@ -14,6 +15,8 @@ class SQLite3 {
 		$this->settings = $settings;
 		$this->sqlite = new \SQLite3($settings['File']);
 		// TODO: handle errors
+
+		$this->unique = sha1($settings['File']);
 
 		$this->sqlite->exec('PRAGMA encoding = "UTF-8"');
 		$this->sqlite->exec('PRAGMA legacy_file_format = 0');
@@ -34,6 +37,11 @@ class SQLite3 {
 			case 'affected_rows': return $this->sqlite->changes();
 		}
 		return $this->sqlite->$var;
+	}
+
+	public function unique() {
+		// return an unique hash based on the connection
+		return $this->unique;
 	}
 
 	public function now() {

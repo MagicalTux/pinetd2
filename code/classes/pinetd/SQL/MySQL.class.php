@@ -7,6 +7,7 @@ use \Exception;
 class MySQL {
 	private $settings;
 	private $mysqli;
+	private $unique;
 	private $DAO = array();
 
 	public function __construct($settings) {
@@ -17,6 +18,8 @@ class MySQL {
 		if (mysqli_connect_errno()) {
 			throw new Exception(mysqli_connect_error());
 		}
+
+		$this->unique = sha1($settings['Host'].$settings['Login'].$settings['Password'].$settings['Database']);
 	}
 
 	public function __call($func, $args) {
@@ -25,6 +28,10 @@ class MySQL {
 
 	public function __get($var) {
 		return $this->mysqli->$var;
+	}
+
+	public function unique() {
+		return $this->unique;
 	}
 
 	public function now() {

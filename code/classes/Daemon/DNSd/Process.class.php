@@ -154,11 +154,9 @@ class Process extends \pinetd\Process {
 	public function mainLoop() {
 		parent::initMainLoop();
 
-		$tcp = $this->IPC->openPort('DNSd::TCPMaster');
-
 		$class = relativeclass($this, 'DbEngine');
-		$this->db_engine = new $class($this, $this->localConfig, $tcp);
-		$this->IPC->createPort('DNSd::DbEngine', $this->db_engine);
+		$this->db_engine = new $class($this, $this->localConfig, $this->IPC);
+		$this->IPC->createPort('DNSd::DbEngine::'.$this->db_engine->unique(), $this->db_engine);
 
 		Timer::addTimer(array($this, 'checkMaster'), 5, $foo = NULL, true);
 		Timer::addTimer(array($this, 'pingMaster'), 120, $foo = NULL, true);
