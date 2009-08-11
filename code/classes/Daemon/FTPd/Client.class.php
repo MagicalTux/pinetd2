@@ -699,7 +699,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$this->sendMsg('221 Directory created');
+		$this->sendMsg('257 Directory created');
 		$this->updateQuota();
 	}
 
