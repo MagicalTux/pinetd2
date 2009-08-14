@@ -7,10 +7,9 @@ use pinetd\SQL;
 class TCP_Peer extends \pinetd\TCP\Client {
 	private $unique;
 
-	public function welcomeUser() {
+	public function welcomeUser($unique) {
 		$this->setMsgEnd('');
-		$sql = SQL::Factory($this->localConfig['Storage']);
-		$this->unique = $sql->unique();
+		$this->unique = $unique;
 		return true; // nothing to say
 	}
 

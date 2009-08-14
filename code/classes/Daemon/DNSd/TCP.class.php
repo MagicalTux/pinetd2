@@ -19,6 +19,8 @@ class TCP_IPC_Port {
 }
 
 class TCP extends \pinetd\TCP\Base {
+	private $unique;
+	
 	protected function handlePacket($pkt, $peer) {
 		$this->engine->handlePacket($pkt, $peer);
 		//Logger::log(Logger::LOG_DEBUG, 'Got an UDP packet from '.$peer);
@@ -27,7 +29,8 @@ class TCP extends \pinetd\TCP\Base {
 	public function mainLoop() {
 		$port = new TCP_IPC_Port($this);
 		$sql = SQL::Factory($this->localConfig['Storage']);
-		$this->IPC->createPort('DNSd::TCPMaster::'.$sql->unique(), $port);
+		$this->unique = $sql->unique();
+		$this->IPC->createPort('DNSd::TCPMaster::'.$this->unique, $port);
 		return parent::mainLoop();
 	}
 
@@ -115,7 +118,7 @@ class TCP extends \pinetd\TCP\Base {
 			@fclose($news);
 			return;
 		}
-		if (!$new->welcomeUser()) {
+		if (!$new->welcomeUser($this->unique)) {
 			$new->close();
 			return;
 		}
