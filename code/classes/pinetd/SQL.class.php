@@ -1,6 +1,7 @@
 <?php
 
 namespace pinetd;
+use \Exception;
 
 class SQL {
 	static private $inst = array(); // instances list
