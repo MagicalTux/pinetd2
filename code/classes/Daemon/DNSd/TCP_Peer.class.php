@@ -20,7 +20,7 @@ class TCP_Peer extends \pinetd\TCP\Client {
 	protected function receivePacket($pkt) {
 		$data = unserialize($pkt);
 		try {
-			$res = $this->IPC->callPort('DNSd::DbEngine::'.$this->unique(), $data[0], $data[1]);
+			$res = $this->IPC->callPort('DNSd::DbEngine::'.$this->unique, $data[0], $data[1]);
 		} catch(Exception $e) {
 			$res = $e;
 		}
