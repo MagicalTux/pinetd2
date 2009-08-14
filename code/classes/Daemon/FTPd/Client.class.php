@@ -126,7 +126,7 @@ class Client extends \pinetd\TCP\Client {
 	 * \brief "Command not found" handler
 	 */
 	function _cmd_default($argv) {
-		$this->sendMsg('500 Command '.$argv[0].' unknown!!');
+		$this->sendMsg('502 Command '.$argv[0].' unknown!!');
 		$this->log(Logger::LOG_DEBUG, 'UNKNOWN COMMAND: '.implode(' ', $argv));
 	}
 
@@ -155,7 +155,7 @@ class Client extends \pinetd\TCP\Client {
 			// check for max anonymous
 			list($cur, $max) = $this->IPC->getAnonymousCount();
 			if ($cur >= $max) {
-				$this->sendMsg('500 Too many anonymous users logged in, please try again later!');
+				$this->sendMsg('421 Too many anonymous users logged in, please try again later!');
 				return;
 			}
 			if (!$root) {
@@ -200,7 +200,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 		if (is_null($this->tmp_login)) {
-			$this->sendMsg('500 Please send USER before sending PASS');
+			$this->sendMsg('530 Please send USER before sending PASS');
 			return;
 		}
 		$login = $this->tmp_login;
@@ -208,7 +208,7 @@ class Client extends \pinetd\TCP\Client {
 		$res = $this->checkAccess($login, $pass);
 		if ((!$res) || (!isset($res['root']))) {
 			sleep(4); // TODO: This may cause a DoS if running without fork, detect case and act (if $this->IPC isa IPC)
-			$this->sendMsg('500 Login or password may be invalid, please check again');
+			$this->sendMsg('530 Login or password may be invalid, please check again');
 			return;
 		}
 		$root = $res['root'];
@@ -262,7 +262,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_syst() {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		$this->sendMsg('215 UNIX Type: L8');
@@ -270,7 +270,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_type($argv) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		switch(strtoupper($argv[1])) {
@@ -289,7 +289,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_pwd() {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		$cwd = $this->fs->getCwd();
@@ -302,7 +302,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_cwd($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		// new path in $fullarg
@@ -315,7 +315,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_rest($argv) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		$this->restore = (int)$argv[1];
@@ -324,7 +324,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_port($argv) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		// INPUT : a,b,c,d,p1,p2 (all & 0xff)
@@ -361,7 +361,7 @@ class Client extends \pinetd\TCP\Client {
 // TODO: http://www.faqs.org/rfcs/rfc2428.html
 	function _cmd_eprt($argv) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		// INPUT : |num|ip|port|
@@ -399,7 +399,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_pasv() {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 		// get pasv_ip
@@ -433,7 +433,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_list($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -517,7 +517,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_retr($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -576,7 +576,7 @@ class Client extends \pinetd\TCP\Client {
 		$appe = ($argv[0] == 'APPE');
 
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -620,7 +620,7 @@ class Client extends \pinetd\TCP\Client {
 			if ($data === '') break;
 			if ($data === false) break;
 			if (!$this->updateQuota(strlen($data))) {
-				$this->sendMsg('500 Quota exceed!');
+				$this->sendMsg('552 Quota exceed!');
 				break;
 			}
 			fwrite($fp, $data);
@@ -635,7 +635,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_site($argv) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -663,7 +663,7 @@ class Client extends \pinetd\TCP\Client {
 	function _cmd_dele($argv, $cmd, $fullarg) {
 		// DELETE A file (unlink)
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -688,7 +688,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_mkd($argv) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -705,7 +705,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_size($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -720,7 +720,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_rnfr($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -731,7 +731,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_rnto($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
@@ -745,7 +745,7 @@ class Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$this->sendMsg('221 Rename successful');
+		$this->sendMsg('250 Rename successful');
 		$this->updateQuota();
 	}
 
@@ -767,7 +767,7 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_mdtm($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
-			$this->sendMsg('500 Please login first!');
+			$this->sendMsg('530 Please login first!');
 			return;
 		}
 

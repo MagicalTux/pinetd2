@@ -117,13 +117,13 @@ class Base extends \pinetd\TCP\Base {
 		$max = $this->localConfig['MaxUsers']['_'];
 		if ($max != -1) {
 			if (!$max) {
-				$new->sendMsg('500 This FTP server is disabled, please try again later.');
+				$new->sendMsg('421 This FTP server is disabled, please try again later.');
 				$new->close();
 				return false;
 			}
 			$count = count($this->clients) + count($this->fclients);
 			if ($count > $max) {
-				$new->sendMsg('500 Too many clients connected, please try again later.');
+				$new->sendMsg('421 Too many clients connected, please try again later.');
 				$new->close();
 				return false;
 			}
