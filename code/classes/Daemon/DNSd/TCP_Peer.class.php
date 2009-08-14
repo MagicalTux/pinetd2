@@ -2,6 +2,7 @@
 
 namespace Daemon\DNSd;
 use pinetd\Logger;
+use pinetd\SQL;
 
 class TCP_Peer extends \pinetd\TCP\Client {
 	private $unique;
