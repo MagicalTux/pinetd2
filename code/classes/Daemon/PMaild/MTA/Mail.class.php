@@ -1,6 +1,7 @@
 <?php
 
 namespace Daemon\PMaild\MTA;
+use pinetd\SQL;
 
 class Mail {
 	protected $peer;
