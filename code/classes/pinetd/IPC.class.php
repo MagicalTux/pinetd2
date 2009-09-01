@@ -457,7 +457,7 @@ class IPC {
 			return $n;
 		}
 		foreach($r as $fd) {
-			$info = &$this->fds[$fd];
+			$info = &$this->fds[(int)$fd];
 			$info['last_activity'] = $now;
 			// somewhat dirty (but not so dirty) workaround for a weird PHP 5.3 behaviour
 			if ( (is_array($info['callback'])) && ($info['callback'][1] == 'run')) {

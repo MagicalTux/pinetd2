@@ -16,6 +16,7 @@ class SUID {
 		if (!$info) throw new Exception('SUID: uid '.$uid.' not found on system, please check config');
 		$this->uid = $info['uid'];
 		$this->gid = $info['gid'];
+		$username = $info['name'];
 		// do we have gid?
 		if (!is_null($gid)) {
 			if(is_numeric($gid)) {
@@ -26,6 +27,8 @@ class SUID {
 			if (!$info) throw new Exception('SUID: Group provided, but can\'t find it on system, please check config');
 			$this->gid = $info['gid'];
 		}
+
+		posix_initgroups($username, $this->gid); // initialize groups NOW as we might become unable to do that later (ie. after chroot)
 	}
 
 	function setIt() {
