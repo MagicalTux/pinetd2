@@ -13,6 +13,7 @@ class Client extends \pinetd\TCP\Client {
 	const PKT_CLOSE = 6;
 	const PKT_DATA = 7;
 	const PKT_NOPIPES = 8;
+	const PKT_KILL = 9;
 
 	private $salt = '';
 	private $login = NULL;
@@ -194,6 +195,10 @@ class Client extends \pinetd\TCP\Client {
 				break;
 			case self::PKT_DATA:
 				$this->handleWriteData($buffer);
+				break;
+			case self::PKT_KILL:
+				if (!is_null($this->proc))
+					proc_terminate($this->proc, $buffer);
 				break;
 			default:
 				// TODO: log+error

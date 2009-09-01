@@ -19,6 +19,7 @@ class NetBatch {
 	const PKT_CLOSE = 6;
 	const PKT_DATA = 7;
 	const PKT_NOPIPES = 8;
+	const PKT_KILL = 9;
 
 	public function __construct($host, $port = 65432) {
 		$this->fp = fsockopen($host, $port);
@@ -148,6 +149,10 @@ class NetBatch {
 
 	public function write($fd, $data) {
 		$this->sendPacket(pack('N', $fd).$data, self::PKT_DATA);
+	}
+
+	public function kill($signal = 15) {
+		$this->sendPacket($signal, self::PKT_KILL);
 	}
 
 	protected function getEvent() {
