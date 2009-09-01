@@ -49,6 +49,13 @@ class Client extends \pinetd\TCP\Client {
 		$env = $pkt['env']?:array();
 		$pipes = array();
 
+		if ($this->login['run_limit']) {
+			if (!preg_match($this->login['run_limit'], $cmd)) {
+				$this->sendMsg('0');
+				return;
+			}
+		}
+
 		foreach($pipestmp as $fd => $type) {
 			$pipes[$fd] = array('pipe', $type);
 		}
