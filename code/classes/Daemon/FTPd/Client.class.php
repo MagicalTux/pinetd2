@@ -787,6 +787,7 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg('211-SIZE');
 		$this->sendMsg('211-REST STREAM');
 		$this->sendMsg('211-PASV');
+		$this->sendMsg('211-UTF8');
 		$this->sendMsg('211 End.');
 	}
 }
