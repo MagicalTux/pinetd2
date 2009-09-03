@@ -132,6 +132,13 @@ class Filesystem {
 		return $this->_stat($fil);
 	}
 
+	protected function _basename($name) {
+		$name = explode('/', $name);
+		$name = array_pop($name);
+
+		return $name;
+	}
+
 	protected function _stat($fil) {
 		$stat = stat($fil);
 
@@ -149,7 +156,7 @@ class Filesystem {
 
 
 		$data = array(
-			'name' => basename($fil),
+			'name' => $this->_basename($fil),
 			'flags' => $flag,
 			'blocks' => $blocks,
 			'size' => $stat['size'],

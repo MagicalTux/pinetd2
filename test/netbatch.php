@@ -145,6 +145,8 @@ class NetBatch {
 	public function wait() {
 		while($this->running)
 			$this->getEvent();
+
+		return $this->returnCode;
 	}
 
 	public function write($fd, $data) {
