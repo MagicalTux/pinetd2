@@ -686,13 +686,13 @@ class Client extends \pinetd\TCP\Client {
 		$this->updateQuota();
 	}
 
-	function _cmd_mkd($argv) {
+	function _cmd_mkd($argv, $cmd, $fullarg) {
 		if (is_null($this->login)) {
 			$this->sendMsg('530 Please login first!');
 			return;
 		}
 
-		$fil = $argv[1];
+		$fil = $fullarg;
 
 		if (!$this->fs->mkDir($fil)) {
 			$this->sendMsg('500 MKD failed');
