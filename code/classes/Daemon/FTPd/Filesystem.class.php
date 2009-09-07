@@ -132,9 +132,12 @@ class Filesystem {
 		return $this->_stat($fil);
 	}
 
-	protected function _basename($name) {
+	protected function _basename($name, $ext = '') {
 		$name = explode('/', $name);
 		$name = array_pop($name);
+
+		if ((strlen($ext) > 0) && (substr($name, 0 - strlen($ext)) == $ext))
+			$name = substr($name, 0, 0 - strlen($ext));
 
 		return $name;
 	}

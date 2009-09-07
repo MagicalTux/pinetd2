@@ -2,6 +2,7 @@
 
 namespace Daemon\NetBatch;
 use \pinetd\Logger;
+use \pinetd\Timer;
 
 class Client extends \pinetd\TCP\Client {
 	const PKT_STANDARD = 0;
@@ -33,14 +34,33 @@ class Client extends \pinetd\TCP\Client {
 		for($i = 0; $i < $saltlen; $i++)
 			$this->salt .= chr(mt_rand(0,255));
 		$this->sendMsg($this->salt);
+
+		Timer::addTimer(array($this, 'processWait'), 0.2, $e = null, true);
+	}
+
+	public function processWait() {
+		if (is_null($this->procs)) return false; // end of process
+
+		$pid = pcntl_wait($status, WNOHANG);
+		if ($pid <= 0) return true;
+
+		// ok, a process exited!
+		if (!isset($this->procs[$pid])) return true;
+
+		proc_close($this->procs[$pid]['proc']);
+		unset($this->procs[$pid]);
+
+		$this->sendMsg(pack('NN', $pid, $status), self::PKT_RETURNCODE);
+
+		return true;
 	}
 
 	public function shutdown() {
 		if ($this->procs) {
 			foreach($this->procs as $proc)
 				proc_close($proc['proc']);
-			$this->procs = array();
 		}
+		$this->procs = NULL;
 	}
 
 	protected function handleRun(array $pkt) {
