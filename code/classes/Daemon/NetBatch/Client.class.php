@@ -18,8 +18,7 @@ class Client extends \pinetd\TCP\Client {
 	private $salt = '';
 	private $login = NULL;
 
-	private $proc = NULL;
-	private $pipes;
+	private $procs = array();
 	
 	public function welcomeUser() {
 		$this->setMsgEnd("\r\n");
@@ -37,9 +36,10 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	public function shutdown() {
-		if ($this->proc) {
-			proc_close($this->proc);
-			$this->proc = NULL;
+		if ($this->procs) {
+			foreach($this->procs as $proc)
+				proc_close($proc['proc']);
+			$this->procs = array();
 		}
 	}
 
@@ -48,104 +48,129 @@ class Client extends \pinetd\TCP\Client {
 		$pipestmp = $pkt['pipes'];
 		$cwd = $this->login['cwd'];
 		$env = $pkt['env']?:array();
+		$persist = $pkt['persist']?:false;
 		$pipes = array();
 
-		if ($this->login['run_limit']) {
-			if (!preg_match($this->login['run_limit'], $cmd)) {
-				$this->sendMsg('0');
-				return;
+		// TODO: if persist, pass run request to process thread so the process will
+		// persist even when connection is closed
+
+		// cleanup $cmd if needed
+		if (!is_array($cmd)) {
+			$cmd = explode(' ',$cmd);
+			foreach($cmd as &$val) {
+				if ($val[0] == '\'')
+					$val = stripslashes(substr($val, 1, -1));
 			}
+			unset($val);
+		}
+
+		$final_cmd = '';
+
+		foreach($cmd as $val) {
+			if (($final_cmd == '') && ($this->login['run_limit'])) {
+				if (!preg_match($this->login['run_limit'], $val)) {
+					$this->sendMsg('0');
+					return;
+				}
+			}
+			$final_cmd .= escapeshellarg($val).' ';
 		}
 
 		foreach($pipestmp as $fd => $type) {
 			$pipes[$fd] = array('pipe', $type);
 		}
 
-		if ($this->proc) {
-			foreach($this->pipes as $fd) {
-				$this->IPC->removeSocket($fd);
-				fclose($fd);
-			}
-			$ret = proc_close($this->proc);
+		Logger::log(Logger::LOG_INFO, 'Executing: '.$final_cmd);
 
-			$this->sendMsg($ret, self::PKT_RETURNCODE);
-		}
-
-		Logger::log(Logger::LOG_INFO, 'Executing: '.$cmd);
-
-		$this->pipes = array();
-		$this->proc = proc_open($cmd, $pipes, $this->pipes, $cwd, $env, array('binary_pipes' => true));
+		$fpipes = array();
+		$proc = proc_open($final_cmd, $pipes, $fpipes, $cwd, $env, array('binary_pipes' => true));
+		$pipes = $fpipes;
 	
-		if (!is_resource($this->proc)) {
-			$this->proc = NULL;
+		if (!is_resource($proc)) {
 			$this->sendMsg('0');
 			return;
 		}
 
-		foreach($this->pipes as $id => $fd) {
-			$extra = array($id, $fd);
+		$status = proc_get_status($proc);
+		$this->sendMsg(pack('N', $status['pid']));
+
+		if (!$status['running']) {
+			// wtf? already died?
+			$this->sendMsg(pack('N', $status['pid']), self::PKT_NOPIPES);
+			$this->sendMsg(pack('NN', $status['pid'], $status['exitcode']), self::PKT_RETURNCODE);
+			foreach($pipes as $fd)
+				fclose($fd);
+
+			return;
+		}
+
+		$this->procs[$status['pid']] = array('proc' => $proc, 'pipes' => $pipes);
+
+		foreach($pipes as $id => $fd) {
+			$extra = array($id, $status['pid'], $fd);
 			$this->IPC->registerSocketWait($fd, array($this, 'handleNewData'), $extra);
 			unset($extra);
 		}
-
-		$this->sendMsg('1');
 	}
 
-	protected function checkPipes() {
-		if ($this->pipes) return;
+	protected function checkPipes($pid) {
+		if ($this->procs[$pid]['pipes']) return;
 
 		// NO MOAR PIPES!
-		$this->sendMsg('', self::PKT_NOPIPES);
+		$this->sendMsg(pack('N', $pid), self::PKT_NOPIPES);
 
 		// check if execution completed
-		$status = proc_get_status($this->proc);
+		$status = proc_get_status($this->procs[$pid]['proc']);
 
 		if (!$status['running']) {
-			proc_close($this->proc);
-			$this->proc = NULL;
+			proc_close($this->procs[$pid]['proc']);
+			unset($this->procs[$pid]);
 
-			$this->sendMsg($status['exitcode'], self::PKT_RETURNCODE);
+			$this->sendMsg(pack('NN', $pid, $status['exitcode']), self::PKT_RETURNCODE);
 		}
 	}
 
 	protected function handleWriteData($data) {
-		list(,$fd) = unpack('N', $data);
-		$data = substr($data, 4);
-		if (!isset($this->pipes[$fd])) return;
+		list(,$pid,$fd) = unpack('N2', $data);
+		$data = substr($data, 8);
+		if (!isset($this->procs[$pid]['pipes'][$fd])) return;
 
-		fwrite($this->pipes[$fd], $data);
+		fwrite($this->procs[$pid]['pipes'][$fd], $data);
+		fflush($this->procs[$pid]['pipes'][$fd]);
 	}
 
-	public function handleNewData($pipe, $fd) {
+	public function handleNewData($pipe, $pid, $fd) {
 		if (feof($fd)) {
-			$this->sendMsg($pipe, self::PKT_EOF);
+			$this->sendMsg(pack('NN', $pid, $pipe), self::PKT_EOF);
 			$this->IPC->removeSocket($fd);
-			unset($this->pipes[$pipe]);
+			unset($this->procs[$pid]['pipes'][$pipe]);
 			fclose($fd);
-			$this->checkPipes();
+			$this->checkPipes($pid);
 			return;
 		}
 
 		$data = fread($fd, 4096);
 		if ($data === false) {
-			$this->sendMsg($pipe, self::PKT_EOF);
+			$this->sendMsg(pack('NN', $pid, $pipe), self::PKT_EOF);
 			$this->IPC->removeSocket($fd);
-			unset($this->pipes[$pipe]);
+			unset($this->procs[$pid]['pipes'][$pipe]);
 			fclose($fd);
-			$this->checkPipes();
+			$this->checkPipes($pid);
 			return;
 		}
 
-		$this->sendMsg(pack('N', $pipe).$data, self::PKT_DATA);
+		$this->sendMsg(pack('NN', $pid, $pipe).$data, self::PKT_DATA);
 	}
 
-	protected function handleClose($fd) {
-		if (!isset($this->pipes[$fd])) return;
+	protected function handleClose($buf) {
+		list(, $pid, $fd) = unpack('N2', $buf);
+		if (!isset($this->procs[$pid]['pipes'][$fd])) return;
+		$pipe = $this->procs[$pid]['pipes'][$fd];
 
-		$this->sendMsg($fd, self::PKT_EOF);
-		$this->IPC->removeSocket($this->pipes[$fd]);
-		fclose($this->pipes[$fd]);
-		unset($this->pipes[$fd]);
+		$this->sendMsg(pack('NN', $pid, $fd), self::PKT_EOF);
+		$this->IPC->removeSocket($pipe);
+		fclose($pipe);
+		unset($this->procs[$pid]['pipes'][$fd]);
 	}
 
 	protected function handleLogin($buffer) {
@@ -197,8 +222,9 @@ class Client extends \pinetd\TCP\Client {
 				$this->handleWriteData($buffer);
 				break;
 			case self::PKT_KILL:
-				if (!is_null($this->proc))
-					proc_terminate($this->proc, $buffer);
+				list(,$pid,$signal) = unpack('N2', $buffer);
+				if ($this->proc[$pid])
+					proc_terminate($this->proc[$pid], $signal);
 				break;
 			default:
 				// TODO: log+error
@@ -220,17 +246,22 @@ class Client extends \pinetd\TCP\Client {
 				break;
 			}
 
-			if (strlen($this->buf) < ($len+4))
+			if (strlen($this->buf) < ($len+4)) {
 				break;
+			}
 
-			$this->handleBuffer(substr($this->buf, 4, $len), $type);
+			$tmp = substr($this->buf, 4, $len);
+
 			$this->buf = (string)substr($this->buf, $len+4);
+			$this->handleBuffer($tmp, $type);
 		}
 	}
 
 	public function sendMsg($msg, $type = self::PKT_STANDARD) {
 		if (!$this->ok) return false;
-		return fwrite($this->fd, pack('nn', $type, strlen($msg)) . $msg);
+		$n = fwrite($this->fd, pack('nn', $type, strlen($msg)) . $msg);
+		fflush($this->fd);
+		return $n;
 	}
 
 }

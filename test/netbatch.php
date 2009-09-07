@@ -5,10 +5,11 @@ class NetBatch {
 	private $name;
 	private $salt;
 	private $type;
-	private $pipes;
-	private $pipes_buf;
-	private $running = false;
-	private $returnCode = -1;
+	private $pipes = array();
+	private $pipes_buf = array();
+	private $running = array();
+	private $returnCode = array();
+	private $last_pid;
 
 	const PKT_STANDARD = 0;
 	const PKT_LOGIN = 1;
@@ -40,121 +41,139 @@ class NetBatch {
 		return (bool)$result;
 	}
 
-	public function run($cmd, $pipes = NULL, $env = NULL) {
+	public function run($cmd, $pipes = NULL, $env = NULL, $persist = false) {
 		if (is_null($pipes)) 
 			$pipes = array(0=>'r', 1=>'w', 2=>'w');
 
 		$packet = array(
 			'cmd' => $cmd,
 			'pipes' => $pipes,
+			'persist' => $persist,
 		);
 
 		if (!is_null($env)) $packet['env'] = $env;
 
-		$this->pipes = $pipes;
-		$this->pipes_buf = array();
-
 		$this->sendPacket(serialize($packet), self::PKT_RUN);
 
-		$this->running = (bool)$this->readPacket();
+		$pid = $this->readPacket();
+		if ($pid === '0') return false;
 
-		return $this->running;
+		list(,$pid) = unpack('N', $pid);
+		var_dump($pid);
+		$this->running[$pid] = true;
+		$this->last_pid = $pid;
+		$this->pipes[$pid] = $pipes;
+		$this->pipes_buf[$pid] = array();
+
+		return $pid;
 	}
 
-	public function dump() {
-		var_dump($this->pipes_buf);
+	public function dump($pid = NULL) {
+		if (is_null($pid)) $pid = $this->last_pid;
+		var_dump($this->pipes_buf[$pid]);
 	}
 
-	public function eof($fd) {
+	public function eof($fd, $pid = NULL) {
+		if (is_null($pid)) $pid = $this->last_pid;
 		// still has a buffer => not EOF
-		if (isset($this->pipes_buf[$fd])) return false;
+		if (isset($this->pipes_buf[$pid][$fd])) return false;
 
 		// if the stream exists it's not EOF yet
-		return !isset($this->pipes[$fd]);
+		return !isset($this->pipes[$pid][$fd]);
 	}
 
-	public function read($fd, $size) {
+	public function read($fd, $size, $pid = NULL) {
+		if (is_null($pid)) 
+			$pid = $this->last_pid;
+
 		while(1) {
-			if (isset($this->pipes_buf[$fd])) {
-				if (strlen($this->pipes_buf[$fd]) >= $size) {
-					$ret = substr($this->pipes_buf[$fd], 0, $size);
-					if ($size == strlen($this->pipes_buf[$fd])) {
-						unset($this->pipes_buf[$fd]);
+			if (isset($this->pipes_buf[$pid][$fd])) {
+				if (strlen($this->pipes_buf[$pid][$fd]) >= $size) {
+					$ret = substr($this->pipes_buf[$pid][$fd], 0, $size);
+					if ($size == strlen($this->pipes_buf[$pid][$fd])) {
+						unset($this->pipes_buf[$pid][$fd]);
 					} else {
-						$this->pipes_buf[$fd] = substr($this->pipes_buf[$fd], $size);
+						$this->pipes_buf[$pid][$fd] = substr($this->pipes_buf[$pid][$fd], $size);
 					}
 
 					return $ret;
 				}
 
-				if (!isset($this->pipes[$fd])) {
+				if (!isset($this->pipes[$pid][$fd])) {
 					// reached EOF, flush buffer first
-					$res = $this->pipes_buf[$fd];
-					unset($this->pipes_buf[$fd]);
+					$res = $this->pipes_buf[$pid][$fd];
+					unset($this->pipes_buf[$pid][$fd]);
 					return $res;
 				}
 			}
 
-			if (!isset($this->pipes[$fd])) return false;
+			if (!isset($this->pipes[$pid][$fd])) return false;
 
 			$this->getEvent();
 		}
 	}
 
-	public function gets($fd, $size = NULL) {
+	public function gets($fd, $size = NULL, $pid = NULL) {
+		if (is_null($pid))
+			$pid = $this->last_pid;
+
 		while(1) {
-			if (isset($this->pipes_buf[$fd])) {
-				$pos = strpos($this->pipes_buf[$fd], "\n");
+			if (isset($this->pipes_buf[$pid][$fd])) {
+				$pos = strpos($this->pipes_buf[$pid][$fd], "\n");
 
 				if ($pos !== false) {
 					$pos++;
-					$ret = substr($this->pipes_buf[$fd], 0, $pos);
-					if ($pos == strlen($this->pipes_buf[$fd])) {
-						unset($this->pipes_buf[$fd]);
+					$ret = substr($this->pipes_buf[$pid][$fd], 0, $pos);
+					if ($pos == strlen($this->pipes_buf[$pid][$fd])) {
+						unset($this->pipes_buf[$pid][$fd]);
 					} else {
-						$this->pipes_buf[$fd] = substr($this->pipes_buf[$fd], $pos);
+						$this->pipes_buf[$pid][$fd] = substr($this->pipes_buf[$pid][$fd], $pos);
 					}
 					return $ret;
 				}
 
-				if ((!is_null($size)) && (strlen($this->pipes_buf[$fd]) >= $size)) {
-					$ret = substr($this->pipes_buf[$fd], 0, $size);
-					if ($size == strlen($this->pipes_buf[$fd])) {
-						unset($this->pipes_buf[$fd]);
+				if ((!is_null($size)) && (strlen($this->pipes_buf[$pid][$fd]) >= $size)) {
+					$ret = substr($this->pipes_buf[$pid][$fd], 0, $size);
+					if ($size == strlen($this->pipes_buf[$pid][$fd])) {
+						unset($this->pipes_buf[$pid][$fd]);
 					} else {
-						$this->pipes_buf[$fd] = substr($this->pipes_buf[$fd], $size);
+						$this->pipes_buf[$pid][$fd] = substr($this->pipes_buf[$pid][$fd], $size);
 					}
 
 					return $ret;
 				}
 
-				if (!isset($this->pipes[$fd])) {
+				if (!isset($this->pipes[$pid][$fd])) {
 					// reached EOF, flush buffer first
-					$res = $this->pipes_buf[$fd];
-					unset($this->pipes_buf[$fd]);
+					$res = $this->pipes_buf[$pid][$fd];
+					unset($this->pipes_buf[$pid][$fd]);
 					return $res;
 				}
 			}
 
-			if (!isset($this->pipes[$fd])) return false;
+			if (!isset($this->pipes[$pid][$fd])) return false;
 
 			$this->getEvent();
 		}
 	}
 
-	public function wait() {
-		while($this->running)
+	public function wait($pid = NULL) {
+		if (is_null($pid)) $pid = $this->last_pid;
+
+		while($this->running[$pid])
 			$this->getEvent();
 
-		return $this->returnCode;
+		return $this->returnCode[$pid];
 	}
 
-	public function write($fd, $data) {
-		$this->sendPacket(pack('N', $fd).$data, self::PKT_DATA);
+	public function write($fd, $data, $pid = NULL) {
+		if (is_null($pid)) $pid = $this->last_pid;
+		$this->sendPacket(pack('NN', $pid, $fd).$data, self::PKT_DATA);
 	}
 
-	public function kill($signal = 15) {
-		$this->sendPacket($signal, self::PKT_KILL);
+	public function kill($signal = 15, $pid = NULL) {
+		if (is_null($pid)) $pid = $this->last_pid;
+		$this->sendPacket(pack('NN', $pid, $signal), self::PKT_KILL);
 	}
 
 	protected function getEvent() {
@@ -162,19 +181,21 @@ class NetBatch {
 
 		switch($this->type) {
 			case self::PKT_EOF:
-				unset($this->pipes[$pkt]);
+				list(,$pid, $fd) = unpack('N2', $pkt);
+				unset($this->pipes[$pid][$fd]);
 				break;
 			case self::PKT_DATA:
-				list(,$fd) = unpack('N', substr($pkt, 0, 4));
-				$pkt = (string)substr($pkt, 4);
-				$this->pipes_buf[$fd] .= $pkt;
+				list(,$pid,$fd) = unpack('N2', substr($pkt, 0, 8));
+				$pkt = (string)substr($pkt, 8);
+				$this->pipes_buf[$pid][$fd] .= $pkt;
 				break;
 			case self::PKT_NOPIPES:
 				// mmh?
 				break;
 			case self::PKT_RETURNCODE:
-				$this->running = false;
-				$this->returnCode = $pkt;
+				list(,$pid, $rc) = unpack('N2', $pkt);
+				unset($this->running[$pid]);
+				$this->returnCode[$pid] = $rc;
 				break;
 			default:
 				var_dump($this->type);
@@ -182,8 +203,9 @@ class NetBatch {
 		}
 	}
 
-	public function close($fd) {
-		$this->sendPacket($fd, self::PKT_CLOSE);
+	public function close($fd, $pid = NULL) {
+		if (is_null($pid)) $pid = $this->last_pid;
+		$this->sendPacket(pack('NN', $pid, $fd), self::PKT_CLOSE);
 	}
 
 	protected function sendPacket($data, $type = self::PKT_STANDARD) {
@@ -191,6 +213,7 @@ class NetBatch {
 	}
 
 	protected function readPacket() {
+		if (feof($this->fp)) throw new Exception('Connection lost');
 		$len = fread($this->fp, 4);
 		list(,$type,$len) = unpack('n2', $len);
 
@@ -207,7 +230,7 @@ $netbatch->ident('test','test');
 
 echo "Running: php\n";
 
-$netbatch->run('php', NULL, array('foo' => 'bougaga!'));
+$netbatch->run(array('php'), NULL, array('foo' => 'bougaga!'));
 $netbatch->write(0, '<?php print_r($_ENV);');
 $netbatch->close(0); // close stdin
 
