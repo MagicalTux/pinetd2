@@ -207,41 +207,19 @@ abstract class Base extends \pinetd\DaemonBase {
 //		Logger::log(Logger::LOG_WARN, 'IPC for '.$info['pid'].' died');
 	}
 
-	/* make sure children are alive, and clean up them if needed :) */
-	public function waitChildren() {
-		if (!PINETD_CAN_FORK) return;
+	public function childSignaled($res, $status, $signal = NULL) {
 		if (count($this->fclients) == 0) return; // nothing to do
-		$res = pcntl_wait($status, WNOHANG);
-		if ($res == -1) return; // something bad happened
-		if ($res == 0) return; // no process terminated
 		// search what ended
 		$ended = $this->fclients[$res];
 		if (is_null($ended)) return; // we do not know what ended
-		if (pcntl_wifexited($status)) {
-			$code = pcntl_wexitstatus($status);
+
+		if (is_null($signal)) {
 			Logger::log(Logger::LOG_DEBUG, 'Client with pid #'.$res.' exited');
-			unset($this->fclients[$res]);
-			return;
-		}
-		if (pcntl_wifstopped($status)) {
-			Logger::log(Logger::LOG_INFO, 'Waking up stopped child on pid '.$res);
-			posix_kill($res, SIGCONT);
-			return;
-		}
-		if (pcntl_wifsignaled($status)) {
-			$signal = pcntl_wtermsig($status);
-			$const = get_defined_constants(true);
-			$const = $const['pcntl'];
-			foreach($const as $var => $val) {
-				if (substr($var, 0, 3) != 'SIG') continue;
-				if (substr($var, 0, 4) == 'SIG_') continue;
-				if ($val != $signal) continue;
-				$signal = $var;
-				break;
-			}
+		} else {
 			Logger::log(Logger::LOG_INFO, 'Client with pid #'.$res.' died due to signal '.$signal);
-			unset($this->fclients[$res]);
 		}
+
+		unset($this->fclients[$res]);
 	}
 
 	public function mainLoop() {
@@ -251,7 +229,6 @@ abstract class Base extends \pinetd\DaemonBase {
 		}
 		while(1) {
 			$this->IPC->selectSockets(200000);
-			$this->waitChildren();
 			$this->processTimers();
 		}
 	}

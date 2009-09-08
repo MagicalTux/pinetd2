@@ -66,7 +66,7 @@ class MTA extends \pinetd\Process {
 				'launch' => time(),
 				'IPC' => new IPC($pair[0], false, $this, $this->IPC),
 			);
-			$this->IPC->registerSocketWait($pair[0], array($this->agents[$pid]['IPC'], 'run'), $foobar = array(&$this->daemons[$pid]));
+			$this->IPC->registerSocketWait($pair[0], array($this->agents[$pid]['IPC'], 'run'), $foobar = array(&$this->agents[$pid]));
 			return true;
 		}
 		if ($pid == 0) {
@@ -104,46 +104,23 @@ class MTA extends \pinetd\Process {
 	public function mainLoop() {
 		parent::initMainLoop();
 		while(1) {
-			$this->waitChildren();
 			$this->launchChildsIfNeeded();
 			$this->IPC->selectSockets(200000);
 		}
 	}
 
-	public function waitChildren() {
-		if (!PINETD_CAN_FORK) return;
+	public function childSignaled($res, $status, $signal = NULL) {
 		if (count($this->agents) == 0) return; // nothing to do
-		$res = pcntl_wait($status, WNOHANG);
-		if ($res == -1) return; // something bad happened
-		if ($res == 0) return; // no process terminated
 		// search what ended
 		$ended = $this->agents[$res];
 		if (is_null($ended)) return; // we do not know what ended
-		if (pcntl_wifexited($status)) {
-			$code = pcntl_wexitstatus($status);
+
+		if (is_null($signal)) {
 			Logger::log(Logger::LOG_DEBUG, 'MTAgent with pid #'.$res.' exited');
-			unset($this->agents[$res]);
-			return;
-		}
-		if (pcntl_wifstopped($status)) {
-			Logger::log(Logger::LOG_INFO, 'Waking up stopped agent on pid '.$res);
-			posix_kill($res, SIGCONT);
-			return;
-		}
-		if (pcntl_wifsignaled($status)) {
-			$signal = pcntl_wtermsig($status);
-			$const = get_defined_constants(true);
-			$const = $const['pcntl'];
-			foreach($const as $var => $val) {
-				if (substr($var, 0, 3) != 'SIG') continue;
-				if (substr($var, 0, 4) == 'SIG_') continue;
-				if ($val != $signal) continue;
-				$signal = $var;
-				break;
-			}
+		} else {
 			Logger::log(Logger::LOG_INFO, 'MTAgent with pid #'.$res.' died due to signal '.$signal);
-			unset($this->agents[$res]);
 		}
+		unset($this->agents[$res]);
 	}
 }
 

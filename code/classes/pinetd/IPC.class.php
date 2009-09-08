@@ -77,9 +77,13 @@ class IPC {
 	 * \return mixed data, depending on called function
 	 */
 	function __call($func, $args) {
+		return $this->doCall($func, $args, $this->ischld);
+	}
+
+	function doCall($func, $args, $waitanswer = true) {
 		array_unshift($args, $func);
 		$this->sendcmd(self::CMD_CALL, $args);
-		if (!$this->ischld) return null;
+		if (!$waitanswer) return null;
 		while(!feof($this->pipe)) {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
 			pcntl_signal_dispatch();
@@ -192,7 +196,7 @@ class IPC {
 			pcntl_signal_dispatch();
 			$cmd = $this->readcmd();
 			if ($cmd[0] == self::RES_CALLPORT_EXCEPT) {
-				throw new \Exception($cmd[1]);
+				throw new \Exception($cmd[1][2]);
 			} elseif ($cmd[0] != self::RES_CALLPORT) {
 				$this->handlecmd($cmd, $foo = null);
 			} else {
@@ -312,8 +316,8 @@ class IPC {
 			case self::CMD_CALL:
 				// $cmd[1] = array(function, args)
 				$key = ($this->ischld)?'_ParentIPC_':'_ChildIPC_';
-				$func = array(&$this->parent,$key.$cmd[1][0]);
-				if (!method_exists($this->parent, $key.$cmd[1][0])) {
+				$func = array($this->parent, $key.$cmd[1][0]);
+				if (!is_callable($func)) {
 					Logger::log(Logger::LOG_ERR, 'Tried to call '.get_class($func[0]).'::'.$func[1].' but failed!');
 					if (!$this->ischld) $this->sendcmd(self::RES_CALL, null); // avoid deadlock
 					break;
@@ -322,10 +326,10 @@ class IPC {
 				try {
 					$res = call_user_func_array($func, $cmd[1]);
 				} catch(\Exception $e) {
-					if(!$this->ischld) $this->sendcmd(self::RES_CALL_EXCEPT, $e->getMessage());
+					$this->sendcmd(self::RES_CALL_EXCEPT, $e->getMessage());
 					break;
 				}
-				if(!$this->ischld) $this->sendcmd(self::RES_CALL, $res);
+				$this->sendcmd(self::RES_CALL, $res);
 				break;
 			case self::CMD_ERROR:
 				if ($cmd[1][1] > 0) {
@@ -454,6 +458,7 @@ class IPC {
 		if ($n<=0) {
 			// nothing has happened, let's collect garbage collector cycles
 			gc_collect_cycles();
+			$this->waitChildren();
 			return $n;
 		}
 		foreach($r as $fd) {
@@ -468,7 +473,45 @@ class IPC {
 				call_user_func_array($info['callback'], &$info['data']);
 			}
 		}
+		$this->waitChildren();
 		return $n;
+	}
+
+	public function waitChildren() {
+		if (!PINETD_CAN_FORK) return;
+		if (!function_exists('pcntl_wait')) return;
+		$res = pcntl_wait($status, WNOHANG);
+		if ($res == -1) return; // something bad happened
+		if ($res == 0) return; // no process terminated
+
+		if (pcntl_wifstopped($status)) {
+			Logger::log(Logger::LOG_INFO, 'Waking up stopped child on pid '.$res);
+			posix_kill($res, SIGCONT);
+			return;
+		}
+
+		// dispatch signal (if possible)
+		if (is_callable(array($this->parent, 'childSignaled'))) {
+			if (pcntl_wifexited($status)) {
+				$code = pcntl_wexitstatus($status);
+				return $this->parent->childSignaled($res, $code, NULL);
+			}
+
+			if (pcntl_wifsignaled($status)) {
+				$signal = pcntl_wtermsig($status);
+				$code = pcntl_wexitstatus($status);
+				$const = get_defined_constants(true);
+				$const = $const['pcntl'];
+				foreach($const as $var => $val) {
+					if (substr($var, 0, 3) != 'SIG') continue;
+					if (substr($var, 0, 4) == 'SIG_') continue;
+					if ($val != $signal) continue;
+					$signal = $var;
+					break;
+				}
+				$this->parent->childSignaled($res, $code, $signal); // pid, status, signal
+			}
+		}
 	}
 
 	/**

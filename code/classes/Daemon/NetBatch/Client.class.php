@@ -15,6 +15,7 @@ class Client extends \pinetd\TCP\Client {
 	const PKT_DATA = 7;
 	const PKT_NOPIPES = 8;
 	const PKT_KILL = 9;
+	const PKT_POLL = 10;
 
 	private $salt = '';
 	private $login = NULL;
@@ -34,15 +35,10 @@ class Client extends \pinetd\TCP\Client {
 		for($i = 0; $i < $saltlen; $i++)
 			$this->salt .= chr(mt_rand(0,255));
 		$this->sendMsg($this->salt);
-
-		Timer::addTimer(array($this, 'processWait'), 0.2, $e = null, true);
 	}
 
-	public function processWait() {
+	public function childSignaled($pid, $status, $signal = NULL) {
 		if (is_null($this->procs)) return false; // end of process
-
-		$pid = pcntl_wait($status, WNOHANG);
-		if ($pid <= 0) return true;
 
 		// ok, a process exited!
 		if (!isset($this->procs[$pid])) return true;
@@ -50,7 +46,7 @@ class Client extends \pinetd\TCP\Client {
 		proc_close($this->procs[$pid]['proc']);
 		unset($this->procs[$pid]);
 
-		$this->sendMsg(pack('NN', $pid, $status), self::PKT_RETURNCODE);
+		$this->sendMsg(pack('NN', $pid, $status).((string)$signal), self::PKT_RETURNCODE);
 
 		return true;
 	}
@@ -71,7 +67,7 @@ class Client extends \pinetd\TCP\Client {
 				$this->sendMsg('0');
 				return;
 			}
-			$this->sendMsg(pack('N', $res));
+			$this->sendRawMsg($res);
 			return;
 		}
 		$cmd = $pkt['cmd'];
@@ -121,7 +117,7 @@ class Client extends \pinetd\TCP\Client {
 		}
 
 		$status = proc_get_status($proc);
-		$this->sendMsg(pack('N', $status['pid']));
+		$this->sendMsg(pack('NN', $status['pid'], 0));
 
 		if (!$status['running']) {
 			// wtf? already died?
@@ -160,9 +156,11 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	protected function handleWriteData($data) {
+		$odata = $data;
 		list(,$pid,$fd) = unpack('N2', $data);
 		$data = substr($data, 8);
-		if (!isset($this->procs[$pid]['pipes'][$fd])) return;
+		if (!isset($this->procs[$pid]['pipes'][$fd]))
+			return $this->proxy($pid, 'handleWriteData', array($odata));
 
 		fwrite($this->procs[$pid]['pipes'][$fd], $data);
 		fflush($this->procs[$pid]['pipes'][$fd]);
@@ -191,9 +189,15 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg(pack('NN', $pid, $pipe).$data, self::PKT_DATA);
 	}
 
+	protected function proxy($pid, $func, array $args) {
+		$res = $this->IPC->callPort('NetBatch::Persist', 'proxy', array($pid, $this->login, $func, $args));
+		$this->sendRawMsg($res);
+	}
+
 	protected function handleClose($buf) {
 		list(, $pid, $fd) = unpack('N2', $buf);
-		if (!isset($this->procs[$pid]['pipes'][$fd])) return;
+		if (!isset($this->procs[$pid]['pipes'][$fd]))
+			return $this->proxy($pid, 'handleClose', array($buf));
 		$pipe = $this->procs[$pid]['pipes'][$fd];
 
 		$this->sendMsg(pack('NN', $pid, $fd), self::PKT_EOF);
@@ -250,10 +254,17 @@ class Client extends \pinetd\TCP\Client {
 			case self::PKT_DATA:
 				$this->handleWriteData($buffer);
 				break;
+			case self::PKT_POLL:
+				list(,$pid) = unpack('N', $buffer);
+				$res = $this->IPC->callPort('NetBatch::Persist', 'poll', array($pid, $this->login));
+				$this->sendRawMsg($res);
+				break;
 			case self::PKT_KILL:
 				list(,$pid,$signal) = unpack('N2', $buffer);
 				if ($this->proc[$pid])
 					proc_terminate($this->proc[$pid], $signal);
+				else
+					$this->proxy($pid, 'kill', array($pid, $signal));
 				break;
 			default:
 				// TODO: log+error
@@ -284,6 +295,10 @@ class Client extends \pinetd\TCP\Client {
 			$this->buf = (string)substr($this->buf, $len+4);
 			$this->handleBuffer($tmp, $type);
 		}
+	}
+
+	public function sendRawMsg($msg) {
+		fwrite($this->fd, $msg);
 	}
 
 	public function sendMsg($msg, $type = self::PKT_STANDARD) {

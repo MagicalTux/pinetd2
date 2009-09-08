@@ -4,11 +4,14 @@ class NetBatch_Process {
 	private $pid;
 	private $parent;
 	private $blocking;
+	private $resume;
 
-	public function __construct($parent, $pid) {
+	public function __construct($parent, $pid, $resume, $persist) {
 		$this->parent = $parent;
 		$this->pid = $pid;
 		$this->blocking = true;
+		$this->resume = $resume;
+		$this->persist = $persist;
 	}
 
 	public function __destruct() {
@@ -57,6 +60,14 @@ class NetBatch_Process {
 		return $this->pid;
 	}
 
+	public function poll() {
+		return $this->parent->poll($this->pid);
+	}
+
+	public function isResumed() {
+		return (bool)$this->resume;
+	}
+
 	public function running() {
 		return $this->parent->isRunning($this->pid);
 	}
@@ -75,6 +86,7 @@ class NetBatch {
 	private $pipes_buf = array();
 	private $running = array();
 	private $returnCode = array();
+	private $persist = array();
 	private $last_pid;
 
 	const PKT_STANDARD = 0;
@@ -87,6 +99,7 @@ class NetBatch {
 	const PKT_DATA = 7;
 	const PKT_NOPIPES = 8;
 	const PKT_KILL = 9;
+	const PKT_POLL = 10;
 
 	public function __construct($host, $port = 65432) {
 		$this->fp = fsockopen($host, $port);
@@ -131,13 +144,14 @@ class NetBatch {
 		$pid = $this->readPacket();
 		if ($pid === '0') return false;
 
-		list(,$pid) = unpack('N', $pid);
+		list(,$pid, $resume) = unpack('N2', $pid);
 		$this->running[$pid] = true;
 		$this->last_pid = $pid;
 		$this->pipes[$pid] = $pipes;
 		$this->pipes_buf[$pid] = array();
+		if ($persist !== false) $this->persist[$pid] = true;
 
-		return new NetBatch_Process($this, $pid);
+		return new NetBatch_Process($this, $pid, $resume, $persist);
 	}
 
 	public function dump($pid = NULL) {
@@ -181,12 +195,12 @@ class NetBatch {
 
 			if (!isset($this->pipes[$pid][$fd])) return false;
 
-			if (!$this->getEvent($blocking)) break;
+			if (!$this->getEvent($pid, $blocking)) break;
 		}
 		return false;
 	}
 
-	public function gets($fd, $size = NULL, $pid = NULL) {
+	public function gets($fd, $size = NULL, $pid = NULL, $blocking) {
 		if (is_null($pid))
 			$pid = $this->last_pid;
 
@@ -226,7 +240,7 @@ class NetBatch {
 
 			if (!isset($this->pipes[$pid][$fd])) return false;
 
-			if (!$this->getEvent($blocking)) break;
+			if (!$this->getEvent($pid, $blocking)) break;
 		}
 		return false;
 	}
@@ -235,7 +249,7 @@ class NetBatch {
 		if (is_null($pid)) $pid = $this->last_pid;
 
 		while($this->running[$pid])
-			$this->getEvent();
+			$this->getEvent($pid);
 
 		return $this->returnCode[$pid];
 	}
@@ -262,8 +276,12 @@ class NetBatch {
 		$this->sendPacket(pack('NN', $pid, $signal), self::PKT_KILL);
 	}
 
-	protected function getEvent($blocking = true) {
-		$pkt = $this->readPacket($blocking);
+	public function poll($pid) {
+		$this->sendPacket(pack('N', $pid), self::PKT_POLL);
+	}
+
+	protected function getEvent($pid, $blocking = true) {
+		$pkt = $this->readPacket($pid, $blocking);
 
 		if ($pkt === false) return false;
 
@@ -296,7 +314,7 @@ class NetBatch {
 		if (!$tmp)
 			throw new Exception('getActive() called without params');
 
-		$this->getEvent(false);
+		$this->getEvent(0, false);
 
 		$list = array();
 		$keys = array();
@@ -317,7 +335,7 @@ class NetBatch {
 			}
 
 			if (!$final_list)
-				$this->getEvent();
+				$this->getEvent(0);
 		}
 
 		return $final_list;
@@ -332,8 +350,20 @@ class NetBatch {
 		return fwrite($this->fp, pack('nn', $type, strlen($data)).$data);
 	}
 
-	protected function readPacket($blocking = true) {
+	protected function readPacket($pid = 0, $blocking = true) {
 		if (feof($this->fp)) throw new Exception('Connection lost');
+
+		if ($this->persist[$pid]) {
+			$now = time();
+			if ($this->persist[$pid] != $now) {
+				$this->poll($pid);
+				$this->persist[$pid] = $now;
+			}
+			if ($blocking)
+				while (!stream_select($r = array($this->fp), $w = NULL, $e = NULL, 1)) {
+					$this->poll($pid);
+				}
+		}
 
 		if (!$blocking) {
 			if (!stream_select($r = array($this->fp), $w = NULL, $e = NULL, 0))
@@ -341,6 +371,7 @@ class NetBatch {
 		}
 
 		$len = fread($this->fp, 4);
+		if (strlen($len) != 4) throw new Exception('Connection lost');
 		list(,$type,$len) = unpack('n2', $len);
 
 		$this->type = $type;
@@ -354,9 +385,25 @@ class NetBatch {
 $netbatch = new NetBatch('127.0.0.1');
 $netbatch->ident('test','test');
 
-$process = $netbatch->run(array('ping', '127.0.0.1'), NULL, NULL, 'LocalPing');
+$process = $netbatch->run(array('php'), NULL, NULL, 'PhpEval');
 
-var_dump($process);
+if (!$process->isResumed()) {
+	$process->write(0, '<?php while(1) { echo "BLAH\n"; sleep(1); }');
+	$process->close(0);
+}
+
+$c = 10;
+
+while(!$process->eof(1)) {
+	var_dump(rtrim($process->gets(1)));
+	if ($c-- < 0) {
+		$process->kill();
+		$c = 99;
+	}
+}
+
+while(!$process->eof(2))
+	var_dump(rtrim($process->gets(2)));
 
 /*
 $ping = array();
