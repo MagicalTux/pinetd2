@@ -120,8 +120,9 @@ class NetBatch {
 		$packet = array(
 			'cmd' => $cmd,
 			'pipes' => $pipes,
-			'persist' => $persist,
 		);
+		if ($persist !== false)
+			$packet['persist'] = $persist;
 
 		if (!is_null($env)) $packet['env'] = $env;
 
@@ -353,6 +354,11 @@ class NetBatch {
 $netbatch = new NetBatch('127.0.0.1');
 $netbatch->ident('test','test');
 
+$process = $netbatch->run(array('ping', '127.0.0.1'), NULL, NULL, 'LocalPing');
+
+var_dump($process);
+
+/*
 $ping = array();
 
 $ping[] = $netbatch->run(array('ping', '127.0.0.1', '-c', '5'));
@@ -375,7 +381,7 @@ while($netbatch->hasProcesses()) {
 		}
 	}
 }
-
+*/
 
 /*
 echo "Running: php\n";

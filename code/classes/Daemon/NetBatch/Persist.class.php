@@ -39,7 +39,9 @@ class Persist extends \pinetd\Process {
 		return true;
 	}
 
-	protected function handleRun(array $pkt) {
+	public function run(array $pkt, array $login) {
+		var_dump($pkt, $login);
+		return false;
 		$cmd = $pkt['cmd'];
 		$pipestmp = $pkt['pipes'];
 		$cwd = $this->login['cwd'];
@@ -194,6 +196,7 @@ class Persist extends \pinetd\Process {
 	public function mainLoop() {
 		parent::initMainLoop();
 		Timer::addTimer(array($this, 'processWait'), 0.2, $e = null, true);
+		$this->IPC->createPort('NetBatch::Persist', $this);
 
 		while(1) {
 			$this->IPC->selectSockets(200000);

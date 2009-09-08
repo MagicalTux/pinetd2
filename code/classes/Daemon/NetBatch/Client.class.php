@@ -64,11 +64,20 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	protected function handleRun(array $pkt) {
+		if (isset($pkt['persist'])) {
+			// ok, let's transmit this to the persist engine
+			$res = $this->IPC->callPort('NetBatch::Persist', 'run', array($pkt, $this->login));
+			if (!$res) {
+				$this->sendMsg('0');
+				return;
+			}
+			$this->sendMsg(pack('N', $res));
+			return;
+		}
 		$cmd = $pkt['cmd'];
 		$pipestmp = $pkt['pipes'];
 		$cwd = $this->login['cwd'];
 		$env = $pkt['env']?:array();
-		$persist = $pkt['persist']?:false;
 		$pipes = array();
 
 		// TODO: if persist, pass run request to process thread so the process will
