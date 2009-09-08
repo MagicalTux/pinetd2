@@ -56,8 +56,11 @@ class Core {
 	 */
 	private $ports = array();
 
+	private $transport_engine;
+
 	public function __construct() {
 		$this->config = ConfigManager::invoke();
+		$this->transport_engine = new TransportEngine($this);
 		$this->daemons = array();
 		pcntl_signal(SIGTERM, array(&$this, 'sighandler'), false);
 		pcntl_signal(SIGINT, array(&$this, 'sighandler'), false);
