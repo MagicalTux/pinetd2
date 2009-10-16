@@ -58,6 +58,7 @@ abstract class Base extends \pinetd\DaemonBase {
 			if (!$cert) {
 				throw new Exception('ERROR: Trying to give me a non-existant certificate');
 			}
+			if (!isset($cert['ciphers'])) $cert['ciphers'] = 'ALL:!aNULL:!ADH:!eNULL:!LOW:!EXP:RC4+RSA:+HIGH:+MEDIUM';
 			stream_context_set_option($context, array('ssl' => $cert));
 		}
 		$cert = $this->IPC->loadCertificate(strtolower($this->daemon['Service']));
