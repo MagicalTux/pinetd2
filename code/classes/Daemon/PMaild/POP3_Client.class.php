@@ -104,11 +104,30 @@ class POP3_Client extends \pinetd\TCP\Client {
 		$this->close();
 	}
 
+	function _cmd_stls() {
+		if (!$this->IPC->hasTLS()) {
+			$this->sendMsg('-ERR SSL not available');
+			return;
+		}
+		if ($this->protocol != 'tcp') {
+			$this->sendMsg('-ERR STLS only available in PLAIN mode. An encryption mode is already enabled');
+			return;
+		}
+		$this->sendMsg('+OK Begin TLS negotiation');
+		// TODO: this call will lock, need a way to avoid from doing it without Fork
+		if (!stream_socket_enable_crypto($this->fd, true, STREAM_CRYPTO_METHOD_TLS_SERVER)) {
+			$this->sendMsg('-ERR TLS negociation failed!');
+			$this->close();
+		}
+		$this->protocol = 'tls';
+	}
+
 	function _cmd_auth($argv) {
 		if ($this->loggedin) {
 			$this->sendMsg('-ERR You do not need to AUTH two times');
 			return;
 		}
+		if ($this->protocol == 'tcp') return $this->sendMsg('-ERR Need SSL before logging in');
 		if (!$argv[1]) {
 			$this->sendMsg('+OK list of SASL extensions follows');
 			$this->sendMsg('PLAIN');
@@ -143,6 +162,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('-ERR already logged in');
 			return;
 		}
+		if ($this->protocol == 'tcp') return $this->sendMsg('-ERR Need SSL before logging in');
 		if (count($argv) < 2) {
 			$this->sendMsg('-ERR Syntax: USER <login>');
 			return;
@@ -156,6 +176,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('-ERR Already logged in');
 			return;
 		}
+		if ($this->protocol == 'tcp') return $this->sendMsg('-ERR Need SSL before logging in');
 		if (count($argv) < 2) {
 			$this->sendMsg('-ERR Syntax: PASS <password>');
 			return;
@@ -396,13 +417,17 @@ class POP3_Client extends \pinetd\TCP\Client {
 		$capa = array(
 			'TOP',
 //			'RESP-CODES',
-			'USER',
-			'SASL PLAIN', // SASL CRAM-MD5 DIGEST-MD5 PLAIN
 			'PIPELINING',
 			'UIDL',
 			'IMPLEMENTATION pMaild 2.0',
 //			'AUTH-RESP-CODE',
 		);
+		if ($this->protocol != 'tcp') {
+			$capa[] = 'USER';
+			$capa[] = 'SASL PLAIN'; // SASL CRAM-MD5 DIGEST-MD5 PLAIN
+		} else {
+			$capa[] = 'STLS';
+		}
 		$this->sendMsg('+OK');
 		foreach($capa as $cap) $this->sendMsg($cap);
 		$this->sendMsg('.');
