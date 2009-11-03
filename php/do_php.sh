@@ -30,7 +30,7 @@ fi
 if [ ! -d "ext/mailparse" ]; then
 	echo -n "Getting mailparse..."
 	# get
-	svn co -q http://svn.php.net/repository/pecl/mailparse/trunk/ ext/proctitle
+	svn co -q http://svn.php.net/repository/pecl/mailparse/trunk/ ext/mailparse
 	echo "done"
 	NEED_AUTOCONF=yes
 fi
