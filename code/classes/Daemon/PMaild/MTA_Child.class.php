@@ -225,9 +225,9 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$this->writeMx($sock, 'EHLO '.$this->IPC->getName());
 		$ehlo = array_flip($this->readMxAnswer($sock));
 		// todo: starttls if possible, then ehlo again
-		$this->writeMx($sock, 'MAIL FROM: <'.$mail->from.'>');
+		$this->writeMx($sock, 'MAIL FROM:<'.$mail->from.'>');
 		$this->readMxAnswer($sock);
-		$this->writeMx($sock, 'RCPT TO: <'.$mail->to.'>');
+		$this->writeMx($sock, 'RCPT TO:<'.$mail->to.'>');
 		$this->readMxAnswer($sock);
 		$this->writeMx($sock, 'DATA');
 		$this->readMxAnswer($sock, 3);
