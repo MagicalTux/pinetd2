@@ -102,13 +102,17 @@ class SMTP_Client extends \pinetd\TCP\Client {
 				$pass = base64_decode($this->readLine());
 				break;
 			case 'PLAIN':
-				 $this->sendMsg('334');
-				 list($check, $login, $pass) = explode("\x00", base64_decode($this->readLine()));
-				 if ($check != '') {
+				if ($argv[2]) {
+					list($check, $login, $pass) = explode("\x00", base64_decode($argv[2]));
+				} else {
+					$this->sendMsg('334');
+					list($check, $login, $pass) = explode("\x00", base64_decode($this->readLine()));
+				}
+				if ($check != '') {
 					$this->sendMsg('550 5.5.2 Syntax error in AUTH PLAIN');
 				 	return;
-				 }
-				 break;
+				}
+				break;
 			default:
 				$this->sendMsg('550 5.5.2 Unsupported auth method');
 				return;
