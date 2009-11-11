@@ -142,10 +142,10 @@ class SMTP_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('220 Ready to start TLS');
 		// TODO: this call will lock, need a way to avoid from doing it without Fork
 
-		$method = STREAM_CRYPTO_METHOD_TLS_SERVER;
+		$method = STREAM_CRYPTO_METHOD_SSLv23_SERVER;
 		// check if this client has broken TLS support that requires SSLv23 instead of TLS
 		if ($this->IPC->isTlsBroken($this->peer[0]))
-			$method = STREAM_CRYPTO_METHOD_SSLv23_SERVER;
+			$method = STREAM_CRYPTO_METHOD_TLS_SERVER;
 
 		if (!stream_socket_enable_crypto($this->fd, true, $method)) {
 			$this->sendMsg('500 TLS negociation failed!');
