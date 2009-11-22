@@ -301,6 +301,7 @@ class NetBatch {
 			case self::PKT_RETURNCODE:
 				list(,$pid, $rc) = unpack('N2', $pkt);
 				unset($this->running[$pid]);
+				unset($this->pipes[$pid]);
 				$this->returnCode[$pid] = $rc;
 				break;
 			default:
