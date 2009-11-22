@@ -76,9 +76,6 @@ class Client extends \pinetd\TCP\Client {
 		$env = $pkt['env']?:array();
 		$pipes = array();
 
-		// TODO: if persist, pass run request to process thread so the process will
-		// persist even when connection is closed
-
 		// cleanup $cmd if needed
 		if (!is_array($cmd)) {
 			$cmd = explode(' ',$cmd);
