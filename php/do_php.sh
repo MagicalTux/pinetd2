@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PHP_VERSION=php-5.3.0
+PHP_VERSION=php-5.3.1
 
 PHP_ARCHIVE="$PHP_VERSION".tar.bz2
 BUILD_ROOT=`pwd`
