@@ -148,6 +148,7 @@ class Connector extends \pinetd\Process {
 		$this->IPC->createPort('MREGd::Connector', $this);
 		while(1) {
 			$this->IPC->selectSockets(200000);
+			Timer::processTimers();
 		}
 	}
 
