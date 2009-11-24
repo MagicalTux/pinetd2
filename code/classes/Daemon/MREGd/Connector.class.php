@@ -51,6 +51,7 @@ class Connector extends \pinetd\Process {
 				if ($pos === false) continue;
 				$x .= ($x == ''?'':'&').urlencode(trim(substr($lin, 0, $pos))).'='.urlencode(trim(substr($lin, $pos+1)));
 			}
+			ini_set('magic_quotes_gpc', false);
 			parse_str($x, $res);
 			return $res;
 		}
