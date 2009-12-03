@@ -331,6 +331,9 @@ class IPC {
 				}
 				$this->sendcmd(self::RES_CALL, $res);
 				break;
+			case self::RES_CALL:
+				// nothing to care about this?
+				break;
 			case self::CMD_ERROR:
 				if ($cmd[1][1] > 0) {
 					$daemon['deadline'] = time()+$cmd[1][1];
