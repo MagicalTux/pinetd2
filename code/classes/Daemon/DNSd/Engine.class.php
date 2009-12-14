@@ -174,17 +174,17 @@ class Engine {
 			if (!is_array($peer)) $peer = explode(':', $peer);
 			switch($type) {
 				case Type\RFC1035::TYPE_A: 
-					$answer = $this->$this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
+					$answer = $this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
 					$pkt->addAnswer($name.'.', $answer, 600);
 					break;
 				case Type\RFC1035::TYPE_TXT:
-					$answer = $this->$this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
+					$answer = $this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
 					$pkt->addAnswer($name.'.', $answer, 600);
 					break;
 				case Type\RFC1035::TYPE_ANY:
-					$answer = $this->$this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
+					$answer = $this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
 					$pkt->addAnswer($name.'.', $answer, 600);
-					$answer = $this->$this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
+					$answer = $this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
 					$pkt->addAnswer($name.'.', $answer, 600);
 					break;
 			}
