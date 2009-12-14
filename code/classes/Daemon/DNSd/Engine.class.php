@@ -170,7 +170,7 @@ class Engine {
 			$pkt->setFlag('aa', 1);
 			$pkt->setFlag('ra', 0);
 			
-			$peer = $packet->getPeer();
+			$peer = $pkt->getPeer();
 			if (!is_array($peer)) $peer = explode(':', $peer);
 			switch($type) {
 				case Type\RFC1035::TYPE_A: 
