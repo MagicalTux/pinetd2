@@ -165,7 +165,7 @@ class Engine {
 			return;
 		}
 
-		if (strtolower($name) == 'my.dns.st.') {
+		if (strtolower($name) == 'my.dns.st') {
 			// HACK HACK HACK
 			$pkt->setFlag('aa', 1);
 			$pkt->setFlag('ra', 0);
