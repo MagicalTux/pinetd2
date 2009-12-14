@@ -24,6 +24,16 @@ class Packet {
 	protected $defaultDomain = '.';
 
 	protected $_label_cache = array();
+	
+	protected $peer;
+
+	public function __construct($peer) {
+		$this->peer = $peer;
+	}
+
+	public function getPeer() {
+		return $this->peer;
+	}
 
 	public function decode($pkt) {
 		// unpack packet's header

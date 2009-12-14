@@ -90,7 +90,7 @@ class TCP_Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		$this->engine->handlePacket($pkt, NULL);
+		$this->engine->handlePacket($pkt, $this->peer);
 	}
 
 	public function sendReply($pkt, $peer) {

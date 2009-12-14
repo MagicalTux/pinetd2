@@ -165,6 +165,32 @@ class Engine {
 			return;
 		}
 
+		if (strtolower($name) == 'my.dns.st.') {
+			// HACK HACK HACK
+			$pkt->setFlag('aa', 1);
+			$pkt->setFlag('ra', 0);
+			
+			$peer = $packet->getPeer();
+			if (!is_array($peer)) $peer = explode(':', $peer);
+			switch($type) {
+				case Type\RFC1035::TYPE_A: 
+					$answer = $this->$this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
+					$pkt->addAnswer($name.'.', $answer, 600);
+					break;
+				case Type\RFC1035::TYPE_TXT:
+					$answer = $this->$this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
+					$pkt->addAnswer($name.'.', $answer, 600);
+					break;
+				case Type\RFC1035::TYPE_ANY:
+					$answer = $this->$this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
+					$pkt->addAnswer($name.'.', $answer, 600);
+					$answer = $this->$this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
+					$pkt->addAnswer($name.'.', $answer, 600);
+					break;
+			}
+			return;
+		}
+
 		// search this domain
 		$domain = $name;
 		$host = '';
@@ -240,7 +266,7 @@ class Engine {
 	}
 
 	public function handlePacket($data, $peer_info) {
-		$pkt = new $this->packet_class();
+		$pkt = new $this->packet_class($peer_info);
 		if (!$pkt->decode($data)) return;
 
 		$pkt->resetAnswer();
