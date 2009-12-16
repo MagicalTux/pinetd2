@@ -218,7 +218,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		if (!file_exists($file)) throw new \Exception('Mail queued but file not found: '.$mail->mlid);
 		$this->IPC->selectSockets(0);
 		$sock = fsockopen($host, 25, $errno, $errstr, 30);
-		stream_set_timeout($sock, 30); // 30 secs timeout on read
+		stream_set_timeout($sock, 120); // 120 secs timeout on read
 		if (!$sock) throw new \Exception('Connection failed: ['.$errno.'] '.$errstr, 400); // not fatal (400)
 		$this->IPC->selectSockets(0);
 		$this->readMxAnswer($sock); // hello man
