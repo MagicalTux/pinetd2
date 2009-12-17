@@ -4,7 +4,7 @@ class MREG_client {
 	private $sock;
 	private $flags = 0x40000008; // default flags for outgoing: gzip+serialize()
 
-	public function __construct($host, $login, $key, $port = 10008) {
+	public function __construct($host, $login, $key, $port = 996) {
 		$this->sock = fsockopen($host, $port);
 
 		$random = $this->readPacket();
@@ -59,8 +59,15 @@ class MREG_client {
 	}
 }
 
-$mreg = new MREG_client('localhost','','');
+$mreg = new MREG_client('ws.uid.st','mutumsigillum','z198#CApoc98');
 var_dump($mreg->query(array('operation' => 'describe')));
 
-var_dump($mreg->query(array('command' => 'CheckDomains', 'domain0' => 'test.com', 'domain1' => 'e9r498ze49f8zefze.com')));
+var_dump($mreg->query(array('command' => 'QueryMobileAccountList', 'wide' => 1)));
+
+//var_dump($mreg->query(array('command' => 'CheckDomains', 'domain0' => 'legende.net', 'domain1' => 'magicaltux.biz', 'domain2' => 'fofezufzeuifzefze.com')));
+
+//var_dump($mreg->query(array('command' => 'StatusDomainTransfer', 'domain' => 'geekstuff4you.com')));
+//var_dump($mreg->query(array('command' => 'StatusDomainTransfer', 'domain' => 'magicaltux.net')));
+
+//var_dump($mreg->query(array('command' => 'ActivateTransfer', 'domain' => 'geekstuff4you.com', 'action' => 'REQUEST', 'trigger' => '7151102')));
 

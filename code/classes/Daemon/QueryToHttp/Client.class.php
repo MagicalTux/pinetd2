@@ -26,7 +26,7 @@ class Client extends \pinetd\TCP\Client {
 			$this->ch = curl_init($this->IPC->getUrl());
 			curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($this->ch, CURLOPT_HEADER, true);
-			curl_setopt($this->ch, CURLOPT_HTTPHEADER, array('X-Remote-Ip' => $this->peer[0], 'X-Remote-Port' => $this->peer[1], 'X-Remote-Host' => $this->peer[2]));
+			curl_setopt($this->ch, CURLOPT_HTTPHEADER, array('X-Remote-Ip' => $this->peer[0], 'X-Remote-Port' => $this->peer[1], 'X-Remote-Host' => $this->peer[2]) + $this->IPC->getHeaders());
 		}
 		curl_setopt($this->ch, CURLOPT_POSTFIELDS, http_build_query(array('input' => $lin)));
 

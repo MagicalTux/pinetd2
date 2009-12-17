@@ -31,7 +31,15 @@ class Base extends \pinetd\TCP\Base {
 	}
 
 	public function getUrl() {
-		return $this->localConfig['url']['_'];
+		return $this->localConfig['Url']['_'];
+	}
+
+	public function _ChildIPC_getHeaders() {
+		$res = array();
+		foreach($this->localConfig['HeadersArray']['Header'] as $h) {
+			$res[] = $h['_'];
+		}
+		return $res;
 	}
 }
 
