@@ -40,11 +40,19 @@ class Connector extends \pinetd\Process {
 			}
 		}
 		fwrite($this->mreg, $cmdstr.".\r\n");
+		stream_set_timeout($this->mreg, 30);
 
 		if (isset($cmd['command'])) {
 			$x = '';
 			while(1) {
-				$lin = rtrim(fgets($this->mreg, 4096));
+				$lin = fgets($this->mreg, 4096);
+				if ($lin === false) {
+					fclose($this->mreg);
+					$this->mreg = false;
+					$this->checkMregConnection();
+					return null;
+				}
+				$lin = rtrim($lin);
 				if ($lin == '.') break;
 
 				$pos = strpos($lin, '=');
