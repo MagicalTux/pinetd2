@@ -24,6 +24,7 @@ require_once(PINETD_CODE.'/base/basefunc.php');
 
 $GLOBALS['CONFIG'] = pinetd\ConfigManager::invoke();
 
+pinetd\CommandLine::handle();
 pinetd\Logger::log(pinetd\Logger::LOG_DEBUG, 'pinetd v' . PINETD_VERSION . ' running on PHP/'.PHP_VERSION.' on a '.php_uname('a'));
 
 // check a few things and display warnings if needed
@@ -58,14 +59,6 @@ if ((!(isset($GLOBALS['CONFIG']->Global->Security->Fork))) || (!PINETD_CAN_FORK)
 }
 
 pinetd\Logger::log(pinetd\Logger::LOG_DEBUG, 'My name: '.$GLOBALS['CONFIG']->Global->Name);
-
-if ($argc > 1) {
-	switch($argv[1]) {
-		default:
-			echo 'Error : unknown option'."\n";
-			exit(1);
-	}
-}
 
 // before starting core, enable garbage collector
 gc_enable();

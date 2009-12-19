@@ -65,6 +65,104 @@ class Core {
 		pcntl_signal(SIGTERM, array(&$this, 'sighandler'), false);
 		pcntl_signal(SIGINT, array(&$this, 'sighandler'), false);
 		pcntl_signal(SIGCHLD, SIG_DFL, false);
+
+		if (file_exists(PINETD_ROOT.'/control.sock')) unlink(PINETD_ROOT.'/control.sock');
+		$master = stream_socket_server('unix://'.PINETD_ROOT.'/control.sock', $errno, $errstr);
+		if ($master) {
+			$this->registerSocketWait($master, array($this, 'newMasterConnection'), $d = array($master));
+		} else {
+			Logger::log(Logger::LOG_WARN, 'Could not create master socket: ['.$errno.'] '.$errstr);
+		}
+	}
+
+	public function newMasterConnection($sock) {
+		$new = stream_socket_accept($sock, 0, $peer);
+		$no = '';
+		$this->registerSocketWait($new, array($this, 'masterData'), $d = array($new));
+	}
+
+	public function masterData($sock) {
+		if (!isset($this->fdlist[(int)$sock])) return;
+
+		$data = fread($sock, 65535);
+		if (($data === false) || ($data === '')) {
+			$this->removeSocket($sock);
+			fclose($sock);
+			return;
+		}
+		$peer = &$this->fdlist[(int)$sock];
+		if (!isset($peer['buffer'])) $peer['buffer'] = '';
+		$buffer = &$peer['buffer'];
+		$buffer .= $data;
+
+		while(1) {
+			if (strlen($buffer) < 4) break;
+			list(,$len) = unpack('N', $buffer);
+			if ($len > strlen($buffer)) break;
+			$packet = substr($buffer, 4, $len-4);
+			$buffer = substr($buffer, $len);
+			$packet = unserialize($packet);
+			if (!is_array($packet)) continue;
+			$packet['sock'] = $sock;
+			$this->masterPacket($packet);
+		}
+	}
+
+	public function masterPacket(array $packet) {
+		switch(strtolower($packet['cmd'])) {
+			case 'getpid':
+				$this->masterReply($packet, array('type' => 'pid', 'pid' => getmypid()));
+				break;
+			case 'getversion':
+				$this->masterReply($packet, array('type' => 'version', 'version' => PINETD_VERSION));
+				break;
+			case 'list_daemons':
+				$list = array();
+				foreach($this->daemons as $id => $dat) {
+					unset($dat['IPC']);
+					unset($dat['daemon']);
+					$dat['socket'] = (int)$dat['socket'];
+					$list[$id] = $dat;
+				}
+				$this->masterReply($packet, array('type' => 'daemons', 'daemons' => $list));
+				break;
+			case 'stop': // STOP DAEMON
+				Logger::log(Logger::LOG_INFO, 'Stop command received via control socket, stopping...');
+				$this->masterReply($packet, array('type' => 'ack', 'ack' => 'stop'));
+				foreach(array_keys($this->daemons) as $port) {
+					$this->killDaemon($port, 800);
+				}
+				$exp = time() + 12;
+				while(count($this->daemons) > 0) {
+					$this->checkRunning();
+					$this->receiveStopped();
+					$this->childrenStatus();
+					$this->readIPCs(200000);
+					foreach($this->daemons as $id=>$dat) {
+						if ($dat['status'] == 'Z') {
+							$this->masterReply($packet, array('type' => 'finished', 'finished' => $id));
+							unset($this->daemons[$id]);
+						}
+					}
+					if ($exp <= time()) {
+						Logger::log(Logger::LOG_WARN, 'Not all processes finished after 12 seconds');
+						$this->masterReply($packet, array('type' => 'notify', 'notify' => 'stop_soft_failure'));
+						break;
+					}
+				}
+				Logger::log(Logger::LOG_INFO, 'Good bye!');
+				$this->masterReply($packet, array('type' => 'ack', 'ack' => 'stop_finished'));
+				exit;
+			default:
+				$this->masterReply($packet, array('exception' => 'No such command!'));
+				break;
+		}
+	}
+
+	public function masterReply($packet, array $data) {
+		if (isset($packet['seq'])) $data['seq'] = $packet['seq'];
+		$data = serialize($data);
+		return fwrite($packet['sock'], pack('N', strlen($data)+4).$data);
 	}
 
 	/**
@@ -163,11 +261,11 @@ class Core {
 	}
 
 	public function registerSocketWait($socket, $callback, &$data) {
-		$this->fdlist[$socket] = array('type'=>'callback', 'fd'=>$socket, 'callback'=>$callback, 'data'=>&$data);
+		$this->fdlist[(int)$socket] = array('type'=>'callback', 'fd'=>$socket, 'callback'=>$callback, 'data'=>&$data);
 	}
 
 	public function removeSocket($fd) {
-		unset($this->fdlist[$fd]);
+		unset($this->fdlist[(int)$fd]);
 	}
 
 	public function sighandler($signal) {
@@ -199,21 +297,22 @@ class Core {
 	}
 
 	private function loadProcessDaemon($port, $node) {
-		return $this->loadDaemon($port, $node, $this->makeDaemonKey($node, 'Process'));
+		return $this->loadDaemon($port, $node, 'Process');
 	}
 
 	private function loadTCPDaemon($port, $node) {
-		return $this->loadDaemon($port, $node, $this->makeDaemonKey($node, 'TCP'));
+		return $this->loadDaemon($port, $node, 'TCP');
 	}
 	
 	private function loadUDPDaemon($port, $node) {
-		return $this->loadDaemon($port, $node, $this->makeDaemonKey($node, 'UDP'));
+		return $this->loadDaemon($port, $node, 'UDP');
 	}
 
-	private function loadDaemon($port, $node, $key) {
+	private function loadDaemon($port, $node, $type) {
+		$key = $this->makeDaemonKey($node, $type);
 		// determine HERE if we should fork...
 		$daemon = &$this->daemons[$key];
-		$good_keys = array('Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Ip' => 1, 'Service' => 1);
+		$good_keys = array('Type' => 1, 'Daemon'=>1, 'SSL' => 1, 'Port' => 1, 'Ip' => 1, 'Service' => 1);
 		foreach(array_keys($daemon) as $_key) {
 			if (!isset($good_keys[$_key])) unset($daemon[$_key]);
 		}
@@ -292,6 +391,7 @@ class Core {
 			foreach($Entry->attributes() as $attr => $aval) $data[$attr] = (string)$aval;
 			$offset = (int)$this->config->Processes['PortOffset'];
 			$data['Port'] += $offset;
+			$data['Type'] = $Type;
 			$key = $this->makeDaemonKey($Entry, $Type);
 			if (isset($this->daemons[$key]))
 				continue; // no care

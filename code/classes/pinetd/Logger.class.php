@@ -96,8 +96,17 @@ class Logger {
 		if (!is_null($this->IPC)) {
 			return $this->IPC->log($pid, $stamp, $level, $msg);
 		}
-		// TODO: log to file/syslog/whatever depending on config, instead of stdout
-		echo '['.date('Y-m-d H:i:s').':'.$pid.'] '.$level.': '.$msg."\n";
+
+		// TODO: allow to override this in config
+		$logdir = PINETD_ROOT . '/logs';
+		if (!is_dir($logdir)) mkdir($logdir);
+		$fp = fopen($logdir . '/system_'.date('Y-m').'.log', 'a');
+		if (!$fp) {
+			echo '['.date('Y-m-d H:i:s').':'.$pid.'] '.$level.': '.$msg."\n";
+		} else {
+			fwrite($fp, '['.date('Y-m-d H:i:s').':'.$pid.'] '.$level.': '.$msg."\n");
+			fclose($fp);
+		}
 	}
 
 	/**

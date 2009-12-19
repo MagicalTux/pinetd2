@@ -1,0 +1,2 @@
+#!/bin/sh
+exec ./php/php -d date.timezone=GMT code/root.php "$@"
