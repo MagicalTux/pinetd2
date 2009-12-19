@@ -1,2 +1,2 @@
 #!/bin/sh
-exec ./php/php -d date.timezone=GMT code/root.php "$@"
+exec ./php/php -dmagic_quotes_gpc=0 -d date.timezone=GMT code/root.php "$@"
