@@ -42,7 +42,8 @@ class DbEngine {
 
 		if (!isset($this->localConfig['Master'])) {
 			// we are master
-			var_dump($this->domainHitCache);
+			// TODO: what will we do of those data?
+//			var_dump($this->domainHitCache);
 		} else {
 			// we are slave
 			foreach($this->domainHitCache as $domain => $hits) {
