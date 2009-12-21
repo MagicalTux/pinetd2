@@ -127,7 +127,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('-ERR You do not need to AUTH two times');
 			return;
 		}
-		if ($this->protocol == 'tcp') return $this->sendMsg('-ERR Need SSL before logging in');
+		if (($this->IPC->requireSsl()) && ($this->protocol == 'tcp')) return $this->sendMsg('-ERR Need SSL before logging in');
 		if (!$argv[1]) {
 			$this->sendMsg('+OK list of SASL extensions follows');
 			$this->sendMsg('PLAIN');
@@ -162,7 +162,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('-ERR already logged in');
 			return;
 		}
-		if ($this->protocol == 'tcp') return $this->sendMsg('-ERR Need SSL before logging in');
+		if (($this->IPC->requireSsl()) && ($this->protocol == 'tcp')) return $this->sendMsg('-ERR Need SSL before logging in');
 		if (count($argv) < 2) {
 			$this->sendMsg('-ERR Syntax: USER <login>');
 			return;
@@ -176,7 +176,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('-ERR Already logged in');
 			return;
 		}
-		if ($this->protocol == 'tcp') return $this->sendMsg('-ERR Need SSL before logging in');
+		if (($this->IPC->requireSsl()) && ($this->protocol == 'tcp')) return $this->sendMsg('-ERR Need SSL before logging in');
 		if (count($argv) < 2) {
 			$this->sendMsg('-ERR Syntax: PASS <password>');
 			return;

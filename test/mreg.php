@@ -62,7 +62,7 @@ class MREG_client {
 $mreg = new MREG_client('ws.uid.st','mutumsigillum','z198#CApoc98');
 var_dump($mreg->query(array('operation' => 'describe')));
 
-var_dump($mreg->query(array('command' => 'QueryMobileAccountList', 'wide' => 1)));
+var_dump($mreg->query(array('command' => 'StatusContact', 'contact' => 'P-JPW756')));
 
 //var_dump($mreg->query(array('command' => 'CheckDomains', 'domain0' => 'legende.net', 'domain1' => 'magicaltux.biz', 'domain2' => 'fofezufzeuifzefze.com')));
 
