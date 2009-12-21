@@ -19,7 +19,7 @@ echo "** When asked for Common Name, enter the server's name"
 echo '*****'
 echo
 
-"$OPENSSL" req -new -out "$CERTIFICATE.req.pem" -keyout "$CERTIFICATE.key.pem" -nodes
+"$OPENSSL" req -new -out "$CERTIFICATE.req.pem" -newkey rsa:2048 -keyout "$CERTIFICATE.key.pem" -nodes
 chmod 0400 "$CERTIFICATE.req.pem"
 
 "$OPENSSL" req -x509 -days 365 -in "$CERTIFICATE.req.pem" -key "$CERTIFICATE.key.pem" -out "$CERTIFICATE.cert.pem"
