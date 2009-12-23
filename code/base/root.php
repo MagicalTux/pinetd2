@@ -18,6 +18,7 @@
  */
 
 define('PINETD_VERSION', '2.0.0beta1');
+ignore_user_abort(true); // avoid death by lack of controlling terminal
 
 require_once(PINETD_CODE.'/base/classfunc.php');
 require_once(PINETD_CODE.'/base/basefunc.php');
