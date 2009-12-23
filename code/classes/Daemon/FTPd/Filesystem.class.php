@@ -256,7 +256,7 @@ class Filesystem {
 		$fil = $this->convertPath($fil);
 		if ((is_null($fil)) || ($fil === false)) return false;
 
-		return filesize($this->root . $fil);
+		return @filesize($this->root . $fil);
 	}
 
 	public function unLink($fil) {

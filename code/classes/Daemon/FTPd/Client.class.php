@@ -711,7 +711,7 @@ class Client extends \pinetd\TCP\Client {
 
 		$size = $this->fs->size($fullarg);
 		if ($size === false) {
-			$this->sendMsg('500 File not found or too many symlink levels');
+			$this->sendMsg('550 File not found or too many symlink levels');
 			return;
 		}
 
