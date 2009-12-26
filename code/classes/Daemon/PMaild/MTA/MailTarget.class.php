@@ -281,7 +281,7 @@ class MailTarget {
 		\curl_setopt($ch, CURLOPT_INFILE, $txn['fd']);
 		\curl_setopt($ch, CURLOPT_INFILESIZE, $len);
 		\curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		\curl_setopt($ch, CURLOPT_HTTPHEADERS, array('X-Ipc: MAIL'));
+		\curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-Ipc: MAIL'));
 		$res = \curl_exec($ch);
 		if (substr($res, 0, 3) == '250') return null;
 		if (!preg_match("/^[0-9]{3} [^\n]+\$/", $res)) {
