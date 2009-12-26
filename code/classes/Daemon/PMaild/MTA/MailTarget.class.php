@@ -232,7 +232,7 @@ class MailTarget {
 			switch($call['action']) {
 				case 'redirect':
 					$this->target['type'] = 'remote';
-					$this->target['mail'] = $call['target'];
+					$this->target['target'] = $call['target'];
 					return $this->process($txn); // reinject mail into system
 				default:
 					throw new Exception('Unknown call action');
