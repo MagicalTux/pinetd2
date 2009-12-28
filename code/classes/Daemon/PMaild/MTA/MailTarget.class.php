@@ -237,7 +237,7 @@ class MailTarget {
 				case 'redirect':
 					$this->target['type'] = 'remote';
 					$this->target['target'] = $call['target'];
-					if (isset($call['header'])) {
+					if (isset($call['headers'])) {
 						foreach($call['headers'] as $h)
 							$this->target['extra_headers'][] = $h;
 					}
