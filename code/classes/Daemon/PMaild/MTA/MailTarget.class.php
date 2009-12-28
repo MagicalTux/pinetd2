@@ -193,6 +193,10 @@ class MailTarget {
 		$store = $this->makeUniq('mailqueue');
 		// store file
 		$out = fopen($store, 'w');
+		if (isset($this->target['extra_headers'])) {
+			foreach($this->target['extra_headers'] as $h)
+				fputs($out, Mail::header($h[0], $h[1]));
+		}
 		fputs($out, Mail::header('Received', '(PMaild '.getmypid().' invoked for remote email '.$this->target['mail'].'); '.date(DATE_RFC2822)));
 		rewind($txn['fd']);
 		stream_copy_to_stream($txn['fd'], $out);
@@ -233,6 +237,10 @@ class MailTarget {
 				case 'redirect':
 					$this->target['type'] = 'remote';
 					$this->target['target'] = $call['target'];
+					if (isset($call['header'])) {
+						foreach($call['headers'] as $h)
+							$this->target['extra_headers'][] = $h;
+					}
 					return $this->process($txn); // reinject mail into system
 				default:
 					throw new Exception('Unknown call action');
