@@ -173,6 +173,11 @@ class Storage {
 				'type' => 'DATETIME',
 				'null' => false,
 			),
+			'tracker' => array(
+				'type' => 'VARCHAR',
+				'size' => 128,
+				'null' => true,
+			),
 			'pid' => array(
 				'type' => 'INT',
 				'size' => 10,

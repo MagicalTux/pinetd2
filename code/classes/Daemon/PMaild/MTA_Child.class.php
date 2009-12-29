@@ -9,6 +9,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 	protected $sql;
 	protected $localConfig;
 	protected $mail = null;
+	protected $ch;
 
 	public function mainLoop($IPC) {
 		$this->IPC = $IPC;
@@ -32,6 +33,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 				$mail = $DAO_mailqueue->loadByField($row);
 				if (!$mail) continue; // ?!
 				$mail = $mail[0];
+				$this->track($mail, 'PROCESSING', '200 Mail being processed');
 				$this->setProcessStatus($mail->to);
 				$this->mail = $mail;
 				// ok, we got our very own mlid
@@ -45,6 +47,25 @@ class MTA_Child extends \pinetd\ProcessChild {
 				}
 			}
 		}
+	}
+
+	protected function track($mail, $status, $status_message, $host = 'none') {
+		if (!$mail->tracker) return;
+
+		if (!$this->ch) {
+			$this->ch = curl_init();
+			curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
+			curl_setopt($this->ch, CURLOPT_HTTPHEADER, array('X-Ipc: MAIL_TRACK'));
+		}
+		curl_setopt($this->ch, CURLOPT_URL, $mail->tracker);
+		$query = array(
+			'mlid' => $mail->mlid,
+			'status' => $status,
+			'status_host' => $host,
+			'status_message' => $status_message,
+		);
+		curl_setopt($this->ch, CURLOPT_POSTFIELDS, http_build_query($query, '', '&'));
+		curl_exec($this->ch); // send query
 	}
 
 	public function shutdown() {
@@ -66,6 +87,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$file = $this->mailPath($mail->mlid);
 		$target = imap_rfc822_parse_adrlist($mail->to, '');
 		$host = $target[0]->host;
+		$this->track($mail, 'DNS_RESOLVE', '200 Resolving DNS for host '.$host);
 		$mx = dns_get_record($host, DNS_MX);
 
 		$count = 0;
@@ -94,6 +116,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 				}
 			} catch(\Exception $e) {
 				Logger::log(Logger::LOG_INFO, 'MX '.$mx.' refused mail: '.$e->getMessage());
+				$this->track($mail, 'ERROR', $e->getMessage(), $mx);
 				$this->error[$mx] = $e;
 				$status = (string)$e->getCode();
 				if ($status[0] =='5') break; // fatal error
@@ -217,6 +240,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$file = $this->mailPath($mail->mlid);
 		if (!file_exists($file)) throw new \Exception('Mail queued but file not found: '.$mail->mlid);
 		$this->IPC->selectSockets(0);
+		$this->track($mail, 'CONNECT', '200 Connecting to host', $host);
 		$sock = fsockopen($host, 25, $errno, $errstr, 30);
 		stream_set_timeout($sock, 120); // 120 secs timeout on read
 		if (!$sock) throw new \Exception('Connection failed: ['.$errno.'] '.$errstr, 400); // not fatal (400)
@@ -229,6 +253,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$this->readMxAnswer($sock);
 		$this->writeMx($sock, 'RCPT TO:<'.$mail->to.'>');
 		$this->readMxAnswer($sock);
+		$this->track($mail, 'TRANSMIT', '200 Transmitting email', $host);
 		$this->writeMx($sock, 'DATA');
 		$this->readMxAnswer($sock, 3);
 		$fp = fopen($file, 'r');
@@ -242,7 +267,8 @@ class MTA_Child extends \pinetd\ProcessChild {
 			fputs($sock, $lin);
 		}
 		$this->writeMx($sock, '.');
-		$this->readMxAnswer($sock, 2, true);
+		$final = $this->readMxAnswer($sock, 2, true);
+		$this->track($mail, 'SUCCESS', $final[0], $host);
 		$this->writeMx($sock, 'QUIT');
 		try {
 			$this->readMxAnswer($sock, 2, true);

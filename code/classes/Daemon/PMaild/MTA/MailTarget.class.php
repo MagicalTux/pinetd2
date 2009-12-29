@@ -207,6 +207,7 @@ class MailTarget {
 			'queued' => $this->sql->now(),
 		);
 		if ($this->from !== '') $insert['from'] = $this->from;
+		if (isset($this->target['tracker'])) $insert['tracker'] = $this->target['tracker'];
 		$DAO = $this->sql->DAO('mailqueue', array('mlid', 'to'));
 		if ($DAO->insertValues($insert)) return null;
 		@unlink($store);
@@ -241,6 +242,7 @@ class MailTarget {
 						foreach($call['headers'] as $h)
 							$this->target['extra_headers'][] = $h;
 					}
+					if (isset($call['tracker'])) $this->target['tracker'] = $call['tracker'];
 					return $this->process($txn); // reinject mail into system
 				default:
 					throw new Exception('Unknown call action');
