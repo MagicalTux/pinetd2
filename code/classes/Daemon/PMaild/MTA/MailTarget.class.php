@@ -242,7 +242,10 @@ class MailTarget {
 						foreach($call['headers'] as $h)
 							$this->target['extra_headers'][] = $h;
 					}
-					if (isset($call['tracker'])) $this->target['tracker'] = $call['tracker'];
+					if (isset($call['tracker'])) {
+						$this->target['tracker'] = $call['tracker'];
+						$this->from = ''; // tracker => do not use "from" anymore?
+					}
 					return $this->process($txn); // reinject mail into system
 				default:
 					throw new Exception('Unknown call action');
@@ -259,6 +262,13 @@ class MailTarget {
 	// Forward email to an HTTP addr
 	function processHttp(&$txn) {
 		$url = $this->target['target'];
+		
+		if ($url[0] == '!') {
+			$res = $this->runProtections($txn);
+			if (!is_null($res)) return $res;
+			$url = substr($url, 1);
+		}
+
 		$c = '?';
 		if (strpos($url, '?') !== false) $c = '&';
 		$param = array(
