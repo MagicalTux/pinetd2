@@ -7,12 +7,11 @@ use pinetd\IPC;
 use pinetd\Timer;
 
 class Connector extends \pinetd\Process {
-	private $mreg;
-	private $mreg_status;
-	private $mreg_ping;
-	private $mreg_buf;
+	private $mreg = array();
+	private $queue;
 
 	public function __construct($id, $daemon, $IPC, $node) {
+		$this->queue = new \SplPriorityQueue();
 		parent::__construct($id, $daemon, $IPC, $node);
 	}
 
@@ -24,9 +23,42 @@ class Connector extends \pinetd\Process {
 //		Logger::log(Logger::LOG_WARN, 'IPC for '.$info['pid'].' died');
 	}
 
-	public function mreg($cmd) {
-		if ($this->mreg_status != 2) return NULL; // not ready
-		if ($this->mreg_buf != '') return NULL; // buffer not parsed yet
+	public function _asyncPort_mreg(array $params, array $reply) {
+		// need to add reply at end of reply, and call $this->IPC->routePortReply($reply, <is_exception>)
+		$cmd = $params[0];
+		$this->queue->insert(array('command' => $cmd, 'reply' => $reply), $params[1] ?: 0); // priority is second argument, but is optionnal
+		$this->runQueue();
+	}
+
+	protected function runQueue() {
+		if (!$this->queue->count()) return;
+
+		foreach($this->mreg as &$cnx) {
+			if ($cnx['status'] != 2) continue; // not ready
+			if ($cnx['job']) continue; // processing a job
+
+			// dequeue a job and pass it
+			$cnx['job'] = $this->queue->current();
+			$this->sendJob($cnx);
+			$this->queue->next();
+			if (!$this->queue->valid()) return; // no more stuff in queue
+		}
+
+		if (count($this->mreg) < 2) {
+			$new = 2-count($this->mreg);
+			for($i = 0; $i < $new; $i++)
+				$this->startMreg();
+		}
+
+		if ($this->queue->count() > 0) {
+			if (count($this->mreg) >= 5) continue; // can't run more mregs
+			$this->startMreg();
+		}
+	}
+
+	public function sendJob(&$cnx) {
+		$cmd = $cnx['job']['command'];
+
 		if (isset($cmd['command'])) {
 			$cmdstr = "[METAREGISTRY]\r\nversion=1\r\n[COMMAND]\r\n";
 			foreach($cmd as $var => $val) {
@@ -39,21 +71,108 @@ class Connector extends \pinetd\Process {
 				$cmdstr .= $var.':'.$val."\r\n";
 			}
 		}
-		fwrite($this->mreg, $cmdstr.".\r\n");
-		stream_set_timeout($this->mreg, 30);
+
+		fwrite($cnx['fd'], $cmdstr.".\r\n");
+		$cnx['idle'] = time();
+	}
+
+	public function startMreg() {
+		// start a new mreg
+		Logger::log(Logger::LOG_INFO, 'Connecting to MREG server...');
+		$fd = stream_socket_client('tls://'.$this->localConfig['MREG']['Host'].':'.$this->localConfig['MREG']['Port'], $errno, $errstr, 10);
+		if (!$fd) {
+			Logger::log(Logger::LOG_WARN, 'Could not connect!! :(');
+			return false;
+		}
+		$this->mreg[(int)$fd] = array(
+			'fd' => $fd,
+			'buf' => '',
+			'idle' => time(),
+			'status' => 0, // 0=waiting for initial input
+		);
+		$this->IPC->registerSocketWait($fd, array($this, 'mregData'), $e=array((int)$fd));
+	}
+
+	public function shutdown() {
+		// send stop signal to clients
+		Logger::log(Logger::LOG_INFO, 'MREG connector stopping...');
+		foreach($this->mreg as &$cnx) {
+			$cnx['job'] = array('command' => array('operation' => 'quit'));
+			$cnx['status'] = -1;
+			$this->sendJob($cnx);
+		}
+		return true;
+	}
+
+	public function checkMregConnection() {
+		foreach($this->mreg as &$cnx) {
+			if ($cnx['job'] && ($cnx['idle'] < (time()-20))) {
+				// operation timeout
+				$reply = $cnx['job']['reply'];
+				$reply[] = null;
+				$this->IPC->routePortReply($reply);
+
+				$this->IPC->removeSocket($cnx['fd']);
+				unset($this->mreg[(int)$cnx['fd']]);
+				fclose($cnx['fd']);
+			}
+
+			if (($cnx['status'] != 2) && ($cnx['idle'] < (time()-40))) {
+				// timeout on connection establishement => let's forget it
+				$this->IPC->removeSocket($cnx['fd']);
+				unset($this->mreg[(int)$cnx['fd']]);
+				fclose($cnx['fd']);
+			}
+
+			if ((!$cnx['job']) && ($cnx['status'] == 2) && ($cnx['idle'] < (time()-300))) {
+				// no job, and has been waiting for 300 secs, let's insert a job now :)
+				$cnx['job'] = array('command' => array('operation' => 'describe'));
+				$this->sendJob($cnx);
+			}
+		}
+
+		// now, check that we have at least 2 mregs
+		if (count($this->mreg) < 2) {
+			$new = 2-count($this->mreg);
+			for($i = 0; $i < $new; $i++)
+				$this->startMreg();
+		}
+		return true;
+	}
+
+	protected function parseMregPacket(&$cnx, $packet) {
+		if ($cnx['status'] == 0) {
+			// request login
+			Logger::log(Logger::LOG_DEBUG, 'Logging in to MREG...');
+			fwrite($cnx['fd'], "session\r\n-Id:".$this->localConfig['MREG']['Login']."\r\n-Password:".$this->localConfig['MREG']['Password']."\r\n.\r\n");
+			$cnx['status'] = 1;
+			return;
+		}
+		if ($cnx['status'] == 1) {
+			Logger::log(Logger::LOG_DEBUG, $packet);
+			if (substr($packet, 0, 3) != '200') {
+				Logger::log(Logger::LOG_ERR, 'Failed to login to MREG, disconnecting...');
+				unset($this->mreg[(int)$cnx['fd']]);
+				fclose($cnx['fd']);
+				$this->checkMregConnection();
+				return;
+			}
+			$cnx['status'] = 2;
+			$this->runQueue();
+			return;
+		}
+
+		if (!$cnx['job']) return; // no job in progress?
+		$cmd = $cnx['job']['command'];
+		$reply = $cnx['job']['reply'];
+		unset($cnx['job']);
+		if (!$reply) return;
 
 		if (isset($cmd['command'])) {
 			$x = '';
-			while(1) {
-				$lin = fgets($this->mreg, 4096);
-				if ($lin === false) {
-					fclose($this->mreg);
-					$this->mreg = false;
-					$this->checkMregConnection();
-					return null;
-				}
+			$packet = explode("\n", $packet);
+			foreach($packet as $lin) {
 				$lin = rtrim($lin);
-				if ($lin == '.') break;
 
 				$pos = strpos($lin, '=');
 				if ($pos === false) continue;
@@ -61,92 +180,40 @@ class Connector extends \pinetd\Process {
 			}
 			ini_set('magic_quotes_gpc', false);
 			parse_str($x, $res);
-			return $res;
-		}
 
-		$res = '';
-		while(1) {
-			$lin = fgets($this->mreg, 4096);
-			if (rtrim($lin) == '.') break;
-			$res .= $lin;
-		}
+			$reply[] = $res;
+			$this->IPC->routePortReply($reply);
 
-		return $res;
-	}
-
-	public function shutdown() {
-		// send stop signal to clients
-		Logger::log(Logger::LOG_INFO, 'MREG connector stopping...');
-		$this->mreg(array('operation' => 'quit'));
-		$this->mreg_status = -1;
-		return true;
-	}
-
-	public function checkMregConnection() {
-		if ($this->mreg_status == -1) return false;
-		if ($this->mreg) {
-			// TODO: check for idle time (300 secs)
-			if ($this->mreg_ping < time()) {
-				$this->mreg(array('operation' => 'describe')); // "ping"
-				$this->mreg_ping = time()+300;
-			}
-			return true;
-		}
-		Logger::log(Logger::LOG_INFO, 'Connecting to MREG server...');
-		$this->mreg = stream_socket_client('tls://'.$this->localConfig['MREG']['Host'].':'.$this->localConfig['MREG']['Port'], $errno, $errstr, 10);
-		if (!$this->mreg) {
-			Logger::log(Logger::LOG_WARN, 'Could not connect!! :(');
-			return true;
-		}
-
-		$this->mreg_status = 0; // 0 = no connection handshake yet, waiting for input
-		$this->mreg_ping = time()+45;
-		$this->mreg_buf = '';
-		$this->IPC->registerSocketWait($this->mreg, array($this, 'mregData'), $e=array());
-		return true;
-	}
-
-	protected function parseMregPacket($packet) {
-		if ($this->mreg_status == 0) {
-			// request login
-			Logger::log(Logger::LOG_DEBUG, 'Logging in to MREG...');
-			fwrite($this->mreg, "session\r\n-Id:".$this->localConfig['MREG']['Login']."\r\n-Password:".$this->localConfig['MREG']['Password']."\r\n.\r\n");
-			$this->mreg_status = 1;
 			return;
 		}
-		if ($this->mreg_status == 1) {
-			Logger::log(Logger::LOG_DEBUG, $packet);
-			if (substr($packet, 0, 3) != '200') {
-				Logger::log(Logger::LOG_ERR, 'Failed to login to MREG, disabling...');
-				$this->mreg_status = -1;
-				fclose($this->mreg);
-				$this->mreg = NULL;
-				return;
-			}
-			$this->mreg_status = 2;
-			return;
-		}
-		var_dump($packet);
+
+		$reply[] = $packet;
+		$this->IPC->routePortReply($reply);
 	}
 
-	public function mregData() {
-		$read = fread($this->mreg, 4096);
+	public function mregData($id) {
+		if (!isset($this->mreg[$id])) return false;
+
+		$cnx = &$this->mreg[$id];
+
+		$read = fread($cnx['fd'], 4096);
 		if (is_bool($read) || ($read === '')) {
-			Logger::log(Logger::LOG_WARN, 'Lost connection to MREG, reconnecting...');
-			fclose($this->mreg);
-			$this->mreg = false;
+			Logger::log(Logger::LOG_WARN, 'Lost connection to MREG');
+			$this->IPC->removeSocket($cnx['fd']);
+			unset($this->mreg[(int)$cnx['fd']]);
+			fclose($cnx['fd']);
 			$this->checkMregConnection();
 			return;
 		}
-		$this->mreg_buf .= $read;
+		$cnx['buf'] .= $read;
 
 		while(1) {
-			$pos = strpos($this->mreg_buf, "\r\n.\r\n");
+			$pos = strpos($cnx['buf'], "\r\n.\r\n");
 			if ($pos === false) return;
 
-			$packet = substr($this->mreg_buf, 0, $pos);
-			$this->mreg_buf = (string)substr($this->mreg_buf, $pos+5);
-			$this->parseMregPacket($packet);
+			$packet = substr($cnx['buf'], 0, $pos);
+			$cnx['buf'] = (string)substr($cnx['buf'], $pos+5);
+			$this->parseMregPacket($cnx, $packet);
 		}
 	}
 

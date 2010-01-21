@@ -44,7 +44,11 @@ class Client extends \pinetd\TCP\Client {
 		if (!$this->id) {
 			$res = $this->handleId($packet);
 		} else {
-			$res = $this->IPC->callPort('MREGd::Connector', 'mreg', array($packet));
+			try {
+				$res = $this->IPC->callPort('MREGd::Connector', 'mreg', array($packet));
+			} catch(\Exception $e) {
+				$res = null;
+			}
 		}
 
 		// handle serialization
