@@ -39,6 +39,7 @@ class Connector extends \pinetd\Process {
 
 			// dequeue a job and pass it
 			$cnx['job'] = $this->queue->current();
+			$cnx['optime'] = time();
 			$this->sendJob($cnx);
 			$this->queue->next();
 			if (!$this->queue->valid()) return; // no more stuff in queue
@@ -88,6 +89,7 @@ class Connector extends \pinetd\Process {
 			'fd' => $fd,
 			'buf' => '',
 			'idle' => time(),
+			'optime' => time(),
 			'status' => 0, // 0=waiting for initial input
 		);
 		$this->IPC->registerSocketWait($fd, array($this, 'mregData'), $e=array((int)$fd));
@@ -104,29 +106,44 @@ class Connector extends \pinetd\Process {
 		return true;
 	}
 
+	protected function closeMreg() {
+		if ($cnx['job']['reply']) {
+			$reply = $cnx['job']['reply'];
+			$reply[] = null;
+			$this->IPC->routePortReply($reply);
+		}
+
+		$this->IPC->removeSocket($cnx['fd']);
+		unset($this->mreg[(int)$cnx['fd']]);
+		fclose($cnx['fd']);
+	}
+
 	public function checkMregConnection() {
+		$c = 0;
 		foreach($this->mreg as &$cnx) {
+			$c++;
 			if ($cnx['job'] && ($cnx['idle'] < (time()-20))) {
 				// operation timeout
-				$reply = $cnx['job']['reply'];
-				$reply[] = null;
-				$this->IPC->routePortReply($reply);
-
-				$this->IPC->removeSocket($cnx['fd']);
-				unset($this->mreg[(int)$cnx['fd']]);
-				fclose($cnx['fd']);
+				$this->closeMreg($cnx);
+				continue;
 			}
 
 			if (($cnx['status'] != 2) && ($cnx['idle'] < (time()-40))) {
 				// timeout on connection establishement => let's forget it
-				$this->IPC->removeSocket($cnx['fd']);
-				unset($this->mreg[(int)$cnx['fd']]);
-				fclose($cnx['fd']);
+				$this->closeMreg($cnx);
+				continue;
 			}
 
 			if ((!$cnx['job']) && ($cnx['status'] == 2) && ($cnx['idle'] < (time()-300))) {
 				// no job, and has been waiting for 300 secs, let's insert a job now :)
 				$cnx['job'] = array('command' => array('operation' => 'describe'));
+				$this->sendJob($cnx);
+			}
+
+			if (($c > 2) && ($cnx['status'] == 2) && ($cnx['optime'] < (time()-900))) {
+				// this one has been running for long enough with no activity
+				$cnx['job'] = array('command' => array('operation' => 'quit'));
+				$cnx['status'] = -1;
 				$this->sendJob($cnx);
 			}
 		}
@@ -152,9 +169,7 @@ class Connector extends \pinetd\Process {
 			Logger::log(Logger::LOG_DEBUG, $packet);
 			if (substr($packet, 0, 3) != '200') {
 				Logger::log(Logger::LOG_ERR, 'Failed to login to MREG, disconnecting...');
-				unset($this->mreg[(int)$cnx['fd']]);
-				fclose($cnx['fd']);
-				$this->checkMregConnection();
+				$this->closeMreg($cnx);
 				return;
 			}
 			$cnx['status'] = 2;
@@ -199,10 +214,7 @@ class Connector extends \pinetd\Process {
 		$read = fread($cnx['fd'], 4096);
 		if (is_bool($read) || ($read === '')) {
 			Logger::log(Logger::LOG_WARN, 'Lost connection to MREG');
-			$this->IPC->removeSocket($cnx['fd']);
-			unset($this->mreg[(int)$cnx['fd']]);
-			fclose($cnx['fd']);
-			$this->checkMregConnection();
+			$this->closeMreg($cnx);
 			return;
 		}
 		$cnx['buf'] .= $read;
