@@ -262,6 +262,11 @@ class IPC {
 		} else {
 			$method = $call[2];
 			try {
+				if (is_callable(array($class, '_delayedProcess_'.$method))) {
+					$reply = array($call[0], $call[1]);
+					$res = call_user_func(array($class, '_asyncPort_'.$method), $call[3], $reply);
+					return;
+				}
 				$res = call_user_func_array(array($class, $method), $call[3]);
 			} catch(\Exception $e) {
 				$exception = array(
@@ -282,7 +287,7 @@ class IPC {
 		}
 	}
 
-	protected function routePortReply($reply, $exception = false) {
+	public function routePortReply($reply, $exception = false) {
 		$target = array_pop($reply[1]);
 		if ($target == '@parent') {
 			$this->sendcmd($exception ? self::RES_CALLPORT_EXCEPT : self::RES_CALLPORT, $reply);
