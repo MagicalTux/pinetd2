@@ -85,6 +85,7 @@ class Connector extends \pinetd\Process {
 			Logger::log(Logger::LOG_WARN, 'Could not connect!! :(');
 			return false;
 		}
+		stream_set_blocking($fd, false);
 		$this->mreg[(int)$fd] = array(
 			'fd' => $fd,
 			'buf' => '',
