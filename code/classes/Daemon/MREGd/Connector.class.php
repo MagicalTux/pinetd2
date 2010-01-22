@@ -106,7 +106,7 @@ class Connector extends \pinetd\Process {
 		return true;
 	}
 
-	protected function closeMreg() {
+	protected function closeMreg(&$cnx) {
 		if ($cnx['job']['reply']) {
 			$reply = $cnx['job']['reply'];
 			$reply[] = null;
