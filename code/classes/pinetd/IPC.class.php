@@ -262,7 +262,7 @@ class IPC {
 		} else {
 			$method = $call[2];
 			try {
-				if (is_callable(array($class, '_asyncPort_'.$method))) {
+				if (method_exists($class, '_asyncPort_'.$method)) {
 					$reply = array($call[0], $call[1]);
 					$res = call_user_func(array($class, '_asyncPort_'.$method), $call[3], $reply);
 					return;
