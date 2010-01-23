@@ -212,7 +212,7 @@ class Connector extends \pinetd\Process {
 
 		$cnx = &$this->mreg[$id];
 
-		$read = fread($cnx['fd'], 4096);
+		$read = fgets($cnx['fd'], 8192);
 		if (is_bool($read) || ($read === '')) {
 			Logger::log(Logger::LOG_WARN, 'Lost connection to MREG');
 			$this->closeMreg($cnx);
