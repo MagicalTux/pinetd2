@@ -81,6 +81,7 @@ class RFC1035 extends Base {
 			case self::TYPE_MX:
 				return pack('n', $val['priority']).$this->pkt->encodeLabel($val['host'], $offset+2);
 			case self::TYPE_TXT:
+				if (strlen($val) > 255) $val = substr($val, 0, 255);
 				return chr(strlen($val)) . $val;
 			case self::TYPE_AXFR:
 				return '';
