@@ -434,6 +434,7 @@ class Core {
 			$this->daemons[$key]['status'] = 'Z';
 			return;
 		}
+		$this->removePorts($this->daemons[$key]['IPC']);
 		if (
 				($this->daemons[$key]['status'] != 'R') && 
 				($this->daemons[$key]['status'] != 'K') &&
@@ -461,12 +462,22 @@ class Core {
 			case 'daemon':
 				$key = $this->fdlist[$fd]['key'];
 				if ($this->daemons[$key]['status'] == 'R')
-				Logger::log(Logger::LOG_DEBUG, 'IPC died on '.$key);
+					Logger::log(Logger::LOG_DEBUG, 'IPC died on '.$key);
 				fclose($fd);
 				unset($this->fdlist[$fd]);
 				$this->killDaemon($key, 10);
 				break;
 		}
+	}
+
+	private function removePorts($class) {
+		if (!is_object($class)) return false;
+		foreach($this->ports as $port => &$info) {
+			if ($info['type'] != 'class') continue;
+			if ($info['class'] === $class)
+				unset($this->ports[$port]);
+		}
+		return true;
 	}
 
 	private function receiveStopped() {
