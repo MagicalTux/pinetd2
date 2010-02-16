@@ -108,7 +108,6 @@ class IPC {
 	 */
 	public function registerSocketWait($fd, $callback, &$data) {
 		if (!is_array($data)) throw new \Exception('No data defined :(');
-		stream_set_blocking($fd, false);
 		$this->fds[(int)$fd] = array('fd'=>$fd, 'last_activity' => time(), 'callback' => $callback, 'data' => &$data);
 	}
 
