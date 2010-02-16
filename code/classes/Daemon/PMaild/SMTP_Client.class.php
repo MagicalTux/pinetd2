@@ -253,13 +253,13 @@ class SMTP_Client extends \pinetd\TCP\Client {
 			return;
 		}
 		$this->txn->reset();
-		$this->sendMsg('250 2.5.0 Ok, have a nice day');
+		$this->sendMsg('250 2.0.0 OK have a nice day');
 	}
 
 	function _cmd_txlg() {
 		$list = $this->txn->transmitLog();
 		foreach($list as $mail => $err) {
-			if (is_null($err)) $err = '250 2.5.0 Ok, have a nice day';
+			if (is_null($err)) $err = '250 2.0.0 OK have a nice day';
 			$this->sendMsg('250-<'.$mail.'>: '.$err);
 		}
 		$this->sendMsg('250 End of list');
