@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 PHP_VERSION=php-5.3.1
 
 PHP_ARCHIVE="$PHP_VERSION".tar.bz2
@@ -13,6 +15,26 @@ if [ ! -d "$PHP_VERSION" ]; then
 	echo -n "Extracting $PHP_VERSION ..."
 	tar xjf "$PHP_ARCHIVE"
 	echo "done"
+	echo "Patching fread()..."
+	cd "$PHP_VERSION"
+	patch -p0 <<EOF
+Index: main/streams/streams.c
+===================================================================
+--- main/streams/streams.c	(revision 295195)
++++ main/streams/streams.c	(working copy)
+@@ -592,6 +592,10 @@
+ 			size -= toread;
+ 			buf += toread;
+ 			didread += toread;
++
++			/* avoid trying to read if we already have data to pass */
++			if (stream->wrapper != &php_plain_files_wrapper)
++				break;
+ 		}
+ 
+ 		/* ignore eof here; the underlying state might have changed */
+EOF
+	cd ..
 fi
 
 cd "$PHP_VERSION"
