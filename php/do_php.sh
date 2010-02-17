@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 PHP_VERSION=php-5.3.1
 
 PHP_ARCHIVE="$PHP_VERSION".tar.bz2
