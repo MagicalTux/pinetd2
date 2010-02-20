@@ -52,7 +52,7 @@ class Connector extends \pinetd\Process {
 		}
 
 		if ($this->queue->count() > 0) {
-			if (count($this->mreg) >= 10) continue; // can't run more mregs
+			if (count($this->mreg) >= 10) return; // can't run more mregs
 			$this->startMreg();
 		}
 	}
