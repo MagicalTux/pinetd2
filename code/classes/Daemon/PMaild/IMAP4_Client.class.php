@@ -972,7 +972,7 @@ A OK FETCH completed
 		if (method_exists($this, $func))
 			return $this->$func($argv);
 
-		$this->sendMsg('BAD Unsupported UID command');
+		$this->sendMsg('BAD Unsupported UID command ('.$fetch.')');
 		return;
 	}
 
