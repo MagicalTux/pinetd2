@@ -40,20 +40,21 @@ class DbEngine {
 	public function processHits() {
 		if (!$this->domainHitCache) return true;
 
-		if (!isset($this->localConfig['Master'])) {
-			// we are master
-			// TODO: what will we do of those data?
-//			var_dump($this->domainHitCache);
-		} else {
+		if (isset($this->localConfig['Master'])) {
 			// we are slave
 			foreach($this->domainHitCache as $domain => $hits) {
 				$this->parent->domainHit($domain, $hits);
 			}
+			$this->domainHitCache = array();
 		}
 
-
-		$this->domainHitCache = array();
 		return true;
+	}
+
+	public function getDomainHits() {
+		$res = $this->domainHitCache;
+		$this->domainHitCache = array();
+		return $res;
 	}
 
 	protected function tableKey($table) {
