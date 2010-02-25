@@ -257,6 +257,8 @@ class Client extends \pinetd\TCP\Client {
 		if (isset($res['chdir']))
 			$this->fs->chDir($res['chdir']);
 
+		$this->fs->setOptions($res);
+
 		$this->updateQuota();
 	}
 

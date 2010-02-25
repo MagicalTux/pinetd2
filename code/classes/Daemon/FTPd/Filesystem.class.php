@@ -5,6 +5,11 @@ namespace Daemon\FTPd;
 class Filesystem {
 	protected $cwd = '/';
 	protected $root = NULL;
+	protected $options;
+
+	public function setOptions($options) {
+		$this->options = $options;
+	}
 
 	public function getCwd() {
 		$dir = $this->cwd;
@@ -22,6 +27,16 @@ class Filesystem {
 	}
 
 	public function isWritable($file) {
+		if (!$this->options['write_level']) return true;
+		if ($file[0] != '/') $file = '/'.$file;
+		while($file_p != $file) {
+			$file_p = $file;
+			$file = preg_replace('#/{2,}#', '/', $file);
+			$file = preg_replace('#/../[^/]+/#', '/', $file);
+			$file = preg_replace('#/[^/]+/../#', '/', $file);
+		}
+		$count = count(explode('/', $file))-2;
+		if ($count < $this->options['write_level']) return false;
 		return true;
 	}
 
