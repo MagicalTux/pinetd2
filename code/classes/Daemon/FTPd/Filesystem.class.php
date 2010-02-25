@@ -28,7 +28,7 @@ class Filesystem {
 
 	public function isWritable($file) {
 		if (!$this->options['write_level']) return true;
-		if ($file[0] != '/') $file = $this->cwd.$file;
+		if ($file[0] != '/') $file = $this->cwd.'/'.$file;
 		if ($file[0] != '/') $file = '/'.$file;
 		while($file_p != $file) {
 			$file_p = $file;
