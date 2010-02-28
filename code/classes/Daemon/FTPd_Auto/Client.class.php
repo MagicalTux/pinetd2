@@ -63,6 +63,14 @@ class Client extends \Daemon\FTPd\Client {
 				chgrp($path.'/'.$sub, 'nobody');
 			}
 		}
+		// extra folders
+		foreach(array('sessions','includes') as $sub) {
+			if (!is_dir($path.'/'.$sub)) {
+				mkdir($path.'/'.$sub, 0755, true);
+				chown($path.'/'.$sub, 'nobody');
+				chgrp($path.'/'.$sub, 'nobody');
+			}
+		}
 
 		// vhost removal
 		$dh = opendir($path);
@@ -70,6 +78,7 @@ class Client extends \Daemon\FTPd\Client {
 			if (($fil == '.') || ($fil == '..')) continue;
 			if ($fil == 'sessions') continue;
 			if ($fil == 'includes') continue;
+			if ($fil == '.svn') continue;
 			if (isset($data['subdomains'][$fil])) continue;
 
 			$archive = '/www/archive/'.date('Y-m-d').'/'.$domain.'_'.$fil.'_'.time();
