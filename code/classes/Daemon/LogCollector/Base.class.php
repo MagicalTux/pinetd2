@@ -46,6 +46,7 @@ class Base extends \pinetd\TCP\Base {
 
 		// store accounting
 		$this->accounting[$data['vhost'].'|'.$data['host']]['time'] += ($data['now'] - $data['request_start']);
+		$this->accounting[$data['vhost'].'|'.$data['host']]['vol'] += $data['bytes_sent'];
 		++$this->accounting[$data['vhost'].'|'.$data['host']]['hit'];
 
 		// generated "combined" logline
