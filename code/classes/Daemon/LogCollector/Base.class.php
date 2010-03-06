@@ -3,6 +3,8 @@
 namespace Daemon\LogCollector;
 
 class Base extends \pinetd\TCP\Base {
+	private $accounting = array();
+
 	public function doAccept($sock) {
 		$news = @stream_socket_accept($sock, 0, $peer);
 		if (!$news) return;
@@ -24,6 +26,14 @@ class Base extends \pinetd\TCP\Base {
 			$lin = substr($buf, 0, $pos);
 			$buf = substr($buf, $pos+1);
 
+			if ((isset($this->localConfig['LogCollector'])) && ($lin == $this->localConfig['LogCollector']['key'])) {
+				fwrite($fd, serialize($this->accounting));
+				$this->accounting = array();
+				$this->IPC->removeSocket($fd);
+				fclose($fd);
+				return;
+			}
+
 			parse_str($lin, $data);
 			$this->handleData($data);
 		}
@@ -33,6 +43,9 @@ class Base extends \pinetd\TCP\Base {
 		if (!is_array($data['headers_in'])) return;
 		$headers_in = array();
 		foreach($data['headers_in'] as $h => $v) $headers_in[strtolower($h)] = $v;
+
+		// store accounting
+		$this->accounting[$data['vhost'].'|'.$data['host']] += ($data['request_start'] - $data['now']);
 
 		// generated "combined" logline
 		$fmt = $data['remote_ip'].' - '.($data['user']?:'-').' ['.date('d/M/Y:H:i:s O', $data['request_start']/1000000).'] "'.addslashes($data['request']).'" '.$data['status'].' '.$data['bytes_sent'].' "'.addslashes($headers_in['referer'][0]?:'-').'" "'.addslashes($headers_in['user-agent'][0]?:'-').'"';
