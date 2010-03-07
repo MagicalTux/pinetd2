@@ -145,6 +145,7 @@ class Engine {
 			if (is_null($answer)) continue;
 			if (!$pkt->hasAnswer()) $row['ttl'] = 0; // trick to avoid remote dns daemon caching the fact that this doesn't exists
 			$pkt->addAuthority($domain . '.', $answer, $row['ttl']);
+			$pkt->setFlag('aa', 1);
 		}
 	}
 
@@ -213,7 +214,6 @@ class Engine {
 			break;
 		}
 
-		$pkt->setFlag('aa', 1);
 		$pkt->setFlag('ra', 0);
 		$this->IPC->callPort('DNSd::DbEngine::'.$this->sql->unique(), 'domainHit', array($domain), false); // do not wait for reply
 
