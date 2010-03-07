@@ -39,7 +39,7 @@ class Engine {
 			'get_domain' => 'SELECT `zone` FROM `domains` WHERE `domain` = ?',
 			'get_zone' => 'SELECT `zone_id` FROM `zones` WHERE `zone` = ?',
 			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
-			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\',\'ZONE\')',
+			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\',\'NS\',\'ZONE\')',
 			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (?)',
 		);
 
@@ -110,6 +110,8 @@ class Engine {
 						$add_lookup[strtolower($aname)] = $aname;
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 					}
+				} elseif (($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type)) {
+					$pkt->addAuthority($ohost. $domain. '.', $answer, $row['ttl']);
 				} else {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
