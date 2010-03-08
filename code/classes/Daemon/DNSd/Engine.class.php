@@ -74,10 +74,13 @@ class Engine {
 		$ohost = $host;
 		if ($ohost != '') $ohost .= '.';
 		$typestr = Type::typeToString($type);
+		$nsonly = false;
 
 		while(1) {
 			// got host & domain, lookup...
-			if ($type != Type\RFC1035::TYPE_ANY) {
+			if ($nsonly) {
+				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), 'NS'));
+			} elseif ($type != Type\RFC1035::TYPE_ANY) {
 				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), $typestr));
 			} else {
 				$res = $this->sql_stmts['get_record_any']->run(array($zone, strtolower($host)));
@@ -110,8 +113,8 @@ class Engine {
 						$add_lookup[strtolower($aname)] = $aname;
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 					}
-				} elseif (($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type)) {
-					$pkt->addAuthority($ohost. $domain. '.', $answer, $row['ttl']);
+				} elseif (($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
+					$pkt->addAuthority($host. $domain. '.', $answer, $row['ttl']);
 				} else {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
@@ -119,7 +122,13 @@ class Engine {
 			if ($found) break;
 			if ($host == '') break;
 			if ($host == '*') break; // can't lookup more
-			if ($host[0] == '*') $host = (string)substr($host, 2);
+			if ($host[0] == '*') {
+				$host = (string)substr($host, 2);
+				$nsonly = true;
+				continue;
+			}
+
+			$nsonly = false;
 
 			$pos = strpos($host, '.');
 			if ($pos === false) {
