@@ -114,7 +114,7 @@ class Engine {
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 					}
 				} elseif (($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
-					$pkt->addAuthority($host.'.'. $domain. '.', $answer, $row['ttl']);
+					$pkt->addAuthority(($host===''?'':$host.'.'). $domain. '.', $answer, $row['ttl']);
 				} else {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
@@ -147,6 +147,8 @@ class Engine {
 		}
 
 		if ($subquery) return;
+
+		if ($pkt->hasAuthority()) return;
 
 		// add authority
 		$res = $this->sql_stmts['get_authority']->run(array($zone, $pkt->hasAnswer()?'NS':'SOA'));

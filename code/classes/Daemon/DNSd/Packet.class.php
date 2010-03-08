@@ -67,6 +67,10 @@ class Packet {
 		return (bool)$this->answer;
 	}
 
+	public function hasAuthority() {
+		return (bool)$this->authority;
+	}
+
 	public function encode() {
 		$qdcount = count($this->question);
 		$ancount = count($this->answer);
