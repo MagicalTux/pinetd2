@@ -40,6 +40,7 @@ class Engine {
 			'get_zone' => 'SELECT `zone_id` FROM `zones` WHERE `zone` = ?',
 			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
 			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\',\'NS\',\'ZONE\')',
+			'get_record_nsonly' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (\'NS\',\'ZONE\')',
 			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (?)',
 		);
 
@@ -79,7 +80,7 @@ class Engine {
 		while(1) {
 			// got host & domain, lookup...
 			if ($nsonly) {
-				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), 'NS'));
+				$res = $this->sql_stmts['get_record_nsonly']->run(array($zone, strtolower($host)));
 			} elseif ($type != Type\RFC1035::TYPE_ANY) {
 				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), $typestr));
 			} else {
