@@ -7,7 +7,7 @@
 
 namespace Daemon\DNSd\Type;
 
-class RFC4408 extends Base {
+class RFC2782 extends Base {
 	const TYPE_SRV = 33;
 	
 	public function decode($val, array $context) {
