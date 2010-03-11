@@ -114,7 +114,7 @@ class Engine {
 						$add_lookup[strtolower($aname)] = $aname;
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 					}
-				} elseif (($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
+				} elseif (($type != Type\RFC1035::TYPE_ANY) && ($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
 					if ($host != '')
 						$pkt->addAuthority($host.'.'. $domain. '.', $answer, $row['ttl']);
 				} else {
