@@ -115,7 +115,8 @@ class Engine {
 						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 					}
 				} elseif (($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
-					$pkt->addAuthority(($host===''?'':$host.'.'). $domain. '.', $answer, $row['ttl']);
+					if ($host != '')
+						$pkt->addAuthority($host.'.'. $domain. '.', $answer, $row['ttl']);
 				} else {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
