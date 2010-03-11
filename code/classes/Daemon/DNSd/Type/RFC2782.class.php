@@ -12,7 +12,7 @@ class RFC2782 extends Base {
 	
 	public function decode($val, array $context) {
 		switch($this->type) {
-			case self::TYPE_SPF:
+			case self::TYPE_SRV:
 				$this->value = unpack('npriority/nrefresh/nretry', substr($val, 0, 6));
 				$offset = 6;
 				$this->value['host'] = $this->pkt->decodeLabel($val, $offset);
@@ -27,7 +27,7 @@ class RFC2782 extends Base {
 	public function encode($val = NULL, $offset = NULL) {
 		if (is_null($val)) $val = $this->value;
 		switch($this->type) {
-			case self::TYPE_SPF:
+			case self::TYPE_SRV:
 				return pack('nnn', $val['priority'], $val['refresh'], $val['retry']).$this->pkt->encodeLabel($val['host'], $offset+6);
 			default: // unknown type
 				return $val;
