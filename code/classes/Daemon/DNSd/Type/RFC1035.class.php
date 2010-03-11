@@ -32,6 +32,7 @@ class RFC1035 extends Base {
 				$this->value['mname'] = $this->pkt->decodeLabel($val, $offset); // master name
 				$this->value['rname'] = $this->pkt->decodeLabel($val, $offset); // responsible email
 				$next_values = unpack('Nserial/Nrefresh/Nretry/Nexpire/Nminimum', substr($val, $offset));
+				foreach($next_values as $var => $val) $this->value[$var] = $val;
 				break;
 			case self::TYPE_MX:
 				$tmp = unpack('n', $val);

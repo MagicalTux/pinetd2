@@ -258,6 +258,14 @@ class Engine {
 					'minimum' => $row['minimum'],
 				));
 				break;
+			case Type\RFC2782::TYPE_SRV:
+				$answer->setValue(array(
+					'priority' => $row['mx_priority'],
+					'host' => $row['data'],
+					'refresh' => $row['refresh'],
+					'retry' => $row['retry'],
+				));
+				break;
 			default:
 				$answer->setValue($row['data']);
 		}
