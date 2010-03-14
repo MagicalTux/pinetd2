@@ -18,6 +18,7 @@ class SQLite3 {
 
 		$this->unique = sha1($settings['File']);
 
+		$this->sqlite->busyTimeout(30000);
 		$this->sqlite->exec('PRAGMA encoding = "UTF-8"');
 		$this->sqlite->exec('PRAGMA legacy_file_format = 0');
 
