@@ -24,6 +24,17 @@ class Storage {
 				'null' => false,
 				'key' => 'zone',
 			),
+			'pzc_stamp' => array(
+				'type' => 'BIGINT',
+				'size' => 20,
+				'unsigned' => true,
+				'null' => true,
+			),
+			'pzc_zone' => array(
+				'type' => 'INT',
+				'size' => 11,
+				'null' => true,
+			),
 			'created' => array(
 				'type' => 'DATETIME',
 				'null' => false,

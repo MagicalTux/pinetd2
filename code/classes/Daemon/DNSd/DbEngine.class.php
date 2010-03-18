@@ -330,9 +330,50 @@ class DbEngine {
 
 		$data['changed'] = $this->sql->now();
 		$data['zone'] = $zone;
+		$data['pzc_zone'] = NULL;
+		$data['pzc_stamp'] = NULL;
 
 		$req = '';
 
+		foreach($data as $var => $val) {
+			$req .= ($req == ''?'':', ') . '`' . $var . '` = ' . $this->sql->quote_escape($val);
+		}
+
+		$req = 'UPDATE `domains` SET '.$req.' WHERE `key` = '.$this->sql->quote_escape($domain);
+
+		$data['key'] = $domain;
+
+		if (!$this->sql->query($req)) return false;
+
+		$this->tcp->dispatch('domains', $domain, $data);
+
+		return true;
+	}
+
+	public function domainPzc($domain, $pzc_zone, $pzc_stamp) {
+		if (!is_numeric($pzc_zone)) {
+			$pzc_zone = $this->getZone($pzc_zone);
+		}
+		if (!is_numeric($domain)) {
+			$domain = $this->getDomain($domain);
+		}
+
+		if ($pzc_stamp < time()) {
+			return $this->changeDomain($domain, $pzc_zone);
+		}
+
+		// load this domain
+		$found = $this->sql->query('SELECT * FROM `domains` WHERE `key` = '.$this->sql->quote_escape($domain))->fetch_assoc();
+		if (!$found) return false;
+		
+		$data = $found;
+		unset($data['key']);
+
+		$data['changed'] = $this->sql->now();
+		$data['pzc_zone'] = $pzc_zone;
+		$data['pzc_stamp'] = $pzc_stamp;
+
+		$req = '';
 		foreach($data as $var => $val) {
 			$req .= ($req == ''?'':', ') . '`' . $var . '` = ' . $this->sql->quote_escape($val);
 		}

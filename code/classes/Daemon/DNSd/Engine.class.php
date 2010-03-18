@@ -36,7 +36,7 @@ class Engine {
 
 	protected function prepareStatements() {
 		$stmts = array(
-			'get_domain' => 'SELECT `zone` FROM `domains` WHERE `domain` = ?',
+			'get_domain' => 'SELECT `zone`, `pzc_stamp`, `pzc_zone` FROM `domains` WHERE `domain` = ?',
 			'get_zone' => 'SELECT `zone_id` FROM `zones` WHERE `zone` = ?',
 			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
 			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\',\'NS\',\'ZONE\')',
@@ -71,7 +71,7 @@ class Engine {
 		return $this->$handler($pkt, $question['qname'], $question['qtype']);
 	}
 
-	protected function buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery = 0, $initial_query = NULL) {
+	protected function buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery = 0, $initial_query = NULL, $max_exp = NULL) {
 		$ohost = $host;
 		if ($ohost != '') $ohost .= '.';
 		$typestr = Type::typeToString($type);
@@ -99,10 +99,12 @@ class Engine {
 					// special type: linking to another zone
 					$link_zone = $this->sql_stmts['get_zone']->run(array(strtolower($row['data'])))->fetch_assoc();
 					if ($link_zone) {
-						$this->buildInternetQuestionReply($pkt, substr($ohost, 0, -1), $link_zone['zone_id'], $domain, $type, $subquery, $initial_query);
+						$this->buildInternetQuestionReply($pkt, substr($ohost, 0, -1), $link_zone['zone_id'], $domain, $type, $subquery, $initial_query, $max_exp);
 					}
 					continue;
 				}
+				
+				if ((!is_null($max_exp)) && ($row['ttl'] > $max_exp)) $row['ttl'] = $max_exp;
 
 				$answer = $this->makeResponse($row, $pkt);
 				if (is_null($answer)) continue;
@@ -156,6 +158,7 @@ class Engine {
 		$res = $this->sql_stmts['get_authority']->run(array($zone, $pkt->hasAnswer()?'NS':'SOA'));
 
 		while($row = $res->fetch_assoc()) {
+			if ((!is_null($max_exp)) && ($row['ttl'] > $max_exp)) $row['ttl'] = $max_exp;
 			$answer = $this->makeResponse($row, $pkt);
 			if (is_null($answer)) continue;
 			if (!$pkt->hasAnswer()) $row['ttl'] = 0; // trick to avoid remote dns daemon caching the fact that this doesn't exists
@@ -232,11 +235,19 @@ class Engine {
 		$pkt->setFlag('ra', 0);
 		$this->IPC->callPort('DNSd::DbEngine::'.$this->sql->unique(), 'domainHit', array($domain), false); // do not wait for reply
 
+		$max_exp = null;
 		$zone = $res['zone'];
+		if ($res['pzc_zone']) {
+			if ($res['pzc_stamp'] > time()) {
+				$max_exp = $res['pzc_stamp'] - time();
+			} else {
+				$zone = $res['pzc_zone'];
+			}
+		}
 
 		$pkt->setDefaultDomain($domain);
 
-		$this->buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery, $initial_query);
+		$this->buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery, $initial_query, $max_exp);
 	}
 
 	protected function makeResponse($row, $pkt) {
