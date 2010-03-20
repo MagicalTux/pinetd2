@@ -57,6 +57,7 @@ class AntiVirus extends \Daemon\PMaild\MTA\MailFilter\MailFilter {
 			rewind($txn['fd']);
 			stream_copy_to_stream($txn['fd'], $out);
 			ftruncate($txn['fd'], 0);
+			rewind($txn['fd']);
 			rewind($out);
 			fputs($txn['fd'], \Daemon\PMaild\MTA\Mail::header('X-AntiVirus-ClamAV', 'clean; '.$clam_version.' on '.date(DATE_RFC2822)));
 			stream_copy_to_stream($out, $txn['fd']);

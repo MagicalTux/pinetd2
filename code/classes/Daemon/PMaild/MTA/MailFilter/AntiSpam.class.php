@@ -38,6 +38,7 @@ class AntiSpam extends \Daemon\PMaild\MTA\MailFilter\MailFilter {
 		fclose($pipes[0]); // send EOF to stdin, will cause the antispam to run
 
 		ftruncate($txn['fd'], 0);
+		rewind($txn['fd']);
 		stream_copy_to_stream($pipes[1], $txn['fd']);
 		fclose($pipes[1]);
 

@@ -230,7 +230,6 @@ class SMTP_Client extends \pinetd\TCP\Client {
 	}
 
 	function parseDataLine($lin) {
-		$lin = str_replace("\0", '', $lin); // fixing a bug with some SSL implementations
 		// we got one line of data
 		// check line ending
 		if (substr($lin, -2) != "\r\n") {
