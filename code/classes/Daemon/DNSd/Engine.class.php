@@ -81,7 +81,7 @@ class Engine {
 			// got host & domain, lookup...
 			if ($nsonly) {
 				$res = $this->sql_stmts['get_record_nsonly']->run(array($zone, strtolower($host)));
-			} elseif ($type != Type\RFC1035::TYPE_ANY) {
+			} elseif (($type != Type\RFC1035::TYPE_ANY) && ($type != Type\RFC1035::TYPE_CNAME)) {
 				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), $typestr));
 			} else {
 				$res = $this->sql_stmts['get_record_any']->run(array($zone, strtolower($host)));
@@ -119,6 +119,8 @@ class Engine {
 				} elseif (($type != Type\RFC1035::TYPE_ANY) && ($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
 					if ($host != '')
 						$pkt->addAuthority($host.'.'. $domain. '.', $answer, $row['ttl']);
+				} elseif (($type == Type\RFC1035::TYPE_CNAME) && ($answer->getType() != $type)) {
+					// do nothing
 				} else {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
