@@ -39,7 +39,6 @@ class Engine {
 			'get_domain' => 'SELECT `zone`, `pzc_stamp`, `pzc_zone` FROM `domains` WHERE `domain` = ?',
 			'get_zone' => 'SELECT `zone_id` FROM `zones` WHERE `zone` = ?',
 			'get_record_any' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ?',
-			'get_record' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (?, \'CNAME\',\'NS\',\'ZONE\')',
 			'get_record_nsonly' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = ? AND `type` IN (\'NS\',\'ZONE\')',
 			'get_authority' => 'SELECT * FROM `zone_records` WHERE `zone` = ? AND `host` = \'\' AND `type` IN (?)',
 		);
@@ -81,8 +80,6 @@ class Engine {
 			// got host & domain, lookup...
 			if ($nsonly) {
 				$res = $this->sql_stmts['get_record_nsonly']->run(array($zone, strtolower($host)));
-			} elseif (($type != Type\RFC1035::TYPE_ANY) && ($type != Type\RFC1035::TYPE_CNAME)) {
-				$res = $this->sql_stmts['get_record']->run(array($zone, strtolower($host), $typestr));
 			} else {
 				$res = $this->sql_stmts['get_record_any']->run(array($zone, strtolower($host)));
 			}
@@ -119,9 +116,7 @@ class Engine {
 				} elseif (($type != Type\RFC1035::TYPE_ANY) && ($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
 					if ($host != '')
 						$pkt->addAuthority($host.'.'. $domain. '.', $answer, $row['ttl']);
-				} elseif (($type == Type\RFC1035::TYPE_CNAME) && ($answer->getType() != $type)) {
-					// do nothing
-				} else {
+				} elseif (($type == Type\RFC1035::TYPE_ANY) || ($answer->getType() == $type)) {
 					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
 				}
 			}
