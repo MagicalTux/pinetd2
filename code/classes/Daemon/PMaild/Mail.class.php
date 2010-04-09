@@ -124,9 +124,72 @@ class Mail {
 
 	public function getStructure() {
 		$this->needMime();
-		// moo!
-		var_dump('hi');
-		return array();
+		$stack = array();
+		$append = array();
+		$append2 = array();
+
+		$parts = $this->DAO('mime')->loadByField($this->where());
+		foreach($parts as $part_bean) {
+			$part = $part_bean->part;
+			$info = $part_bean->getProperties();
+
+			$list = explode('.', $part);
+			$tmp = 'p';
+			$prev = array(); // avoid warnings/notices
+			while($list) {
+				$tmp .= ($tmp=='p'?'':'.').array_shift($list);
+				if (!isset($stack[$tmp])) {
+					$new = array();
+					$prev[] = &$new;
+					$stack[$tmp] = &$new;
+					$prev = &$new;
+					unset($new);
+					continue;
+				}
+				$prev = &$stack[$tmp];
+			}
+			unset($prev);
+
+			$type = explode('/', $info['content_type']);
+			if ($type[0] == 'multipart') {
+				$append['p'.$part] = new Quoted(strtoupper($type[1]));
+				continue;
+			}
+
+			$props = array();
+			if (isset($info['charset'])) {
+				$props[] = new Quoted('CHARSET');
+				$props[] = new Quoted($info['charset']);
+			}
+			if (isset($info['content_name'])) {
+				$props[] = new Quoted('NAME');
+				$props[] = new Quoted($info['content_name']);
+			}
+
+			$cid = NULL;
+			if (isset($info['content_id'])) $cid = new Quoted('<'.$info['content_id'].'>');
+			$desc = NULL;
+			if (isset($info['content_description'])) $desc = new Quoted($info['content_description']);
+
+			$res = array(new Quoted(strtoupper($type[0])), new Quoted(strtoupper($type[1])), $props, $cid, $desc, new Quoted(strtoupper($info['transfer_encoding'])), ($info['ending_pos_body'] - $info['starting_pos_body']));
+			if (strtolower($type[0]) == 'text') $res[] = $info['body_line_count'];
+			if ($info['content_type'] == 'message/rfc822') {
+				$append2['p'.$part] = $info['body_line_count'];
+				$res[] = $this->getEnvelope($part);
+			}
+
+			$stack[$tmp] = $res;
+		}
+
+		foreach($append as $part => $what) {
+			$stack[$part] = array(new ArrayList($stack[$part]), $what);
+		}
+		foreach($append2 as $part => $what) { // bit more complex...
+//			$last = array_pop($stack[$part]);
+//			$stack[$part][] = new ArrayList($last);
+			$stack[$part][] = $what;// = array(new ArrayList($stack[$part]), $what);
+		}
+		return $stack['p1'];
 	}
 
 	public function fetchBody($param) {
@@ -219,6 +282,63 @@ class Mail {
 		foreach($res as $r) $var[] = $r;
 		return $var;
 	}
-}
 
+	public function getEnvelope($part = '1') {
+		$fields = array(
+			'date' => 's', // string
+			'subject' => 's', // string
+			'from' => 'm', // list
+			'sender' => 'm',
+			'reply-to' => 'm',
+			'to' => 'm',
+			'cc' => 'm',
+			'bcc' => 'm',
+			'in-reply-to' => 'l',
+			'message-id' => 's',
+		);
+
+		// load mail headers
+		$headers = $this->getHeaders($part);
+
+		// RFC 3501, page 77
+		if (!isset($headers['sender'])) $headers['sender'] = $headers['from'];
+		if (!isset($headers['reply-to'])) $headers['reply-to'] = $headers['from'];
+
+		$envelope = array();
+		foreach($fields as $head => $type) {
+			if (!isset($headers[$head])) {
+				$envelope[] = null;
+				continue;
+			}
+			switch($type) {
+				case 's':
+					$envelope[] = new Quoted($headers[$head][0]);
+					break;
+				case 'm':
+					$tmp = array();
+					foreach($headers[$head] as $h) {
+						$infolist = imap_rfc822_parse_adrlist($h, '');
+						foreach($infolist as $info) {
+							if ($info->host === '') $info->host = null;
+							$tmp[] = array(new Quoted($info->personal), new Quoted($info->adl), new Quoted($info->mailbox), new Quoted($info->host));
+						}
+					}
+					$envelope[] = $tmp;
+					break;
+				case 'l':
+					$tmp = array();
+					foreach($headers[$head] as $h) {
+						$tmp[] = new Quoted($h);
+					}
+					$envelope[] = $tmp;
+					break;
+				default:
+					$envelope[] = $head;
+					break;
+			}
+		}
+
+		return $envelope;
+	}
+}
 

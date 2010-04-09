@@ -23,6 +23,18 @@ class Quoted {
 	}
 }
 
+class ArrayList {
+	private $value;
+
+	public function __construct($value) {
+		$this->value = $value;
+	}
+
+	public function getValue() {
+		return $this->value;
+	}
+}
+
 class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $login = null;
 	protected $info = null;
@@ -109,7 +121,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		if (is_array($str)) {
 			$res = '';
 			foreach($str as $lbl => $var) {
-				$res.=($res == ''?'':' ').$this->imapParam($var, $lbl);
+				$cur = $this->imapParam($var, $lbl);
+				$res.=($res == ''?'':' ').$cur;
 			}
 			if (is_string($label)) {
 				if ($res == '""')
@@ -120,6 +133,17 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		}
 		if ((is_object($str)) && ($str instanceof Quoted)) {
 			return (string)$str;
+		}
+		if ((is_object($str)) && ($str instanceof ArrayList)) {
+			$res = '';
+			$val = $str->getValue();
+			foreach($val as $var) {
+				$res .= $this->imapParam($var);
+			}
+			if (is_string($label)) {
+				return $label.'['.$res.']';
+			}
+			return $res;
 		}
 		if ($str === '') return '""';
 		if (strpos($str, "\n") !== false) {
@@ -667,61 +691,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					$res[] = $mail->getId();
 					break;
 				case 'ENVELOPE':
-					$fields = array(
-						'date' => 's', // string
-						'subject' => 's', // string
-						'from' => 'm', // list
-						'sender' => 'm',
-						'reply-to' => 'm',
-						'to' => 'm',
-						'cc' => 'm',
-						'bcc' => 'm',
-						'in-reply-to' => 'l',
-						'message-id' => 's',
-					);
-
-					// load mail headers
-					$headers = $mail->getHeaders();
-
-					// RFC 3501, page 77
-					if (!isset($headers['sender'])) $headers['sender'] = $headers['from'];
-					if (!isset($headers['reply-to'])) $headers['reply-to'] = $headers['from'];
-
-					$envelope = array();
-					foreach($fields as $head => $type) {
-						if (!isset($headers[$head])) {
-							$envelope[] = null;
-							continue;
-						}
-						switch($type) {
-							case 's':
-								$envelope[] = new Quoted($headers[$head][0]);
-								break;
-							case 'm':
-								$tmp = array();
-								foreach($headers[$head] as $h) {
-									$infolist = imap_rfc822_parse_adrlist($h, '');
-									foreach($infolist as $info) {
-										if ($info->host === '') $info->host = null;
-										$tmp[] = array(new Quoted($info->personal), new Quoted($info->adl), new Quoted($info->mailbox), new Quoted($info->host));
-									}
-								}
-								$envelope[] = $tmp;
-								break;
-							case 'l':
-								$tmp = array();
-								foreach($headers[$head] as $h) {
-									$tmp[] = new Quoted($h);
-								}
-								$envelope[] = $tmp;
-								break;
-							default:
-								$envelope[] = $head;
-								break;
-						}
-					}
 					$res[] = 'ENVELOPE';
-					$res[] = $envelope;
+					$res[] = $mail->getEnvelope();
 					break;
 				case 'BODY':
 					// TODO: clear "Recent" flag
@@ -737,15 +708,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					break;
 				case 'BODYSTRUCTURE':
 					// XXX TODO FIXME
-					$res_struct = $mail->getStructure();
 					$res[] = 'BODYSTRUCTURE';
-					foreach($res_struct as $t => $v) {
-						if (is_string($t)) {
-							$res[$t] = $v;
-							continue;
-						}
-						$res[] = $v;
-					}
+					$res[] = $mail->getStructure();
 					break;
 				case 'RFC822.SIZE': // TODO: determine if we should include headers in size
 					$res[] = 'RFC822.SIZE';
