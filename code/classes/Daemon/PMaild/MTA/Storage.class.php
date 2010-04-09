@@ -88,6 +88,7 @@ class Storage {
 			'userid' => array('type'=>'BIGINT', 'size'=>20, 'null'=>false, 'unsigned'=>true, 'key'=>'userid'), // fast deletion
 			'mailid' => array('type'=>'BIGINT', 'size'=>20, 'unsigned'=>true, 'null'=>false, 'key' => 'UNIQUE:mime_part'),
 			'part' => array('type'=>'VARCHAR', 'size'=>64, 'null'=>false, 'key' => 'UNIQUE:mime_part'), // ie. "1.2"
+			'imap_part' => array('type'=>'VARCHAR', 'size'=>64, 'null'=>true, 'key' => 'imap_part'), // ie. "1.2"
 			'charset' => array('type' => 'VARCHAR', 'size' => 128, 'null' => false),
 			'content_charset' => array('type' => 'VARCHAR', 'size' => 128, 'null' => true),
 			'transfer_encoding' => array('type' => 'VARCHAR', 'size' => 64, 'null' => false),

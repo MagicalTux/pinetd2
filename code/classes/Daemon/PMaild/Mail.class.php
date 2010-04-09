@@ -7,7 +7,7 @@ class Mail {
 	private $data; // mail
 	private $file; // mail file
 	private $sql;
-	const MIME_CACHE_MAGIC = 0xcafe;
+	const MIME_CACHE_MAGIC = 0xb0ca1;
 
 	public function __construct($info, $mail_data, $file, $sql) {
 		$this->info = $info;
@@ -55,6 +55,9 @@ class Mail {
 	public function generateMimeCache() {
 		$m = mailparse_msg_parse_file($this->file);
 		$struct = mailparse_msg_get_structure($m);
+		$depth = array();
+		$imap_count = array();
+		$part_info = array();
 
 		$info_keep = array(
 			'charset','transfer_encoding','content_name','content_type','content_disposition','content_base','content_id','content_description','content_boundary','disposition_filename',
@@ -65,11 +68,41 @@ class Mail {
 		foreach($struct as $part) {
 			$p = mailparse_msg_get_part($m, $part);
 			$info = mailparse_msg_get_part_data($p);
+			$part_info[$part] = $info;
+			list($type, $subtype) = explode('/', strtolower($info['content-type']));
+
+			$pos = strrpos($part, '.');
+			if ($pos !== false) {
+				$parent = substr($part, 0, $pos);
+			} else {
+				$parent = NULL;
+			}
+
+			if (($type == 'multipart') && (($part == '1') || ($part_info[$parent]['content-type'] == 'message/rfc822'))) {
+				$depth[$part] = 0;
+				$imap_part = NULL;
+			} else {
+				$depth[$part] = 1;
+				$cur_depth = 0;
+				$part_p = explode('.', $part);
+				$tmp = '';
+				foreach($part_p as $n) {
+					$tmp .= ($tmp == ''?'':'.').$n;
+					$cur_depth += $depth[$tmp];
+				}
+				if (!isset($imap_count[$cur_depth-1])) $imap_count[$cur_depth-1] = 0;
+				$imap_count[$cur_depth-1]++;
+				$imap_part = '';
+				for($i = 0; $i < $cur_depth; $i++) {
+					$imap_part .= ($i?'.':'').$imap_count[$i];
+				}
+			}
 
 			$insert = array(
 				'userid' => $this->data->userid,
 				'mailid' => $this->data->mailid,
 				'part' => $part,
+				'imap_part' => $imap_part
 			);
 			foreach($info as $var => $val) {
 				if ($var == 'headers') continue;
@@ -175,7 +208,7 @@ class Mail {
 			if (strtolower($type[0]) == 'text') $res[] = $info['body_line_count'];
 			if ($info['content_type'] == 'message/rfc822') {
 				$append2['p'.$part] = $info['body_line_count'];
-				$res[] = $this->getEnvelope($part);
+				$res[] = $this->getEnvelope($part.'.1'); // get envelope of contents
 			}
 
 			$stack[$tmp] = $res;
@@ -249,7 +282,6 @@ class Mail {
 					$res[] = $head;
 					break;
 				case 'TEXT':
-				case '1':
 					// fetch body text
 					// read file
 					$fp = fopen($this->file, 'r'); // read headers
@@ -275,6 +307,20 @@ class Mail {
 					$res[] = file_get_contents($this->file);
 					break;
 				default:
+					// check if this is a part request
+					$this->needMime();
+					$part = $this->DAO('mime')->loadByField($this->where()+array('imap_part' => $p));
+					if ($part) {
+						// partial body request, answer it!
+						$part = $part[0];
+
+						$fp = fopen($this->file, 'r');
+						if (!$fp) break;
+						fseek($fp, $part->starting_pos_body);
+						$var[] = $p;
+						$res[] = fread($fp, $part->ending_pos_body - $part->starting_pos_body);
+						break;
+					}
 					var_dump('BODY UNKNOWN: '.$p);
 			}
 		}
@@ -293,7 +339,7 @@ class Mail {
 			'to' => 'm',
 			'cc' => 'm',
 			'bcc' => 'm',
-			'in-reply-to' => 'l',
+			'in-reply-to' => 's',
 			'message-id' => 's',
 		);
 
