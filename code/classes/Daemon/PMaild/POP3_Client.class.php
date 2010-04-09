@@ -85,10 +85,8 @@ class POP3_Client extends \pinetd\TCP\Client {
 				clearstatcache();
 				if (file_exists($file)) continue; // could not delete?
 				$mail->delete();
-				$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
-				foreach($DAO_mailheaders->loadByField(array('userid'=>$this->info['account']->id, 'mailid'=>$mailid)) as $header) {
-					$header->delete();
-				}
+				$this->sql->DAO('z'.$this->info['domainid'].'_mime', 'mimeid')->delete(array('userid'=>$this->info['account']->id, 'mailid'=>$mailid));
+				$this->sql->DAO('z'.$this->info['domainid'].'_mime_header', 'headerid')->delete(array('userid'=>$this->info['account']->id, 'mailid'=>$mailid));
 			}
 
 			// Extra: update mail_count and mail_quota (for this user)

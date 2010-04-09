@@ -108,8 +108,8 @@ class Storage {
 		'z%s_mime_header' => array(
 			'headerid' => array('type'=>'BIGINT', 'size'=>20, 'null'=>false, 'unsigned'=>true, 'auto_increment'=>true,'key'=>'PRIMARY'),
 			'mimeid' array('type'=>'BIGINT', 'size'=>20, 'null'=>false, 'unsigned'=>true, 'key'=>'mimeid'),
-			'mailid' => array('type'=>'BIGINT', 'size'=>20, 'unsigned'=>true, 'null'=>false, 'key' => 'mailid'), // fast deletion
 			'userid' => array('type'=>'BIGINT', 'size'=>20, 'null'=>false, 'unsigned'=>true, 'key'=>'userid'), // fast deletion
+			'mailid' => array('type'=>'BIGINT', 'size'=>20, 'unsigned'=>true, 'null'=>false, 'key' => 'mailid'), // fast deletion
 			'header' => array('type'=>'VARCHAR', 'size'=>64, 'null'=>false, 'key'=>'header'),
 			'content' => array('type'=>'LONGTEXT', 'null'=>false, 'key'=>'FULLTEXT:content'),
 		),

@@ -60,7 +60,6 @@ class MailTarget {
 		// invoke DAOs
 		$DAO_accounts = $this->sql->DAO('z'.$this->target['domainid'].'_accounts', 'id');
 		$DAO_mails = $this->sql->DAO('z'.$this->target['domainid'].'_mails', 'mailid');
-		$DAO_mailheaders = $this->sql->DAO('z'.$this->target['domainid'].'_mailheaders', 'id');
 
 		$DAO_filter = $this->sql->DAO('z'.$this->target['domainid'].'_filter', 'id');
 		$DAO_filter_cond = $this->sql->DAO('z'.$this->target['domainid'].'_filter_cond', 'id');
@@ -161,16 +160,6 @@ class MailTarget {
 		$DAO_mails->insertValues($insert);
 		$new = $DAO_mails->loadLast();
 		$newid = $new->mailid;
-		// store headers
-		foreach($headers as $head) {
-			$insert = array(
-				'userid' => $this->target['target'],
-				'mailid' => $newid,
-				'header' => $head['header'],
-				'content' => $head['value'],
-			);
-			$DAO_mailheaders->insertValues($insert);
-		}
 
 		// at this point, the mail is successfully received ! Yatta!
 

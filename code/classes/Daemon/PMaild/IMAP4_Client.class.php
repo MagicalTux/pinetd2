@@ -586,7 +586,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			return;
 		}
 		// delete box content
-		$this->sql->query('DELETE mh, m FROM `z'.$this->info['domainid'].'_mailheaders` AS mh, `z'.$this->info['domainid'].'_mails` AS m WHERE m.`parent` = \''.$this->sql->escape_string($pos).'\' AND m.`account` = \''.$this->sql->escape_string($this->info['account']->id).'\' AND m.mailid = mh.mailid');
+		$this->sql->query('DELETE mm, mmh, m FROM `z'.$this->info['domainid'].'_mime` AS mm, `z'.$this->info['domainid'].'_mime_header` AS mmh, `z'.$this->info['domainid'].'_mails` AS m WHERE m.`parent` = \''.$this->sql->escape_string($pos).'\' AND m.`account` = \''.$this->sql->escape_string($this->info['account']->id).'\' AND m.mailid = mm.mailid AND m.mailid = mmh.mailid');
 		// check if box has childs
 		$res = $DAO_folders->loadByField(array('account' => $this->info['account']->id, 'parent' => $pos));
 		$result = $result[0]; // from the search loop
@@ -602,11 +602,13 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 
 	function _cmd_expunge() {
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
-		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
+		$DAO_mime = $this->sql->DAO('z'.$this->info['domainid'].'_mime', 'mimeid');
+		$DAO_mime_header = $this->sql->DAO('z'.$this->info['domainid'].'_mime_header', 'headerid');
 		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder, new Expr('FIND_IN_SET(\'deleted\',`flags`)>0')));
 		
 		foreach($result as $mail) {
-			$DAO_mailheaders->delete(array('userid' => $this->info['account']->id, 'mailid' => $mail->mailid));
+			$DAO_mime->delete(array('userid' => $this->info['account']->id, 'mailid' => $mail->mailid));
+			$DAO_mime_header->delete(array('userid' => $this->info['account']->id, 'mailid' => $mail->mailid));
 			@unlink($this->mailPath($mail->uniqname));
 			$this->sendMsg($this->reverseMap[$mail->mailid].' EXPUNGE', '*');
 			$mail->delete();
@@ -616,7 +618,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 
 	function fetchMailByUid(array $where, $param) {
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
-		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
+		// TODO: implement headers fetch via mail class
 
 		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder) + $where);
 		if (!$result) return false;
@@ -629,11 +631,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				$id = $this->reverseMap[$uid];
 			}
 
-			$tmp_headers = $DAO_mailheaders->loadByField(array('mailid' => $uid, 'userid' => $this->info['account']->id));
-			$headers = array();
-			foreach($tmp_headers as $h) {
-				$headers[strtolower($h->header)][] = $h;
-			}
+			$headers = array(); // TODO: see top of function
 			$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $headers, $param), '*');
 		}
 		return true;
@@ -1095,7 +1093,6 @@ A OK FETCH completed
 		}
 		if (isset($box['flags']['noselect'])) return $this->sendMsg('NO This folder has \\Noselect flag');
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
-		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
 
 		// invoke MailTarget
 		$class = relativeclass($this, 'MTA\\MailTarget');
@@ -1120,13 +1117,6 @@ A OK FETCH completed
 				));
 				$newid = $this->sql->insert_id;
 				// copy headers
-				$headers = $DAO_mailheaders->loadByField(array('mailid' => $mail->mailid, 'userid' => $this->info['account']->id));
-				foreach($headers as $head) {
-					$head = $head->getProperties();
-					unset($head['id']);
-					$head['mailid'] = $newid;
-					$DAO_mailheaders->insertValues($head);
-				}
 			}
 		}
 
@@ -1216,7 +1206,6 @@ A OK FETCH completed
 		$class = relativeclass($this, 'MTA\\MailTarget');
 		$mailTarget = new $class('', '', $this->localConfig);
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
-		$DAO_mailheaders = $this->sql->DAO('z'.$this->info['domainid'].'_mailheaders', 'id');
 
 		// store this mail, but first generate an unique id
 		$new = $mailTarget->makeUniq('domains', $this->info['domainid'], $this->info['account']->id);
@@ -1241,24 +1230,6 @@ A OK FETCH completed
 		}
 
 		fgets($this->fd); // final ending empty line
-
-		$headers = array();
-		$last = null;
-		rewind($fp);
-		while(!feof($fp)) {
-			$lin = rtrim(fgets($fp, 4096));
-			if ($lin == '') break;
-			if (($lin[0] == ' ') || ($lin[0] == "\t")) {
-				$last['value'] .= ' ' . ltrim($lin);
-				continue;
-			}
-			$pos = strpos($lin, ':');
-			if ($pos === false) continue;
-			unset($last);
-			$last = array('header' => strtolower(trim(substr($lin, 0, $pos))), 'value' => ltrim(substr($lin, $pos+1)));
-			$headers[] = &$last;
-		}
-
 		fclose($fp);
 		$size = filesize($new);
 
@@ -1271,17 +1242,6 @@ A OK FETCH completed
 			'flags' => implode(',', $flags),
 		));
 		$newid = $this->sql->insert_id;
-
-		// read headers
-		foreach($headers as $head) {
-			$head = array(
-				'userid' => $this->info['account']->id,
-				'mailid' => $newid,
-				'header' => $head['header'],
-				'content' => $head['value'],
-			);
-			$DAO_mailheaders->insertValues($head);
-		}
 
 		$this->sendMsg('OK APPEND completed');
 	}
