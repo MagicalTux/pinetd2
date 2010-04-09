@@ -57,6 +57,10 @@ class MailTarget {
 		$res = $this->runProtections($txn);
 		if (!is_null($res)) return $res;
 
+		$domain = $this->target['domainbean'];
+		$domain->last_recv = gmdate('Y-m-d H:i:s');
+		$domain->commit();
+
 		// invoke DAOs
 		$DAO_accounts = $this->sql->DAO('z'.$this->target['domainid'].'_accounts', 'id');
 		$DAO_mails = $this->sql->DAO('z'.$this->target['domainid'].'_mails', 'mailid');
