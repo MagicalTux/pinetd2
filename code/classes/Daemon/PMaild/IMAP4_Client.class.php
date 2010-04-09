@@ -18,7 +18,8 @@ class Quoted {
 	}
 
 	public function __toString() {
-		return $this->value;
+		if (is_null($this->value)) return 'NIL';
+		return '"'.addcslashes($this->value, '"').'"';
 	}
 }
 
@@ -118,7 +119,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			return '('.$res.')';
 		}
 		if ((is_object($str)) && ($str instanceof Quoted)) {
-			return '"'.addcslashes($str, '"').'"';
+			return (string)$str;
 		}
 		if ($str === '') return '""';
 		if (strpos($str, "\n") !== false) {
@@ -631,8 +632,10 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				$id = $this->reverseMap[$uid];
 			}
 
-			$headers = array(); // TODO: see top of function
-			$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $headers, $param), '*');
+			$class = relativeclass($this, 'Mail');
+			$mail = new $class($this->info, $mail, $this->mailPath($mail->uniqname), $this->sql);
+
+			$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $param), '*');
 		}
 		return true;
 	}
@@ -646,12 +649,11 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		return $this->fetchMailByUid(array('mailid' => $uid), $param);
 	}
 
-	function fetchParamByMail($mail, $headers, $param) {
-		$file = $this->mailPath($mail->uniqname);
+	function fetchParamByMail($mail, $param) {
 		$res = array();
 		foreach($param as $id => $item) {
 			if ((is_array($item)) && (is_int($id))) {
-				$res .= $this->fetchParamByMail($mail, $item);
+				$res[] = $this->fetchParamByMail($mail, $item);
 				continue;
 			}
 			$item_param = null;
@@ -662,7 +664,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			switch(strtoupper($item)) {
 				case 'UID':
 					$res[] = 'UID';
-					$res[] = $mail->mailid;
+					$res[] = $mail->getId();
 					break;
 				case 'ENVELOPE':
 					$fields = array(
@@ -677,7 +679,14 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						'in-reply-to' => 'l',
 						'message-id' => 's',
 					);
-					// load mail headers from SQL
+
+					// load mail headers
+					$headers = $mail->getHeaders();
+
+					// RFC 3501, page 77
+					if (!isset($headers['sender'])) $headers['sender'] = $headers['from'];
+					if (!isset($headers['reply-to'])) $headers['reply-to'] = $headers['from'];
+
 					$envelope = array();
 					foreach($fields as $head => $type) {
 						if (!isset($headers[$head])) {
@@ -686,15 +695,15 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						}
 						switch($type) {
 							case 's':
-								$envelope[] = $headers[$head][0]->content;
+								$envelope[] = new Quoted($headers[$head][0]);
 								break;
 							case 'm':
 								$tmp = array();
 								foreach($headers[$head] as $h) {
-									$infolist = imap_rfc822_parse_adrlist($h->content, '');
+									$infolist = imap_rfc822_parse_adrlist($h, '');
 									foreach($infolist as $info) {
 										if ($info->host === '') $info->host = null;
-										$tmp[] = array($info->personal, $info->adl, $info->mailbox, $info->host);
+										$tmp[] = array(new Quoted($info->personal), new Quoted($info->adl), new Quoted($info->mailbox), new Quoted($info->host));
 									}
 								}
 								$envelope[] = $tmp;
@@ -702,7 +711,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 							case 'l':
 								$tmp = array();
 								foreach($headers[$head] as $h) {
-									$tmp[] = $h->content;
+									$tmp[] = new Quoted($h);
 								}
 								$envelope[] = $tmp;
 								break;
@@ -715,9 +724,9 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					$res[] = $envelope;
 					break;
 				case 'BODY':
-					// TODO: clear "Recent" flag, and maybe add seen?
+					// TODO: clear "Recent" flag
 				case 'BODY.PEEK':
-					$res_body = $this->fetchBody($mail, $item_param);
+					$res_body = $mail->fetchBody($item_param);
 					foreach($res_body as $t => $v) {
 						if (is_string($t)) {
 							$res[$t] = $v;
@@ -728,14 +737,19 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					break;
 				case 'BODYSTRUCTURE':
 					// XXX TODO FIXME
+					$res_struct = $mail->getStructure();
 					$res[] = 'BODYSTRUCTURE';
-					$size = 1234;
-					$lines = 100;
-					$res[] = array(new Quoted('TEXT'), new Quoted('PLAIN'), array(new Quoted('CHARSET'), new Quoted('ISO-8859-15')), NULL, NULL, new Quoted('7BIT'), $size, $lines);
+					foreach($res_struct as $t => $v) {
+						if (is_string($t)) {
+							$res[$t] = $v;
+							continue;
+						}
+						$res[] = $v;
+					}
 					break;
 				case 'RFC822.SIZE': // TODO: determine if we should include headers in size
 					$res[] = 'RFC822.SIZE';
-					$res[] = filesize($file);
+					$res[] = $mail->size();
 					break;
 				case 'FLAGS':
 					$flags = explode(',', $mail->flags);
@@ -746,7 +760,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					break;
 				case 'INTERNALDATE':
 					$res[] = 'INTERNALDATE';
-					$res[] = date(DATE_RFC2822, filectime($file));
+					$res[] = date(DATE_RFC2822, $mail->creationTime());
 					break;
 				default:
 					var_dump($item, $item_param);
@@ -756,98 +770,6 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			}
 		}
 		return $this->imapParam($res);
-	}
-
-	function fetchBody($mail, $param) {
-		$file = $this->mailPath($mail->uniqname);
-		if (count($param) == 0)
-			$param = array('');
-		$len = sizeof($param);
-		$var = array();
-		$res = array();
-
-		for($i=0;$i<$len;$i++) {
-			$p = $param[$i];
-			switch(strtoupper($p)) {
-				case 'HEADER.FIELDS':
-					$list = $param[++$i];
-					foreach($list as &$ref) $ref = strtoupper($ref); // toupper
-					unset($ref); // avoid overwrite
-					$list = array_flip($list);
-					$head = "";
-					$add = false;
-
-					// read file
-					$fp = fopen($file, 'r'); // read headers
-					if (!$fp) break;
-
-					while(!feof($fp)) {
-						$lin = fgets($fp);
-						if (trim($lin) === '') break;
-						if (($lin[0] == "\t") || ($lin[0] == ' ')) {
-							if ($add) $head .= $lin;
-							continue;
-						}
-						$add = false;
-						$pos = strpos($lin, ':');
-						if ($pos === false) continue;
-						$h = strtoupper(rtrim(substr($lin, 0, $pos)));
-						if (!isset($list[$h])) continue;
-						$head .= $lin;
-						$add = true;
-					}
-					$var[] = 'HEADER.FIELDS';
-					$var[] = array_flip($list);
-					$res[] = $head;
-					break;
-				case 'HEADER':
-					$head = "";
-
-					// read file
-					$fp = fopen($file, 'r'); // read headers
-					if (!$fp) break;
-
-					while(!feof($fp)) {
-						$lin = fgets($fp);
-						if (trim($lin) === '') break;
-						$head .= $lin;
-					}
-					$var[] = 'HEADER';
-					$res[] = $head;
-					break;
-				case 'TEXT':
-				case '1':
-					// fetch body text
-					// read file
-					$fp = fopen($file, 'r'); // read headers
-					if (!$fp) break;
-
-					$str = '';
-					$start = false;
-
-					while(!feof($fp)) {
-						$lin = fgets($fp);
-						if (!$start) {	
-							if (trim($lin) == '') $start = true;
-							continue;
-						}
-						$str .= $lin;
-					}
-					$var[] = strtoupper($p);
-					$res[] = $str;
-					break;
-				case '':
-					// fetch whole file
-					$var[] = '';
-					$res[] = file_get_contents($file);
-					break;
-				default:
-					var_dump('BODY UNKNOWN: '.$p);
-			}
-		}
-		$var = array('BODY' => $var);
-		foreach($res as $r) $var[] = $r;
-		return $var;
 	}
 
 	function _cmd_subscribe($argv) {
