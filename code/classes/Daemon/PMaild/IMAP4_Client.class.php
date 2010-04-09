@@ -860,6 +860,27 @@ A OK FETCH completed
 		return;
 	}
 
+	protected function _cmd_search($argv) {
+		array_shift($argv); // "SEARCH"
+		$param = implode(' ', $argv);
+		$param = $this->parseFetchParam($param);
+		if (strtoupper($param[0]) == 'CHARSET') {
+			array_shift($param); // CHARSET
+			$charset = strtoupper(array_shift($param)); // charset
+			if (($charset != 'UTF-8') && ($charset != 'US-ASCII')) {
+				$this->sendMsg('NO [BADCHARSET] UTF-8 US-ASCII');
+				return;
+			}
+		}
+		var_dump($param);
+		$this->sendMsg('OK SEARCH completed');
+	}
+
+	protected function _cmd_uid_search($argv) {
+		array_unshift($argv, 'SEARCH');
+		$this->_cmd_search($argv);
+	}
+
 	protected function _cmd_uid_fetch($argv) {
 		$id = array_shift($argv); // 1:*
 
