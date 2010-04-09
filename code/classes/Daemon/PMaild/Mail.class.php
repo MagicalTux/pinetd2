@@ -78,9 +78,12 @@ class Mail {
 				$parent = NULL;
 			}
 
-			if (($type == 'multipart') && (($part == '1') || ($part_info[$parent]['content-type'] == 'message/rfc822'))) {
+			if (($type == 'multipart') && ($part == '1')) {
 				$depth[$part] = 0;
-				$imap_part = NULL;
+				$imap_part = 'TEXT';
+			} elseif (($type == 'multipart') && (($part == '1') || ($part_info[$parent]['content-type'] == 'message/rfc822'))) {
+				$depth[$part] = 0;
+				$imap_part = $part_info[$parent]['imap-part'].'.TEXT';
 			} else {
 				$depth[$part] = 1;
 				$cur_depth = 0;
@@ -97,6 +100,7 @@ class Mail {
 					$imap_part .= ($i?'.':'').$imap_count[$i];
 				}
 			}
+			$part_info[$part]['imap-part'] = $imap_part;
 
 			$insert = array(
 				'userid' => $this->data->userid,
