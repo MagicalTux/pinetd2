@@ -32,12 +32,13 @@ if (!$sock) die("E:Unable to connect\n");
 read_answer(220);
 send_cmd('EHLO foobartest', 250);
 echo "--NEGOCIATING SSL\n";
-send_cmd('STARTTLS', 220);
-stream_socket_enable_crypto($sock, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
-echo "--ENABLED SSL FROM THIS POINT\n";
-send_cmd('EHLO myrealname.com', 250);
-send_cmd('AUTH PLAIN', 334);
-send_cmd(base64_encode("\0magicaltux@localhost\0password"), 235);
+if (send_cmd('STARTTLS', 220)) {
+	stream_socket_enable_crypto($sock, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+	echo "--ENABLED SSL FROM THIS POINT\n";
+	send_cmd('EHLO myrealname.com', 250);
+	send_cmd('AUTH PLAIN', 334);
+	send_cmd(base64_encode("\0magicaltux@localhost\0password"), 235);
+}
 send_cmd('MAIL FROM:<>', 250);
 send_cmd('MAIL FROM:<>', 503);
 send_cmd('RCPT TO:<magicaltux_test@ookoo.org>', 250); // allowed because we did auth

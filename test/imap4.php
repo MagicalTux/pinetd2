@@ -42,14 +42,15 @@ echo 'IMAP search found '.count($res).' mails (should be '.$info->Nmsgs.')'."\n"
 //$res = imap_search($mbox, 'ALL');
 //var_dump($res);
 
-$res = imap_body($mbox, 1);
-var_dump($res);
+var_dump(imap_fetchstructure($mbox, 1));
+//var_dump(imap_bodystruct($mbox, , '17'));
+//var_dump(imap_fetchbody($mbox, 3, '2.1.1'));
+// 1.2.1.1
 
-var_dump(imap_fetch_overview($mbox, '1'));
+//$res = imap_body($mbox, 1);
+//var_dump($res);
 
-var_dump(imap_search($mbox, 'test', 0, 'UTF-8'));
-
-/*
-var_dump(imap_headerinfo($mbox, 1));
-*/
+//var_dump(imap_fetch_overview($mbox, '2'));
+//var_dump(imap_search($mbox, 'test', 0, 'UTF-8'));
+//var_dump(imap_headerinfo($mbox, 1));
 
