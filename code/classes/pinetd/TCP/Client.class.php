@@ -139,6 +139,56 @@ class Client extends \pinetd\ProcessChild {
 		$this->parseBuffer();
 	}
 
+	public function readLen($len) {
+		while(strlen($this->buf) < $len) {
+			$dat = $this->pullDataFromSocket();
+			if (($dat === false) || ($dat === '')) {
+				Logger::log(Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
+				$this->IPC->killSelf($this->fd);
+				$this->ok = false;
+				throw new Exception('Client lost');
+			}
+			$this->buf .= $dat;
+		}
+		$res = substr($this->buf, 0, $len);
+		$this->buf = substr($this->buf, $len);
+		return $res;
+	}
+
+	public function readTmpFd($len) {
+		$fd = fopen('php://temp', 'r+');
+		$pos = 0;
+
+		if (strlen($this->buf) > 0) {
+			if (strlen($this->buf) > $len) { // already got enough data
+				fwrite($fd, substr($this->buf, 0, $len));
+				$this->buf = substr($this->buf, $len);
+				return $fd;
+			}
+			// need more data
+			$pos = strlen($this->buf);
+			fwrite($fd, $this->buf);
+			$this->buf = '';
+		}
+		while($pos < $len) {
+			$dat = $this->pullDataFromSocket();
+			if (($dat === false) || ($dat === '')) {
+				Logger::log(Logger::LOG_INFO, 'Lost client from '.$this->peer[0]);
+				$this->IPC->killSelf($this->fd);
+				$this->ok = false;
+				throw new Exception('Client lost');
+			}
+			$rem = $len - $pos;
+			if (strlen($dat) >= $rem) {
+				fwrite($fd, substr($dat, 0, $rem));
+				$this->buf = (string)substr($dat, $rem);
+				return $fd;
+			}
+			fwrite($fd, $dat);
+			$pos += strlen($dat);
+		}
+	}
+
 	public function readLine() {
 		$dat = $this->pullDataFromSocket();
 		if (($dat === false) || ($dat === '')) {

@@ -67,14 +67,33 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				}
 				break;
 		}
+		$param = rtrim($param);
 		$result = array();
 		$string = null;
 		$reference = &$result;
 		$len = strlen($param);
 		$level = 0;
+		$in_string = false;
 		$ref = array(0 => &$result);
+
 		for($i=0; $i<$len;$i++) {
 			$c = $param[$i];
+			if ($c == '"') {
+				if (!$in_string) {
+					if (!is_null($string)) throw new \Exception('Parse error');
+					$in_string = true;
+					$string = '';
+					continue;
+				}
+				$reference[] = $string;
+				$in_string = false;
+				$string = null;
+				continue;
+			}
+			if ($in_string) {
+				$string .= $c;
+				continue;
+			}
 			if ($c == '(') {
 				$level++;
 				$array = array();
@@ -106,6 +125,24 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				if (is_null($string)) continue;
 				$reference[] = $string;
 				$string = null;
+				continue;
+			}
+			if ($c == '{') { // string litteral (pending data, see RFC 3501 page 15)
+				if (!is_null($string)) throw new Exception('parse error');
+				$string = '';
+				continue;
+			}
+			if ($c == '}') {
+				if (is_null($string)) throw new Exception('parse error');
+				if (!is_numeric($string)) throw new Exception('parse error');
+				if ($i != ($len - 1)) throw new Exception('parse error'); // not at end of string
+
+				$len = (int)$string;
+				parent::sendMsg('+ Please continue'); // avoid tag
+				$reference[] = $this->readTmpFd($len);
+				$param = rtrim($this->readLine());
+				$len = strlen($param);
+				$i = -1; // will become 0 at next loop
 				continue;
 			}
 			$string .= $c;
