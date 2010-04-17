@@ -33,8 +33,8 @@ class Filesystem {
 		while($file_p != $file) {
 			$file_p = $file;
 			$file = preg_replace('#/{2,}#', '/', $file);
-			$file = preg_replace('#/../[^/]+/#', '/', $file);
-			$file = preg_replace('#/[^/]+/../#', '/', $file);
+			$file = preg_replace('#/\\.\\./[^/]+/#', '/', $file);
+			$file = preg_replace('#/[^/]+/\\.\\./#', '/', $file);
 		}
 		$count = count(explode('/', $file))-2;
 		if ($count < $this->options['write_level']) return false;
