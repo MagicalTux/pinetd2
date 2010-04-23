@@ -241,6 +241,10 @@ class IPC {
 	private function readcmd() {
 		$res = $this->readbuf();
 		if ($res[0] != self::CMD_NOOP) return $res;
+		if (feof($this->pipe)) {
+			if ($this->ischld) exit;
+			return NULL;
+		}
 		stream_set_blocking($this->pipe, false);
 		$tmp = @fread($this->pipe, 1024);
 		if (($tmp === '') && feof($this->pipe)) return null;
