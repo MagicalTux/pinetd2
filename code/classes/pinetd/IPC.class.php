@@ -307,6 +307,7 @@ class IPC {
 		if ($cmd === false) return;
 		if (is_null($cmd)) {
 			if (!$this->parent) throw new \Exception('Peer got away');
+			if ($this->ischld) exit();
 			$this->removeSocket($this->pipe);
 //			unset($this->fds[$this->pipe]);
 			$this->parent->IPCDied($this->pipe);
