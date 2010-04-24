@@ -49,6 +49,11 @@ class Mail {
 		return array('mailid' => $this->data->mailid, 'userid' => $this->data->userid);
 	}
 
+	public function delete() {
+		$this->clearMimeCache();
+		return $this->data->delete();
+	}
+
 	public function clearMimeCache() {
 		$this->DAO('mime')->delete($this->where());
 		$this->DAO('mime_header')->delete($this->where());

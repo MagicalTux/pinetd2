@@ -685,6 +685,13 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder) + $where);
 		if (!$result) return false;
 		foreach($result as $mail) {
+			$class = relativeclass($this, 'Mail');
+			$omail = new $class($this->info, $mail, $this->mailPath($mail->uniqname), $this->sql);
+			if (!$omail->valid()) {
+				$omail->delete();
+				continue;
+			}
+
 			$uid = $mail->mailid;
 			if (!isset($this->reverseMap[$uid])) {
 				// we do not know this mail, allocate an id quickly
@@ -693,11 +700,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				$id = $this->reverseMap[$uid];
 			}
 
-			$class = relativeclass($this, 'Mail');
-			$mail = new $class($this->info, $mail, $this->mailPath($mail->uniqname), $this->sql);
-			if (!$mail->valid()) continue;
-
-			$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $param), '*');
+			$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($omail, $param), '*');
 		}
 		return true;
 	}
