@@ -20,6 +20,10 @@ class Mail {
 		return $this->data->$offset;
 	}
 
+	public function valid() {
+		return file_exists($this->file);
+	}
+
 	public function getId() {
 		return $this->data->mailid;
 	}

@@ -695,6 +695,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 
 			$class = relativeclass($this, 'Mail');
 			$mail = new $class($this->info, $mail, $this->mailPath($mail->uniqname), $this->sql);
+			if (!$mail->valid()) continue;
 
 			$this->sendMsg($id.' FETCH '.$this->fetchParamByMail($mail, $param), '*');
 		}
