@@ -289,6 +289,12 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('OK NOOP completed');
 	}
 
+	function _cmd_check() {
+		// RFC 3501 6.4.1. CHECK Command.
+		// check is equivalent to "NOOP" if not needed
+		$this->sendMsg('OK CHECK completed');
+	}
+
 	function _cmd_capability() {
 		$secure = true;
 		if ($this->protocol == 'tcp') $secure=false;
