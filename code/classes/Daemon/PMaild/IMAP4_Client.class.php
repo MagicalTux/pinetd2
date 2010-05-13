@@ -423,7 +423,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$flags = '';
 			if ($info['flags'] != '')
 				foreach(explode(',', $info['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
-			$this->sendMsg('LSUB ('.$flags.') "/" "'.addslashes($name).'"', '*');
+			$this->sendMsg('LSUB ('.$flags.') "/" '.$name, '*');
 		}
 		$this->sendMsg('OK LSUB completed');
 	}
