@@ -3,8 +3,11 @@
 namespace pinetd;
 
 class TransportEngine {
+	private $parent;
+
 	public function __construct($parent) {
-		$parent->createPort('@TRANSPORT', $this);
+		$this->parent = $parent;
+		$this->parent->createPort('@TRANSPORT', $this);
 	}
 }
 

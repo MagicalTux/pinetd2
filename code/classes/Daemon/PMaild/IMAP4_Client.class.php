@@ -480,26 +480,38 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$cond['parent'] = $id;
 			$result = $DAO_folders->loadByField($cond);
 			foreach($result as $folder) {
-				if (isset($list[$folder->parent])) $folder->name = $list[$folder->parent]->name . '/' . $folder->name;
-				$fetch[] = $folder->id;
-				$list[$folder->id] = $folder;
+				$folder = $folder->getProperties();
+
+				if (isset($list[$folder['parent']])) {
+					$folder['name'] = $list[$folder['parent']]['name'] . '/' . $folder['name'];
+					$list[$folder['parent']]['children']++;
+				}
+				$fetch[] = $folder['id'];
+				$folder['children'] = 0;
+				$list[$folder['id']] = $folder;
 			}
 		}
 		foreach($list as $res) {
-			if (!$this->imapWildcard($param, $res->name)) continue;
-			$name = mb_convert_encoding($res->name, 'UTF-8', 'UTF7-IMAP');
-			if ((addslashes($name) != $name) || (strpos($name, ' ') !== false)) $name = '"'.addslashes($name).'"';
-			$flags = '';
+			if (!$this->imapWildcard($param, $res['name'])) continue;
+			$name = mb_convert_encoding($res['name'], 'UTF-8', 'UTF7-IMAP');
+			$flags = array();
 			if ($res['flags'] != '')
-				foreach(explode(',', $res['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
-			$this->sendMsg('LIST ('.$flags.') "'.$reference.'" '.$this->maybeQuote($name), '*');
+				foreach(explode(',', $res['flags']) as $f) $flags[]='\\'.ucfirst($f);
+
+			if ($res['children'] == 0) {
+				$flags[] = '\\HasNoChildren';
+			} else {
+				$flags[] = '\\HasChildren';
+			}
+
+			$this->sendMsg('LIST ('.implode(',',$flags).') "'.$reference.'" '.$this->maybeQuote($name), '*');
 		}
 		$this->sendMsg('OK LIST completed');
 	}
 
 	function maybeQuote($name) {
 		if ($name === '') return '""';
-		if (strpos($name, ' ') === false) return $name;
+		if ((strpos($name, ' ') === false) && (addslashes($name) == $name)) return $name;
 		return '"'.addslashes($name).'"';
 	}
 
