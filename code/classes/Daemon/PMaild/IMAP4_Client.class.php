@@ -421,7 +421,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				$parent = $info['parent'];
 			}
 			$flags = '';
-			foreach(explode(',', $info['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
+			if ($info['flags'] != '')
+				foreach(explode(',', $info['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
 			$this->sendMsg('LSUB ('.$flags.') "/" "'.addslashes($name).'"', '*');
 		}
 		$this->sendMsg('OK LSUB completed');
@@ -489,7 +490,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$name = mb_convert_encoding($res->name, 'UTF-8', 'UTF7-IMAP');
 			if ((addslashes($name) != $name) || (strpos($name, ' ') !== false)) $name = '"'.addslashes($name).'"';
 			$flags = '';
-			foreach(explode(',', $res['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
+			if ($res['flags'] != '')
+				foreach(explode(',', $res['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
 			$this->sendMsg('LIST ('.$flags.') "'.$reference.'" '.$name, '*');
 		}
 		$this->sendMsg('OK LIST completed');
@@ -763,9 +765,11 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					$res[] = $mail->size();
 					break;
 				case 'FLAGS':
-					$flags = explode(',', $mail->flags);
 					$f = array();
-					foreach($flags as $flag) $f[] = '\\'.ucfirst($flag);
+					if ($mail->flags != '') {
+						$flags = explode(',', $mail->flags);
+						foreach($flags as $flag) $f[] = '\\'.ucfirst($flag);
+					}
 					$res[] = 'FLAGS';
 					$res[] = $f;
 					break;
@@ -948,7 +952,11 @@ A OK FETCH completed
 
 		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder)+$where);
 		foreach($result as $mail) {
-			$tmpfl = explode(',', $mail->flags);
+			if ($mail->flags == '') {
+				$tmpfl = array();
+			} else {
+				$tmpfl = explode(',', $mail->flags);
+			}
 			array_flip($tmpfl);
 			switch($mode) {
 				case 'set':
