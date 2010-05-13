@@ -423,7 +423,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$flags = '';
 			if ($info['flags'] != '')
 				foreach(explode(',', $info['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
-			$this->sendMsg('LSUB ('.$flags.') "/" "'.addslashes($name).'"', '*');
+			$this->sendMsg('LSUB ('.$flags.') "/" '.$this->maybeQuote($name), '*');
 		}
 		$this->sendMsg('OK LSUB completed');
 	}
@@ -492,9 +492,15 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$flags = '';
 			if ($res['flags'] != '')
 				foreach(explode(',', $res['flags']) as $f) $flags.=($flags==''?'':',').'\\'.ucfirst($f);
-			$this->sendMsg('LIST ('.$flags.') "'.$reference.'" "'.addslashes($name).'"', '*');
+			$this->sendMsg('LIST ('.$flags.') "'.$reference.'" '.$this->maybeQuote($name), '*');
 		}
 		$this->sendMsg('OK LIST completed');
+	}
+
+	function maybeQuote($name) {
+		if ($name === '') return '""';
+		if (strpos($name, ' ') === false) return $name;
+		return '"'.addslashes($name).'"';
 	}
 
 	protected function lookupFolder($box) {
