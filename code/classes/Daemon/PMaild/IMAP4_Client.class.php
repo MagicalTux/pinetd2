@@ -465,13 +465,14 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			}
 		}
 		$list = array();
+		$fetch = array($parent);
 		if (is_null($parent) && (fnmatch($param, 'INBOX'))) {
 			$list[0] = array('name' => 'INBOX', 'children' => 0, 'parent' => null);
+			$fetch[] = 0;
 		}
 		$cond = array('account' => $this->info['account']->id, 'parent' => $parent);
 		// load whole tree, makes stuff easier - list should be recursive unless '%' is provided
 		// start at parent
-		$fetch = array($parent);
 		$done = array();
 		while($fetch) {
 			$id = array_pop($fetch);
