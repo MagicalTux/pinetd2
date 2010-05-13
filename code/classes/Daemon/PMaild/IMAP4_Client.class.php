@@ -465,7 +465,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			}
 		}
 		if (is_null($parent) && (fnmatch($param, 'INBOX'))) {
-			$this->sendMsg('LIST () "'.$reference.'" INBOX', '*');
+			$list[0] = array('name' => 'INBOX', 'children' => 0, 'parent' => null);
 		}
 		$cond = array('account' => $this->info['account']->id, 'parent' => $parent);
 		// load whole tree, makes stuff easier - list should be recursive unless '%' is provided
@@ -481,6 +481,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$result = $DAO_folders->loadByField($cond);
 			foreach($result as $folder) {
 				$folder = $folder->getProperties();
+				if (is_null($folder['parent'])) $folder['parent'] = -1;
 
 				if (isset($list[$folder['parent']])) {
 					$folder['name'] = $list[$folder['parent']]['name'] . '/' . $folder['name'];
