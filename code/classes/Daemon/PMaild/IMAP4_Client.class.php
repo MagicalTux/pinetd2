@@ -670,6 +670,22 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->sendMsg('OK DELETE completed');
 	}
 
+	function _cmd_close() {
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+		$DAO_mime = $this->sql->DAO('z'.$this->info['domainid'].'_mime', 'mimeid');
+		$DAO_mime_header = $this->sql->DAO('z'.$this->info['domainid'].'_mime_header', 'headerid');
+		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder, new Expr('FIND_IN_SET(\'deleted\',`flags`)>0')));
+		
+		foreach($result as $mail) {
+			$DAO_mime->delete(array('userid' => $this->info['account']->id, 'mailid' => $mail->mailid));
+			$DAO_mime_header->delete(array('userid' => $this->info['account']->id, 'mailid' => $mail->mailid));
+			@unlink($this->mailPath($mail->uniqname));
+			$mail->delete();
+		}
+		$this->selectedFolder = NULL;
+		$this->sendMsg('OK CLOSE completed');
+	}
+
 	function _cmd_expunge() {
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
 		$DAO_mime = $this->sql->DAO('z'.$this->info['domainid'].'_mime', 'mimeid');
