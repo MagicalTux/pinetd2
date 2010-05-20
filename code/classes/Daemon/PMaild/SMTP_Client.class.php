@@ -273,7 +273,7 @@ class SMTP_Client extends \pinetd\TCP\Client {
 
 		if (ftell($this->dataTxn['fd']) > $maxsize) {
 			$this->txn->reset();
-			($this->dataTxn = false;
+			$this->dataTxn = false;
 			$this->sendMsg('550 5.5.0 Mail too large for this system');
 			return;
 		}
