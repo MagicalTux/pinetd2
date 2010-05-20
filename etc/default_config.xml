@@ -104,6 +104,8 @@
 			<Mails Path="spool/phpmaild"/>
 			<DefaultDomain>example.com</DefaultDomain>
 			<MTA MaxProcesses="5" StartThreshold="5" MaxAttempt="10" MailMaxLifetime="48"/>
+			<!-- max mail size in MB, can be decimal with a dot decimal point (ie 0.5) -->
+			<SMTP MaxMailSize="100"/>
 		</PMaild>
 		<!--
 		 DNSd

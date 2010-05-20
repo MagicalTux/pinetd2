@@ -73,11 +73,13 @@ class SMTP_Client extends \pinetd\TCP\Client {
 			$this->sendMsg('250 '.$this->IPC->getName().' pleased to meet you, '.$this->helo);
 			return;
 		}
+		$config = $this->IPC->getSmtpConfig();
 		$this->sendMsg('250-'.$this->IPC->getName().' pleased to meet you, '.$this->helo);
 		$this->sendMsg('250-PIPELINING');
 		$this->sendMsg('250-ENHANCEDSTATUSCODES');
 		$this->sendMsg('250-ETRN');
 		$this->sendMsg('250-TXLG');
+		$this->sendMsg('250-SIZE '.(($config['MaxMailSize']?:100)*1024*1024));
 		if (($this->IPC->hasTLS()) && ($this->protocol != 'tls')) {
 			$this->sendMsg('250-STARTTLS');
 		}
@@ -173,11 +175,30 @@ class SMTP_Client extends \pinetd\TCP\Client {
 		} else {
 			$from = (string)$argv[$nargv++];
 		}
+
+		$meta = array();
+		while($nargv < count($argv)) {
+			$arg = (string)$argv[$nargv++];
+			$pos = strpos($arg, '=');
+			if ($pos === false) continue;
+			$meta[strtolower(substr($arg, 0, $pos))] = substr($arg, $pos+1);
+		}
+
 		// in theory, addr should be in < > (still, we won't require it)
 		if (($from[0] == '<') && (substr($from, -1) == '>')) {
 			$from = substr($from, 1, -1);
 		}
-		// TODO: we might have BODY=8BITMIME in next argv
+
+		// TODO: we might have BODY=8BITMIME in the meta, what should we do with that?
+		$config = $this->IPC->getSmtpConfig();
+		if (isset($meta['size'])) {
+			$maxsize = ($config['MaxMailSize']?:100)*1024*1024;
+			if ($meta['size'] > $maxsize) {
+				$this->sendMsg('550 5.5.0 Mail too large for this system');
+				return;
+			}
+		}
+
 		if (!$this->txn->setFrom($from)) {
 			$this->sendMsg($this->txn->errorMsg());
 			return;
@@ -246,6 +267,16 @@ class SMTP_Client extends \pinetd\TCP\Client {
 
 		// got whole mail, it's time for checks!
 		$this->dataMode = false;
+
+		$config = $this->IPC->getSmtpConfig();
+		$maxsize = ($config['MaxMailSize']?:100)*1024*1024;
+
+		if (ftell($this->dataTxn['fd']) > $maxsize) {
+			$this->txn->reset();
+			($this->dataTxn = false;
+			$this->sendMsg('550 5.5.0 Mail too large for this system');
+			return;
+		}
 
 		if (!$this->txn->finishMail()) { // failed at sending the mail? :(
 			$this->sendMsg($this->txn->errorMsg());

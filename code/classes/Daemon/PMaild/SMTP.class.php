@@ -18,6 +18,14 @@ class SMTP extends \pinetd\TCP\Base {
 		$this->tls_failures[$ip] = time() + 86400;
 	}
 
+	public function _ChildIPC_getSmtpConfig() {
+		return $this->getSmtpConfig();
+	}
+
+	public function getSmtpConfig() {
+		return $this->localConfig['SMTP'];
+	}
+
 	public function _ChildIPC_isTlsBroken(&$daemon, $ip) {
 		return $this->isTlsBroken($ip);
 	}
