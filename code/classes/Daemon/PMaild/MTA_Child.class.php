@@ -309,7 +309,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 		//
 		$class = relativeclass($this, 'MTA\\Mail');
 		$MTA_Mail = new $class(null, $this->IPC);
-		fputs($sock, $MTA_Mail->header('Received', '(PMaild MTA '.getmypid().' on '.$this->IPC->getName().' processing mail to '.$host.'); '.date(DATE_RFC2822)));
+		fputs($sock, $MTA_Mail->header('Received', '(PMaild MTA '.getmypid().' on '.$this->IPC->getName().' processing mail to '.$host.($ssl?' with TLS enabled':'').'); '.date(DATE_RFC2822)));
 		while(!feof($fp)) {
 			$lin = fgets($fp);
 			if ($lin[0] == '.') $lin = '.'.$lin;
