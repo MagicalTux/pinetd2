@@ -238,7 +238,10 @@ class MTA_Child extends \pinetd\ProcessChild {
 
 	protected function processEmailMX($host, $mail) {
 		$file = $this->mailPath($mail->mlid);
-		if (!file_exists($file)) throw new \Exception('Mail queued but file not found: '.$mail->mlid);
+		if (!file_exists($file)) throw new \Exception('Mail queued but file not found: '.$mail->mlid, 500);
+		$size = filesize($file);
+		$ssl = false;
+		$capa = array();
 		$this->IPC->selectSockets(0);
 		$this->track($mail, 'CONNECT', '200 Connecting to host', $host);
 		$sock = fsockopen($host, 25, $errno, $errstr, 30);
@@ -246,10 +249,56 @@ class MTA_Child extends \pinetd\ProcessChild {
 		if (!$sock) throw new \Exception('Connection failed: ['.$errno.'] '.$errstr, 400); // not fatal (400)
 		$this->IPC->selectSockets(0);
 		$this->readMxAnswer($sock); // hello man
-		$this->writeMx($sock, 'EHLO '.$this->IPC->getName());
-		$ehlo = array_flip($this->readMxAnswer($sock));
-		// todo: starttls if possible, then ehlo again
-		$this->writeMx($sock, 'MAIL FROM:<'.$mail->from.'>');
+		try {
+			$this->writeMx($sock, 'EHLO '.$this->IPC->getName());
+			$ehlo = $this->readMxAnswer($sock);
+		} catch(\Exception $e) {
+			// no ehlo? try helo
+			$this->writeMx($sock, 'RSET');
+			$this->readMxAnswer($sock);
+			$this->writeMx($sock, 'HELO '.$this->IPC->getName());
+			$this->readMxAnswer($sock);
+			$ehlo = array();
+		}
+
+		// first, check for STARTTLS (will override $ehlo if present)
+		foreach($ehlo as $cap) {
+			if (strtoupper($cap) == 'STARTTLS') {
+				// try to start ssl
+				try {
+					$this->writeMx($sock, 'STARTTLS');
+					$this->readMxAnswer($sock);
+				} catch(\Exception $e) {
+					continue; // ignore it
+				}
+				if (!stream_socket_enable_crypto($sock, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+					throw new \Exception('Failed to enable TLS on stream', 400);
+				}
+				$ssl = true;
+				// need to EHLO again
+				$this->writeMx($sock, 'EHLO '.$this->IPC->getName());
+				$ehlo = $this->readMxAnswer($sock);
+				break;
+			}
+		}
+
+		// once more!
+		foreach($ehlo as $cap) {
+			$cap = strtolower($cap);
+			if (substr($cap, 0, 5) == 'size ') {
+				$capa['size'] = true;
+				$maxsize = substr($cap, 5);
+				if ($size > $maxsize) {
+					throw new \Exception('Mail is too big for remote system', 500);
+				}
+			}
+		}
+
+		if ($capa['size']) {
+			$this->writeMx($sock, 'MAIL FROM:<'.$mail->from.'> SIZE='.$size);
+		} else {
+			$this->writeMx($sock, 'MAIL FROM:<'.$mail->from.'>');
+		}
 		$this->readMxAnswer($sock);
 		$this->writeMx($sock, 'RCPT TO:<'.$mail->to.'>');
 		$this->readMxAnswer($sock);
