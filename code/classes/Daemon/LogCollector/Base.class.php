@@ -48,6 +48,9 @@ class Base extends \pinetd\TCP\Base {
 		$this->accounting[$data['vhost'].'|'.$data['host']]['time'] += ($data['now'] - $data['request_start']);
 		$this->accounting[$data['vhost'].'|'.$data['host']]['vol'] += $data['bytes_sent'];
 		++$this->accounting[$data['vhost'].'|'.$data['host']]['hit'];
+		foreach(array('u','s','cu','cs') as $var) {
+			$this->accounting[$data['vhost'].'|'.$data['host']][$var.'time'] += $data['tms_'.$var.'time_delta'];
+		}
 
 		// generated "combined" logline
 		$fmt = $data['remote_ip'].' - '.($data['user']?:'-').' ['.date('d/M/Y:H:i:s O', $data['request_start']/1000000).'] "'.addslashes($data['request']).'" '.$data['status'].' '.$data['bytes_sent'].' "'.addslashes($headers_in['referer'][0]?:'-').'" "'.addslashes($headers_in['user-agent'][0]?:'-').'"';
