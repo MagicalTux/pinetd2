@@ -208,6 +208,59 @@ class MailTarget {
 		return '400 4.0.0 Database error while queueing item';
 	}
 
+	function processList(&$txn) {
+		$res = $this->runProtections($txn);
+		if (!is_null($res)) return $res;
+
+		if ($txn['mode'] != 'message') return '400 4.5.0 This target is not implemented yet';
+
+		// get targets list
+		$DAO_lists_members = $this->sql->DAO('z'.$this->target['domainid'].'_lists_members', 'id');
+		$DAO = $this->sql->DAO('mailqueue', array('mlid', 'to'));
+
+		$list = $DAO_lists_members->loadByField(array('list_id' => $txn['target'], 'status' => 'valid'));
+		if (!$list) return NULL; // success (no target => nothing to do => we managed to do nothing => success)
+
+		$got_first = false;
+		foreach($list as $target) {
+			$store = $this->makeUniq('mailqueue');
+			if ($got_first === false) {
+				$store = $this->makeUniq('mailqueue');
+				$got_first = $store;
+				$out = fopen($store, 'w');
+				if (isset($this->target['extra_headers'])) {
+					foreach($this->target['extra_headers'] as $h)
+						fputs($out, Mail::header($h[0], $h[1]));
+				}
+				if ($this->from !== '') fputs($out, Mail::header('X-Original-From', $this->from));
+				fputs($out, Mail::header('Received', '(PMaild '.getmypid().' invoked for list '.$this->target['target'].'); '.date(DATE_RFC2822)));
+				rewind($txn['fd']);
+				stream_copy_to_stream($txn['fd'], $out);
+				fclose($out);
+			} else {
+				$store = $this->makeUniq('mailqueue');
+				link($got_first, $store);
+			}
+
+			// drop "from" as it could be used to probe mailing list members, and we don't want to handle bounces
+			$insert = array(
+				'mlid' => basename($store),
+				'to' => $target->email,
+				'queued' => $this->sql->now(),
+			);
+			if ($DAO->insertValues($insert)) continue;
+			// failed?
+			if ($store == $got_first) $got_first = false;
+			@unlink($store);
+			Logger::log(Logger::LOG_ERR, $this->sql->error);
+		}
+
+		if ($got_first === false) { // all failed
+			return '400 4.0.0 Failed to transmit mail to list';
+		}
+		return NULL;
+	}
+
 	function processRedirect(&$txn) {
 		return $this->processRemote($txn);
 	}

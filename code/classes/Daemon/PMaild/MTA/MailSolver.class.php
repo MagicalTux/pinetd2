@@ -25,13 +25,14 @@ class MailSolver {
 		return $alias->real_target;
 	}
 
-	static protected function readList($SQL, $list, $res) {
+	static protected function readList($SQL, $list, $res, $mode = 'message') {
 		$list->last_transit = $SQL->now();
 		$list->commit();
 
 		$res['type'] = 'list';
 		$res['target'] = $list->id;
 		$res['list'] = $list;
+		$res['mode'] = $mode;
 		return $res;
 	}
 
@@ -43,7 +44,7 @@ class MailSolver {
 		switch($code) {
 			case 'subscribe':
 			case 'unsubscribe':
-				return $name;
+				return array($name, $code);
 		}
 		return false;
 	}
@@ -120,11 +121,11 @@ class MailSolver {
 			// check for special list cases
 			$list_name = self::getListName($user);
 			if ($list_name) {
-				$list = $DAO_lists->loadByField(array('user'=>$list_name));
+				$list = $DAO_lists->loadByField(array('user'=>$list_name[0]));
 				if ($list) {
 					$list = $list[0];
 					if ($list->allow_subscribe == 'Y') {
-						return self::readList($SQL, $list, $res);
+						return self::readList($SQL, $list, $res, $list_name[1]);
 					}
 				}
 			}
