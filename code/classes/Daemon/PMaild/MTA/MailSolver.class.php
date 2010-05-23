@@ -25,6 +25,29 @@ class MailSolver {
 		return $alias->real_target;
 	}
 
+	static protected function readList($SQL, $list, $res) {
+		$list->last_transit = $SQL->now();
+		$list->commit();
+
+		$res['type'] = 'list';
+		$res['target'] = $list->id;
+		$res['list'] = $list;
+		return $res;
+	}
+
+	static protected function getListName($name) {
+		$pos = strrpos($name, '-');
+		if ($pos === false) return false;
+		$code = strtolower(substr($name, $pos+1));
+		$name = substr($name, 0, $pos);
+		switch($code) {
+			case 'subscribe':
+			case 'unsubscribe':
+				return $name;
+		}
+		return false;
+	}
+
 	static public function solve($mail, &$localConfig) {
 		$res = array();
 		$res['mail'] = $mail;
@@ -74,6 +97,7 @@ class MailSolver {
 		// spawn this domain's DAO
 		$DAO_accounts = $SQL->DAO('z'.$domain->domainid.'_accounts', 'id');
 		$DAO_alias = $SQL->DAO('z'.$domain->domainid.'_alias', 'id');
+		$DAO_lists = $SQL->DAO('z'.$domain->domainid.'_lists', 'id');
 		// first, locate an alias...
 
 		$alias = $DAO_alias->loadByField(array('user'=>$user));
@@ -83,10 +107,27 @@ class MailSolver {
 			$account = $DAO_accounts[$aliasres];
 			// CONTINUE HERE: load account referenced, and continue to next
 		} else {
-			// Load account
-			$account = $DAO_accounts->loadByField(array('user' => $user));
+			// load mailing list
+			$list = $DAO_lists->loadByField(array('user'=>$user));
+			if ($list) {
+				return self::readList($SQL, $list[0], $res);
+			} else {
+				// Load account
+				$account = $DAO_accounts->loadByField(array('user' => $user));
+			}
 		}
 		if (!$account) {
+			// check for special list cases
+			$list_name = self::getListName($user);
+			if ($list_name) {
+				$list = $DAO_lists->loadByField(array('user'=>$list_name));
+				if ($list) {
+					$list = $list[0];
+					if ($list->allow_subscribe == 'Y') {
+						return self::readList($SQL, $list, $res);
+					}
+				}
+			}
 			// check for 'default' alias
 			$alias = $DAO_alias->loadByField(array('user'=>'default'));
 			if ($alias) {

@@ -74,6 +74,7 @@ class Storage {
 			'allow_subscribe' => array('type' => 'ENUM', 'values' => array('Y','N'), 'default' => 'N'),
 			'mail_footer' => array('type'=>'VARCHAR', 'size'=>128, 'null'=>true),
 			'restrict_publish' => array('type' => 'ENUM', 'values' => array('Y','N'), 'default' => 'N'),
+			'last_transit' => array('type'=>'DATETIME', 'null'=>true, 'default'=>NULL),
 		),
 		'z%s_lists_members' => array(
 			'id' => array('type'=>'BIGINT', 'size'=>20, 'null'=>false, 'unsigned'=>true, 'auto_increment'=>true, 'key'=>'PRIMARY'),
