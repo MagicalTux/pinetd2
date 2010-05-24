@@ -212,13 +212,13 @@ class MailTarget {
 		$res = $this->runProtections($txn);
 		if (!is_null($res)) return $res;
 
-		if ($txn['mode'] != 'message') return '400 4.5.0 This target is not implemented yet';
+		if ($this->target['mode'] != 'message') return '400 4.5.0 This target is not implemented yet';
 
 		// get targets list
 		$DAO_lists_members = $this->sql->DAO('z'.$this->target['domainid'].'_lists_members', 'id');
 		$DAO = $this->sql->DAO('mailqueue', array('mlid', 'to'));
 
-		$list = $DAO_lists_members->loadByField(array('list_id' => $txn['target'], 'status' => 'valid'));
+		$list = $DAO_lists_members->loadByField(array('list_id' => $this->target['target'], 'status' => 'valid'));
 		if (!$list) return NULL; // success (no target => nothing to do => we managed to do nothing => success)
 
 		$got_first = false;
