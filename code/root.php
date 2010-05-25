@@ -21,6 +21,7 @@
 define('PINETD_ROOT', dirname(__DIR__)); // root of pinetd installation
 define('PINETD_CODE', PINETD_ROOT.'/code'); // path where code is stored
 define('PINETD_CLASS_ROOT', PINETD_CODE.'/classes'); // path to classes
+define('PINETD_STORE', PINETD_ROOT.'/store'); // path to data store
 
 require_once(PINETD_CODE.'/base/check.php'); // perform compatibility checks
 

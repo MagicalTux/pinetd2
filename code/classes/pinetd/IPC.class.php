@@ -269,7 +269,7 @@ class IPC {
 
 	public function broadcast($code, $data = null, $except = 0) {
 		if (isset($this->bcast_listen[$code]))
-			foreach($this->bcast_listen[$code] as $key => $callback) call_user_func($callback, $code, $data, $key);
+			foreach($this->bcast_listen[$code] as $key => $callback) call_user_func($callback, $data, $code, $key);
 
 		if ($this->ischld) {
 			foreach($this->fds as $id => $info) {
