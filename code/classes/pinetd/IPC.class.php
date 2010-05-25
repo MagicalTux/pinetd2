@@ -35,6 +35,7 @@ class IPC {
 	private $parentipc = NULL; /*!< My "parent IPC" class, for some specific stuff */
 	private $fds = array(); /*!< List of fds to listens, and callbacks */
 	private $ports = array(); /*!< Port routing table */
+	private $bcast_listen = array(); /*!< list of broadcast listeners */
 
 	const CMD_PING = 'PING'; /*!< PING command, should receive RES_PING from peer */
 	const CMD_NOOP = 'NOOP'; /*!< NOOP command, just to NOOP (NB: this is virtual, should never be sent) */
@@ -257,7 +258,19 @@ class IPC {
 		return $this->readbuf();
 	}
 
+	public function listenBroadcast($code, $key, $callback) {
+		$this->bcast_listen[$code][$key] = $callback;
+	}
+
+	public function unlistenBroadcast($code, $key) {
+		unset($this->bcast_listen[$code][$key]);
+		if (!$this->bcast_listen[$code]) unset($this->bcast_listen[$code]);
+	}
+
 	public function broadcast($code, $data = null, $except = 0) {
+		if (isset($this->bcast_listen[$code]))
+			foreach($this->bcast_listen[$code] as $key => $callback) call_user_func($callback, $code, $data, $key);
+
 		if ($this->ischld) {
 			foreach($this->fds as $id => $info) {
 				$class = $info['callback'];
@@ -266,17 +279,14 @@ class IPC {
 				if (!($class instanceof self)) continue;
 				if ($id == $except) continue;
 				if ($class == $this) continue;
-				echo getmypid().": sending bcast $code to $id\n";
 				$class->broadcast($code, $data);
 			}
 			if (!$except) {
-				echo "sending bcast $code to parent\n";
 				$this->sendcmd(self::CMD_BCAST, array($code, $data));
 			}
 			return true;
 		}
 		if (!$except) {
-			echo "sending bcast $code to child\n";
 			$this->sendcmd(self::CMD_BCAST, array($code, $data));
 		} else if ($this->parent instanceof Core) {
 			$this->parent->broadcast($code, $data, (int)$this->pipe);
