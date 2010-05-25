@@ -44,6 +44,7 @@ class IPC {
 	const CMD_CALL = 'CALL'; /*!< CALL a peer function. This will call a function on peer's class */
 	const CMD_NEWPORT = 'NEWPORT'; /*!< Create a new port, and announce to parent (if any) */
 	const CMD_CALLPORT = 'CALLPORT'; /*!< Call a function on a port */
+	const CMD_BCAST = 'BCAST'; /*!< broadcast event */
 
 	const RES_PING = 'PONG'; /*!< PONG, the reply to ping */
 	const RES_CALL = 'RCALL'; /*!< Reply to a CMD_CALL, containing the result of the called function */
@@ -256,6 +257,22 @@ class IPC {
 		return $this->readbuf();
 	}
 
+	protected function broadcast($code, $data, $except = 0) {
+		if ($this->ischld) {
+			foreach($this->fds as $id => $info) {
+				$class = $info['callback'];
+				if (!is_array($class)) continue;
+				$class = $class[0];
+				if (!($class instanceof self)) continue;
+				if ($id == $except) continue;
+				$class->broadcast($code, $data);
+			}
+			return true;
+		}
+		$this->sendcmd(self::CMD_BCAST, array($code, $data));
+		return true;
+	}
+
 	protected function internalCallPort($call) {
 		$port = $call[0];
 		$method = $call[2];
@@ -322,6 +339,10 @@ class IPC {
 				return true;
 			case self::CMD_PING:
 				$this->sendcmd(self::RES_PING, $cmd[1]);
+				break;
+			case self::CMD_BCAST:
+				// send to all children except (int)$fd
+				$this->broadcast($cmd[1][0], $cmd[1][1], (int)$fd);
 				break;
 			case self::CMD_CALL:
 				// $cmd[1] = array(function, args)
