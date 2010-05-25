@@ -260,6 +260,14 @@ class Core {
 		}
 	}
 
+	public function broadcast($code, $data = null, $except = 0) {
+		foreach($this->fdlist as $id => $info) {
+			if ($id == $except) continue;
+			if ($info['type'] != 'daemon') continue;
+			$this->daemons[$info['key']]['IPC']->broadcast($code, $data);
+		}
+	}
+
 	public function registerSocketWait($socket, $callback, &$data) {
 		$this->fdlist[(int)$socket] = array('type'=>'callback', 'fd'=>$socket, 'callback'=>$callback, 'data'=>&$data);
 	}

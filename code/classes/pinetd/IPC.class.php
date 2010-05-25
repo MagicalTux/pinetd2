@@ -257,7 +257,7 @@ class IPC {
 		return $this->readbuf();
 	}
 
-	protected function broadcast($code, $data, $except = 0) {
+	public function broadcast($code, $data = null, $except = 0) {
 		if ($this->ischld) {
 			foreach($this->fds as $id => $info) {
 				$class = $info['callback'];
@@ -265,11 +265,22 @@ class IPC {
 				$class = $class[0];
 				if (!($class instanceof self)) continue;
 				if ($id == $except) continue;
+				if ($class == $this) continue;
+				echo getmypid().": sending bcast $code to $id\n";
 				$class->broadcast($code, $data);
+			}
+			if (!$except) {
+				echo "sending bcast $code to parent\n";
+				$this->sendcmd(self::CMD_BCAST, array($code, $data));
 			}
 			return true;
 		}
-		$this->sendcmd(self::CMD_BCAST, array($code, $data));
+		if (!$except) {
+			echo "sending bcast $code to child\n";
+			$this->sendcmd(self::CMD_BCAST, array($code, $data));
+		} else if ($this->parent instanceof Core) {
+			$this->parent->broadcast($code, $data, (int)$this->pipe);
+		}
 		return true;
 	}
 
