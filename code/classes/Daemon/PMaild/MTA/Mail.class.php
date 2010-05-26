@@ -117,7 +117,7 @@ class Mail {
 		return $txn;
 	}
 
-	public function finishMail() {
+	public function finishMail($IPC) {
 		if (is_null($this->txn)) throw new Exception('finishMail() called without email transaction');
 		// ok, we got our data in txn, time to spawn a maildelivery class
 		$success = 0;
@@ -128,7 +128,7 @@ class Mail {
 		foreach($this->to as $target) {
 			$total++;
 			$class = relativeclass($this, 'MailTarget');
-			$MT = new $class($target, $this->from, $this->localConfig);
+			$MT = new $class($target, $this->from, $this->localConfig, $IPC);
 			$err = $MT->process($txn);
 			if (is_null($err)) {
 				$success++;

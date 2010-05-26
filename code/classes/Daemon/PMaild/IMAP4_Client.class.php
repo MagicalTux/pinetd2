@@ -717,6 +717,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$DAO_mime_header->delete(array('userid' => $this->info['account']->id, 'mailid' => $mail->mailid));
 			@unlink($this->mailPath($mail->uniqname));
 			$this->sendMsg($this->reverseMap[$mail->mailid].' EXPUNGE', '*');
+			$this->IPC->broadcast('PMaild::Activity_'.$this->info['domainid'].'_'.$this->info['account']->id.'_'.$mail->folder, array($mail->mailid, 'EXPUNGE'));
 			$mail->delete();
 		}
 		$this->sendMsg('OK EXPUNGE completed');
@@ -1094,7 +1095,7 @@ A OK FETCH completed
 
 		// invoke MailTarget
 		$class = relativeclass($this, 'MTA\\MailTarget');
-		$mailTarget = new $class('', '', $this->localConfig);
+		$mailTarget = new $class('', '', $this->localConfig, $this->IPC);
 
 		foreach($this->transformRange($id) as $where) {
 			$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder)+$where);
@@ -1114,6 +1115,7 @@ A OK FETCH completed
 					'flags' => $flags,
 				));
 				$newid = $this->sql->insert_id;
+				$this->IPC->broadcast('PMaild::Activity_'.$this->info['domainid'].'_'.$this->info['account']->id.'_'.$box['id'], array($newid, 'EXISTS'));
 				// copy headers
 			}
 		}
@@ -1240,6 +1242,7 @@ A OK FETCH completed
 			'flags' => implode(',', $flags),
 		));
 		$newid = $this->sql->insert_id;
+		$this->IPC->broadcast('PMaild::Activity_'.$this->info['domainid'].'_'.$this->info['account']->id.'_'.$box['id'], array($newid, 'EXISTS'));
 
 		$this->sendMsg('OK APPEND completed');
 	}

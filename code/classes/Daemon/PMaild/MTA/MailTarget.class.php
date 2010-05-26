@@ -10,13 +10,15 @@ class MailTarget {
 	protected $from;
 	protected $localConfig;
 	protected $sql;
+	protected $IPC;
 
-	function __construct($target, $from, $localConfig) {
+	function __construct($target, $from, $localConfig, $IPC) {
 		// transmit mail to target
 		$this->target = $target;
 		$this->from = $from;
 		$this->localConfig = $localConfig;
 		$this->sql = SQL::Factory($this->localConfig['Storage']);
+		$this->IPC = $IPC;
 	}
 
 	public function makeUniq($path, $domain=null, $account=null) {
@@ -106,6 +108,7 @@ class MailTarget {
 		$flags = 'recent';
 
 		// manage filters
+//		$list = $DAO_filters->loadByField(array('userid' => $this->target['target']), array('order' => 'DESC'));
 		foreach($DAO_filter->loadByField(array('userid' => $this->target['target'])) as $rule) {
 			$match = true;
 			foreach($DAO_filter_cond->loadByField(array('filterid' => $rule->id), array('priority' => 'DESC')) as $cond) {
@@ -155,7 +158,7 @@ class MailTarget {
 
 		// store mail
 		$insert = array(
-			'folder' => $folder, // root
+			'folder' => $folder,
 			'userid' => $this->target['target'],
 			'size' => $size,
 			'uniqname' => basename($store),
@@ -166,9 +169,7 @@ class MailTarget {
 		$newid = $new->mailid;
 
 		// at this point, the mail is successfully received ! Yatta!
-
-		// TODO: check filters
-//		$list = $DAO_filters->loadByField(array('userid' => $this->target['target']), array('order' => 'DESC'));
+		$this->IPC->broadcast('PMaild::Activity_'.$this->target['domainid'].'_'.$this->target['target'].'_'.$folder, array($newid, 'EXISTS'));
 
 		// Extra: update mail_count and mail_quota
 		try {

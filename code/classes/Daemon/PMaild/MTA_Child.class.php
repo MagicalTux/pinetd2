@@ -155,7 +155,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 					}
 					fclose($in);
 				}
-				$txn->finishMail();
+				$txn->finishMail($this->IPC);
 			}
 			@unlink($file);
 			$mail->delete();
@@ -196,7 +196,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 					}
 					fclose($in);
 				}
-				$txn->finishMail();
+				$txn->finishMail($this->IPC);
 			}
 		}
 

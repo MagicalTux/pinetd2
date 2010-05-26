@@ -278,7 +278,7 @@ class SMTP_Client extends \pinetd\TCP\Client {
 			return;
 		}
 
-		if (!$this->txn->finishMail()) { // failed at sending the mail? :(
+		if (!$this->txn->finishMail($this->IPC)) { // failed at sending the mail? :(
 			$this->sendMsg($this->txn->errorMsg());
 			$this->txn->reset();
 			return;
