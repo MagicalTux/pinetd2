@@ -46,6 +46,9 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $uidmap = array();
 	protected $reverseMap = array();
 	protected $uidmap_next = 0;
+	protected $idle_mode = false;
+	protected $idle_queue = array();
+	protected $idle_event = NULL;
 
 	function __construct($fd, $peer, $parent, $protocol) {
 		parent::__construct($fd, $peer, $parent, $protocol);
@@ -198,6 +201,11 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	}
 	protected function parseLine($lin) {
 		$lin = rtrim($lin); // strip potential \r and \n
+		if ($this->idle_mode) {
+			if (strtolower($lin) != 'done') return;
+			$this->sendMsg('OK IDLE terminated');
+			$this->idle_mode = false;
+		}
 		$match = array();
 		$res = preg_match_all('/([^" ]+)|("(([^\\\\"]|(\\\\")|(\\\\\\\\))*)")/', $lin, $match);
 		$argv = array();
@@ -298,7 +306,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	function _cmd_capability() {
 		$secure = true;
 		if ($this->protocol == 'tcp') $secure=false;
-		$this->sendMsg('CAPABILITY IMAP4REV1 '.($secure?'':'STARTTLS ').'X-NETSCAPE NAMESPACE MAILBOX-REFERRALS SCAN SORT THREAD=REFERENCES THREAD=ORDEREDSUBJECT MULTIAPPEND LOGIN-REFERRALS AUTH='.($secure?'LOGIN':'LOGINDISABLED'), '*');
+		$this->sendMsg('CAPABILITY IMAP4REV1 '.($secure?'':'STARTTLS ').'X-NETSCAPE NAMESPACE MAILBOX-REFERRALS SCAN SORT THREAD=REFERENCES THREAD=ORDEREDSUBJECT MULTIAPPEND LOGIN-REFERRALS IDLE AUTH='.($secure?'LOGIN':'LOGINDISABLED'), '*');
 		$this->sendMsg('OK CAPABILITY completed');
 	}
 
@@ -593,6 +601,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			return;
 		}
 		$this->sendMsg('OK [READ-WRITE] SELECT completed');
+
+		$this->idleFolderChanged();
 	}
 
 	function _cmd_examine($argv) {
@@ -703,6 +713,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$mail->delete();
 		}
 		$this->selectedFolder = NULL;
+		$this->idleFolderChanged();
 		$this->sendMsg('OK CLOSE completed');
 	}
 
@@ -718,6 +729,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			@unlink($this->mailPath($mail->uniqname));
 			$this->sendMsg($this->reverseMap[$mail->mailid].' EXPUNGE', '*');
 			$this->IPC->broadcast('PMaild::Activity_'.$this->info['domainid'].'_'.$this->info['account']->id.'_'.$mail->folder, array($mail->mailid, 'EXPUNGE'));
+			unset($this->reverseMap[$mail->mailid]);
 			$mail->delete();
 		}
 		$this->sendMsg('OK EXPUNGE completed');
@@ -793,7 +805,6 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					}
 					break;
 				case 'BODYSTRUCTURE':
-					// XXX TODO FIXME
 					$res[] = 'BODYSTRUCTURE';
 					$res[] = $mail->getStructure();
 					break;
@@ -1131,9 +1142,8 @@ A OK FETCH completed
 		$opt = $this->parseFetchParam(implode(' ', $argv));
 
 		if (isset($box['flags']['noselect'])) return $this->sendMsg('NO This folder has \\Noselect flag');
-		$this->selectedFolder = $box['id'];
 		// TODO: find a way to do this without SQL code?
-		$req = 'SELECT `flags`, COUNT(1) AS num, (MAX(`mailid`)+1) AS uidnext FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' AND `folder` = \''.$this->sql->escape_string($this->selectedFolder).'\' GROUP BY `flags`';
+		$req = 'SELECT `flags`, COUNT(1) AS num, (MAX(`mailid`)+1) AS uidnext FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' AND `folder` = \''.$this->sql->escape_string($box['id']).'\' GROUP BY `flags`';
 		$res = $this->sql->query($req);
 		$total = 0;
 		$recent = 0;
@@ -1174,6 +1184,54 @@ A OK FETCH completed
 
 		$this->sendMsg('STATUS '.$box_name.' ('.implode(' ', $res).')', '*');
 		$this->sendMsg('OK STATUS completed');
+	}
+
+	protected function idleFolderChanged() {
+		$this->idle_queue = array();
+		if (!is_null($this->idle_event))
+			$this->IPC->unlistenBroadcast($this->idle_event, 'idle');
+
+		if (is_null($this->selectedFolder)) {
+			$this->idle_event = NULL;
+			break;
+		}
+
+		$this->idle_event = 'PMaild::Activity_'.$this->info['domainid'].'_'.$this->info['account']->id.'_'.$this->selectedFolder;
+		$this->IPC->listenBroadcast($this->idle_event, 'idle', array($this, 'receiveIdleEvent'));
+	}
+
+	public function receiveIdleEvent($data) {
+		$evt = NULL;
+		switch($data[1]) {
+			case 'EXISTS':
+				// new mail
+				$id = $this->allocateQuickId($data[0]);
+				$evt = $id.' EXISTS';
+				break;
+			case 'EXPUNGE':
+				if (!isset($this->reverseMap[$data[0]])) break;
+				$id = $this->reverseMap[$data[0]];
+				$evt = $id.' EXPUNGE';
+				unset($this->reverseMap[$data[0]]);
+				break;
+		}
+		if (is_null($evt)) return;
+		if ($this->idle_mode) {
+			$this->sendMsg($evt, '*'); // in idle mode, send notification right now
+			return;
+		}
+		$this->idle_queue[] = $evt; // queue for later, or for never
+	}
+
+	function _cmd_idle($argv) {
+		if (is_null($this->selectedFolder)) {
+			$this->sendMsg('NO no folder selected');
+			return;
+		}
+		$this->idle_mode = true;
+		$this->sendMsg('idling', '+');
+		foreach($this->idle_queue as $line) $this->sendMsg($line, '*');
+		$this->idle_queue = array();
 	}
 
 	function _cmd_append($argv) {
