@@ -42,8 +42,11 @@ class Client extends \Daemon\FTPd\Client {
 
 		// make domain symlinks
 		foreach($data['domains'] as $alias) {
+			list($alias, $extra) = explode('+', $alias);
+			$link_target = $domain;
+			if (!is_null($extra)) $link_target .= '/'.$extra;
 			if (is_link($alias)) {
-				if (readlink($alias) == $domain) continue;
+				if (readlink($alias) == $link_target) continue;
 			}
 			if (is_dir($alias)) continue;
 			if (file_exists($alias)) @unlink($alias);
@@ -51,7 +54,7 @@ class Client extends \Daemon\FTPd\Client {
 			$parent = dirname($alias);
 			if (!is_dir($parent)) mkdir($parent, 0755, true);
 
-			symlink($domain, $alias);
+			symlink($link_target, $alias);
 		}
 
 		// make subdomain describe files
