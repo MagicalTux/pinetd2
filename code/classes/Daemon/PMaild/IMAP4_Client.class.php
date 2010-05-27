@@ -201,10 +201,11 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	}
 	protected function parseLine($lin) {
 		$lin = rtrim($lin); // strip potential \r and \n
-		if ($this->idle_mode) {
+		if ($this->idle_mode !== false) {
 			if (strtolower($lin) != 'done') return;
-			$this->sendMsg('OK IDLE terminated');
+			$this->sendMsg('OK IDLE terminated', $this->idle_mode);
 			$this->idle_mode = false;
+			return;
 		}
 		$match = array();
 		$res = preg_match_all('/([^" ]+)|("(([^\\\\"]|(\\\\")|(\\\\\\\\))*)")/', $lin, $match);
@@ -1228,7 +1229,7 @@ A OK FETCH completed
 			$this->sendMsg('NO no folder selected');
 			return;
 		}
-		$this->idle_mode = true;
+		$this->idle_mode = $this->queryId;
 		$this->sendMsg('idling', '+');
 		foreach($this->idle_queue as $line) $this->sendMsg($line, '*');
 		$this->idle_queue = array();
