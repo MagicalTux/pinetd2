@@ -36,6 +36,7 @@ class IPC {
 	private $fds = array(); /*!< List of fds to listens, and callbacks */
 	private $ports = array(); /*!< Port routing table */
 	private $bcast_listen = array(); /*!< list of broadcast listeners */
+	private $parent_ipc = NULL;
 
 	const CMD_PING = 'PING'; /*!< PING command, should receive RES_PING from peer */
 	const CMD_NOOP = 'NOOP'; /*!< NOOP command, just to NOOP (NB: this is virtual, should never be sent) */
@@ -109,6 +110,9 @@ class IPC {
 	 * \param $data Data to be passed to the callback, by reference
 	 */
 	public function registerSocketWait($fd, $callback, &$data) {
+		if ((is_array($callback)) && ($callback[0] instanceof self) && ($callback[0] != $this)) {
+			$callback[0]->parent_ipc = $this;
+		}
 		if (!is_array($data)) throw new \Exception('No data defined :(');
 		$this->fds[(int)$fd] = array('fd'=>$fd, 'last_activity' => time(), 'callback' => $callback, 'data' => &$data);
 	}
@@ -290,6 +294,8 @@ class IPC {
 			$this->sendcmd(self::CMD_BCAST, array($code, $data));
 		} else if ($this->parent instanceof Core) {
 			$this->parent->broadcast($code, $data, (int)$this->pipe);
+		} else if (!is_null($this->parent_ipc)) {
+			$this->parent_ipc->broadcast($code, $data, (int)$this->pipe);
 		}
 		return true;
 	}
