@@ -1194,7 +1194,7 @@ A OK FETCH completed
 
 		if (is_null($this->selectedFolder)) {
 			$this->idle_event = NULL;
-			break;
+			return;
 		}
 
 		$this->idle_event = 'PMaild::Activity_'.$this->info['domainid'].'_'.$this->info['account']->id.'_'.$this->selectedFolder;
