@@ -285,7 +285,7 @@ class IPC {
 				if ($class == $this) continue;
 				$class->broadcast($code, $data);
 			}
-			if (!$except) {
+			if ($except != (int)$this->pipe) {
 				$this->sendcmd(self::CMD_BCAST, array($code, $data));
 			}
 			return true;
