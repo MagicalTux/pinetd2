@@ -1263,7 +1263,7 @@ A OK FETCH completed
 		}
 		// invoke MailTarget
 		$class = relativeclass($this, 'MTA\\MailTarget');
-		$mailTarget = new $class('', '', $this->localConfig);
+		$mailTarget = new $class('', '', $this->localConfig, $this->IPC);
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
 
 		// store this mail, but first generate an unique id
