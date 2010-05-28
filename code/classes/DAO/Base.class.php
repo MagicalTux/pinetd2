@@ -39,6 +39,10 @@ abstract class Base implements ArrayAccess {
 	}
 
 	public function loadByField($where_data, $order_by = null, $limit = null) {
+		return $this->search($where_data, $order_by, $limit);
+	}
+
+	public function search($where_data, $order_by = null, $limit = null) {
 		$result = $this->createSelectQuery('SELECT', '*', $this->table, $where_data, $order_by, $limit);
 		if (!is_object($result)) return null;
 		if ($result->num_rows < 1) return array();
@@ -49,8 +53,13 @@ abstract class Base implements ArrayAccess {
 		return $Bean;
 	}
 
+	public function searchOne($where_data) {
+		$res = $this->search($where_data, null, array(1));
+		return $res[0];
+	}
+
 	public function loadLast() {
-		$res = $this->loadByField(array($this->key => NULL));
+		$res = $this->search(array($this->key => NULL));
 		if (!$res) return null;
 		return $res[0];
 	}
@@ -63,7 +72,7 @@ abstract class Base implements ArrayAccess {
 	}
 
 	public function loadFromId($id) {
-		list($result) = $this->loadByField(array($this->key => $id));
+		list($result) = $this->search(array($this->key => $id));
 		return $result;
 	}
 
