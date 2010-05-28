@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PHP_VERSION=php-5.3.1
+PHP_VERSION=php-5.3.2
 
 PHP_ARCHIVE="$PHP_VERSION".tar.bz2
 BUILD_ROOT=`pwd`
@@ -117,6 +117,7 @@ fi
 if [ ! -d "ext/uuid" ]; then
 	echo -n "Getting uuid..."
 	svn co -q http://svn.php.net/repository/pecl/uuid/trunk/ ext/uuid
+	sed -i 's/php_version.h/stdio.h/;s/#error/\/\/#error/' ext/uuid/config.m4
 	echo "done"
 	NEED_AUTOCONF=yes
 fi
