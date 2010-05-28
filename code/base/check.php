@@ -22,8 +22,7 @@ if (substr(PHP_VERSION, 0, 1) < 5) {
 	echo "Error: you need at least PHP 5.3.0 to run pinetd\n";
 	exit(3);
 }
-//*LEGACY*//if (0) {
-if (!version_compare(PHP_VERSION, '5.3', '>=')) { //*LEGACY*//
+if (!version_compare(PHP_VERSION, '5.3', '>=')) {
 	echo "Error: you need at least PHP 5.3.0 to run pinetd\n";
 	exit(3);
 }
@@ -36,7 +35,7 @@ $required = array(
 	'SimpleXML',
 	'libxml',
 
-	'tokenizer', // used for some analysis //*LEGACY*//
+	'tokenizer', // used for some analysis
 	'pcre', // pcre is useful
 	'sockets', // what will we do without sockets ?!
 	'SQLite', // storage subclass
@@ -44,12 +43,13 @@ $required = array(
 	'mhash', // mhash are always useful
 	'mbstring', // can do stuff iconv can't do (like decode/encode IMAP UTF-7)
 	'iconv', // convert stuff
-	'hash', //*LEGACY*//
+	'hash',
 	'gd', // we may want to generate gfx
-	'ftp', // ftp access ?
-	'filter', // filters (useful to qualify ips) //*LEGACY*//
+	'filter', // filters (useful to qualify ips)
 	'date', // what will we do without that?
 	'zlib', // zlib might be useful for a bunch of things
+	'bz2', // required by PMaild2 for compression
+	'uuid', // useful to generate stuff
 );
 $list = get_loaded_extensions();
 
