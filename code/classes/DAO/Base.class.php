@@ -26,6 +26,10 @@ abstract class Base implements ArrayAccess {
 	abstract public function insertValues($data);
 	abstract public function createSelectQuery($qtype = 'SELECT', $qfields = '*', $qtable = null, $qwhere = null, $order_by = null, $limit = null);
 
+	public function insert($data) {
+		return $this->insertValues($data);
+	}
+
 	public function generateBean($data) {
 		return new Bean($this, $data);
 	}
@@ -45,7 +49,6 @@ abstract class Base implements ArrayAccess {
 	public function search($where_data, $order_by = null, $limit = null) {
 		$result = $this->createSelectQuery('SELECT', '*', $this->table, $where_data, $order_by, $limit);
 		if (!is_object($result)) return null;
-		if ($result->num_rows < 1) return array();
 		$Bean = array();
 		while($row = $result->fetch_assoc())
 			$Bean[] = $this->generateBean($row);

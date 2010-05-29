@@ -104,6 +104,10 @@ class SQLite3 {
 		return '\''.$this->sqlite->escapeString($string).'\'';
 	}
 
+	public function escape_string($string) {
+		return $this->sqlite->escapeString($string);
+	}
+
 	function col_gen_type($col) {
 		$res = strtolower($col['type']);
 		if ($col['auto_increment']) return 'INTEGER';

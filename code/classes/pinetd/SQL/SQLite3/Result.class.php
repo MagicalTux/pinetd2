@@ -12,5 +12,9 @@ class Result {
 	public function fetch_assoc() {
 		return $this->result->fetchArray(SQLITE3_ASSOC);
 	}
+
+	public function close() {
+		return $this->result->finalize();
+	}
 }
 

@@ -63,12 +63,7 @@ class SQLite3 extends \DAO\Base {
 	}
 
 	public function insertValues($data) {
-		$query = '';
-		foreach($data as $var=>$val) {
-			$query .= ($query == ''?'':', ').'`'.$var.'` = '.(is_null($val)?'NULL':'\''.$this->SQL->escape_string($val).'\'');
-		}
-		$query = 'INSERT INTO '.$this->formatTable($this->table).' SET '.$query;
-		return $this->SQL->query($query);
+		return $this->SQL->insert($this->table, $data);
 	}
 
 	protected function buildQuickWhere(array $qwhere) {
