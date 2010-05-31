@@ -807,7 +807,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					break;
 				case 'RFC822.HEADER':
 					$res_headers = $mail->fetchBody(array('RFC822.HEADER'));
-					foreach($res_body as $t => $v) {
+					foreach($res_headers['BODY'] as $t => $v) {
 						if (is_string($t)) {
 							$res[$t] = $v;
 							continue;
