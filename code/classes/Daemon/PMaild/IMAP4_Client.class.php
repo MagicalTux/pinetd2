@@ -805,6 +805,16 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						$res[] = $v;
 					}
 					break;
+				case 'RFC822.HEADER':
+					$res_headers = $mail->fetchBody(array('RFC822.HEADER'));
+					foreach($res_body as $t => $v) {
+						if (is_string($t)) {
+							$res[$t] = $v;
+							continue;
+						}
+						$res[] = $v;
+					}
+					break;
 				case 'BODYSTRUCTURE':
 					$res[] = 'BODYSTRUCTURE';
 					$res[] = $mail->getStructure();

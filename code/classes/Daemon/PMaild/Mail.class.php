@@ -280,6 +280,7 @@ class Mail {
 					$res[] = $head;
 					break;
 				case 'HEADER':
+				case 'RFC822.HEADER': // little hack
 					$head = "";
 
 					// read file
@@ -291,7 +292,7 @@ class Mail {
 						if (trim($lin) === '') break;
 						$head .= $lin;
 					}
-					$var[] = 'HEADER';
+					$var[] = strtoupper($p);
 					$res[] = $head;
 					break;
 				case 'TEXT':
