@@ -123,7 +123,7 @@ class SQLite3 {
 				if (isset($col['size'])) $res.='('.$col['size'].')';
 				break;
 		}
-		if ($col['unsigned']) $res='unsigned '.$r;
+		if ($col['unsigned']) $res='unsigned';
 		return $res;
 	}
 
@@ -180,27 +180,26 @@ class SQLite3 {
 			}
 			return $this->sqlite->exec($req);
 		}
-		return;
 		// get structure for this table
 		$res = $this->query('PRAGMA table_info('.$table_name.')');
 		// TODO: decode "CREATE TABLE" returned by query (string)
 		while($row = $res->fetch_assoc()) {
-			if (!isset($f[$row['Field']])) {
+			if (!isset($f[$row['name']])) {
 				// we got a field we don't know about
-				$req = 'ALTER TABLE `'.$table_name.'` DROP `'.$row['Field'].'`';
-				@$this->mysqli->query($req);
+				$req = 'ALTER TABLE `'.$table_name.'` DROP `'.$row['name'].'`';
+				@$this->sqlite->query($req);
 				continue;
 			}
-			unset($f[$row['Field']]);
-			$col = $struct[$row['Field']];
-			if ($row['Type']!=$this->col_gen_type($col)) {
-				$req = 'ALTER TABLE `'.$table_name.'` CHANGE `'.$row['Field'].'` '.$this->gen_field_info($row['Field'], $col);
-				@$this->mysqli->query($req);
+			unset($f[$row['name']]);
+			$col = $struct[$row['name']];
+			if ($row['type']!=$this->col_gen_type($col)) {
+				$req = 'ALTER TABLE `'.$table_name.'` CHANGE `'.$row['name'].'` '.$this->gen_field_info($row['name'], $col);
+				@$this->sqlite->query($req);
 			}
 		}
 		foreach($f as $k=>$ign) {
 			$req = 'ALTER TABLE `'.$table_name.'` ADD '.$this->gen_field_info($k, $struct[$k]);
-			@$this->mysqli->query($req);
+			@$this->sqlite->query($req);
 		}
 	}
 }
