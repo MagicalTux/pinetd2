@@ -168,6 +168,22 @@ class Mail {
 		return $res;
 	}
 
+	public function fetchRfc822Headers() {
+		$head = "";
+
+		// read file
+		$fp = fopen($this->file, 'r'); // read headers
+		if (!$fp) break;
+
+		while(!feof($fp)) {
+			$lin = fgets($fp);
+			if (trim($lin) === '') break;
+			$head .= $lin;
+		}
+		return $head;
+		break;
+	}
+
 	public function getStructure() {
 		$this->needMime();
 		$stack = array();
@@ -280,7 +296,6 @@ class Mail {
 					$res[] = $head;
 					break;
 				case 'HEADER':
-				case 'RFC822.HEADER': // little hack
 					$head = "";
 
 					// read file
