@@ -20,7 +20,7 @@ class PMaild2 {
 		$stamp[1] ^= $stamp[2];
 		$stamp = (($stamp[1] << 32) | $stamp[2]) / 1000000;
 		$offset = abs(microtime(true)-$stamp);
-		if ($offset > 0.5) throw new \Exception('Time drift is over 0.5 secs, please resync servers');
+		if ($offset > 0.5) throw new \Exception('Time drift is over 0.5 secs ('.$offset.'), please resync servers');
 
 		// check signature
 		$sign = sha1(pack('H*', $key).substr($handshake, 0, 24), true);
@@ -30,7 +30,7 @@ class PMaild2 {
 		$stamp = (int)round(microtime(true)*1000000);
 		$stamp = pack('NN', (($stamp >> 32) & 0xffffffff) ^ ($stamp & 0xffffffff), $stamp & 0xffffffff);
 		$handshake = str_repeat("\0", 16).$stamp;
-		$handshake .= sha1(pack('H*', $key).$handshake);
+		$handshake .= sha1(pack('H*', $key).$handshake, true);
 		fwrite($sock, $handshake);
 	}
 }
