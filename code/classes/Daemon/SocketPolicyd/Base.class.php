@@ -40,8 +40,8 @@ class Base extends \pinetd\TCP\Base {
 		$policy .= '<!DOCTYPE cross-domain-policy SYSTEM "/xml/dtds/cross-domain-policy.dtd">';
 		$policy .= '<cross-domain-policy>';
 		$policy .= '<site-control permitted-cross-domain-policies="master-only"/>';
-		foreach($this->localConfig['PolicyArray']['Policy'] as $policy) {
-			$policy .= '<allow-access-from domain="'.htmlspecialchars($policy['Domain']?:'*').'" to-ports="'.htmlspecialchars($policy['Ports']?:'*').'" />';
+		foreach($this->localConfig['PolicyArray']['Policy'] as $p) {
+			$policy .= '<allow-access-from domain="'.htmlspecialchars($p['Domain']?:'*').'" to-ports="'.htmlspecialchars($p['Ports']?:'*').'" />';
 		}
 		$policy .= '</cross-domain-policy>';
 		return $policy;

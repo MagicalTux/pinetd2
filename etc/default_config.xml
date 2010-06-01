@@ -137,7 +137,7 @@
 
 		 <SocketPolicyd>
 		   <PolicyArray>
-		     <Policy Domain="example.com" Port="1234"/>
+		     <Policy Domain="example.com" Ports="1234"/>
 		   </PolicyArray>
 		 </SocketPolicyd>
 		-->
