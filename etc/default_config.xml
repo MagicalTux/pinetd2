@@ -127,6 +127,20 @@
       		-->
 		<DNSd>
 		</DNSd>
+
+		<!--
+		 SocketPolicyd
+
+		 This daemon serves socket policies for flash clients. This policy will allow access from example.com to port 1234
+
+		 Port allows definition of ranges & lists, for example 1234,2000-2009. More than one policy can be put
+
+		 <SocketPolicyd>
+		   <PolicyArray>
+		     <Policy Domain="example.com" Port="1234"/>
+		   </PolicyArray>
+		 </SocketPolicyd>
+		-->
 	</Daemons>
 	<!--
 	 SSL
@@ -180,5 +194,7 @@
 		<TCP Port="143" Daemon="PMaild" Service="IMAP4" SSL="~main"/>
 		<TCP Port="993" Daemon="PMaild" Service="IMAP4" SSL="main" />
 		<Process Daemon="PMaild" Service="MTA"/>
+		<!-- SocketPolicyd -->
+		<TCP Port="843" Daemon="SocketPolicyd" />
 	</Processes>
 </Config>
