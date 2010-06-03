@@ -370,11 +370,12 @@ class Mail {
 					// check if this is a part request
 					$this->needMime();
 					$only_header = false;
-					if (strtoupper(substr($p, -5)) == '.MIME') {
+					$p_search = $p;
+					if (strtoupper(substr($p_search, -5)) == '.MIME') {
 						$only_header = true;
-						$p = substr($p, 0, -5);
+						$p_search = substr($p_search, 0, -5);
 					}
-					$part = $this->DAO('mime')->loadByField($this->where()+array('imap_part' => $p));
+					$part = $this->DAO('mime')->loadByField($this->where()+array('imap_part' => $p_search));
 					if ($part) {
 						// partial body request, answer it!
 						$part = $part[0];
@@ -383,13 +384,13 @@ class Mail {
 						if (!$fp) break;
 						if ($only_header) {
 							fseek($fp, $part->starting_pos);
-							$len = $part->starting_pos_body - $part->starting_pos;
+							$data_len = $part->starting_pos_body - $part->starting_pos;
 						} else {
 							fseek($fp, $part->starting_pos_body);
-							$len = $part->ending_pos_body - $part->starting_pos_body;
+							$data_len = $part->ending_pos_body - $part->starting_pos_body;
 						}
 						$var[] = $p;
-						$res[] = fread($fp, $len);
+						$res[] = fread($fp, $data_len);
 						break;
 					}
 					var_dump('BODY UNKNOWN: '.$p);
