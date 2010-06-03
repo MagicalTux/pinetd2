@@ -794,6 +794,12 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					$res[] = $mail->getEnvelope();
 					break;
 				case 'BODY':
+					if (is_null($item_param)) {
+						// return bodystructure
+						$res[] = 'BODY';
+						$res[] = $mail->getStructure();
+						break;
+					}
 					// TODO: clear "Recent" flag
 				case 'BODY.PEEK':
 					$res_body = $mail->fetchBody($item_param);
@@ -811,7 +817,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					break;
 				case 'BODYSTRUCTURE':
 					$res[] = 'BODYSTRUCTURE';
-					$res[] = $mail->getStructure();
+					$res[] = $mail->getStructure(true); // get complete body structure
 					break;
 				case 'RFC822.SIZE': // TODO: determine if we should include headers in size
 					$res[] = 'RFC822.SIZE';

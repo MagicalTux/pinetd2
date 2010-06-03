@@ -184,7 +184,7 @@ class Mail {
 		break;
 	}
 
-	public function getStructure() {
+	public function getStructure($add_extra = false) {
 		$this->needMime();
 		$stack = array();
 		$append = array();
@@ -234,10 +234,41 @@ class Mail {
 			if (isset($info['content_description'])) $desc = new Quoted($info['content_description']);
 
 			$res = array(new Quoted(strtoupper($type[0])), new Quoted(strtoupper($type[1])), $props, $cid, $desc, new Quoted(strtoupper($info['transfer_encoding'])), ($info['ending_pos_body'] - $info['starting_pos_body']));
-			if (strtolower($type[0]) == 'text') $res[] = $info['body_line_count'];
+			if (strtolower($type[0]) == 'text') {
+				$res[] = $info['body_line_count'];
+			}
 			if ($info['content_type'] == 'message/rfc822') {
-				$append2['p'.$part] = $info['body_line_count'];
+				$append2['p'.$part][] = $info['body_line_count'];
 				$res[] = $this->getEnvelope($part.'.1'); // get envelope of contents
+			}
+			if ($add_extra) {
+				// get disposition if any
+				$disposition = NULL;
+				if (!is_null($info['content_disposition'])) {
+					// ("ATTACHMENT" ("FILENAME" "test1.png"))
+					$disposition = array(new Quoted(strtoupper($info['content_disposition'])), array());
+					if (!is_null($info['disposition_filename'])) {
+						$disposition[1][] = new Quoted('FILENAME');
+						$disposition[1][] = new Quoted($info['disposition_filename']);
+					}
+				}
+				if ($type[0] == 'multipart') {
+					$multipart_props = array();
+					if (!is_null($info['content_boundary'])) {
+						$multipart_props[] = new Quoted('BOUNDARY');
+						$multipart_props[] = new Quoted($info['content_boundary']);
+					}
+					if (!$multipart_props) $multipart_props = null;
+					$append2['p'.$part][] = $multipart_props; // array of parameters, eg ("TYPE" "multipart/alternative" "BOUNDARY" "=-qHsc855UymA7s4jLqdMw") as defined in [MIME-IMB]
+					$append2['p'.$part][] = $disposition; // array of disposition as defined in [DISPOSITION] (RFC2183)
+					$append2['p'.$part][] = $info['content_language']; // body language as defined in [LANGUAGE-TAGS] RFC3066
+//					$append2['p'.$part][] = null; // body location as defined in [LOCATION] RFC2557
+				} else {
+					$append2['p'.$part][] = null; // content_md5 [MD5]
+					$append2['p'.$part][] = $disposition; // body disposition (array) as defined in [DISPOSITION]
+					$append2['p'.$part][] = $info['content_language']; // Content-Language as defined in [LANGUAGE-TAGS]
+//					$append2['p'.$part][] = null; // content location as defined in [LOCATION]
+				}
 			}
 
 			$stack[$tmp] = $res;
@@ -246,10 +277,10 @@ class Mail {
 		foreach($append as $part => $what) {
 			$stack[$part] = array(new ArrayList($stack[$part]), $what);
 		}
-		foreach($append2 as $part => $what) { // bit more complex...
-//			$last = array_pop($stack[$part]);
-//			$stack[$part][] = new ArrayList($last);
-			$stack[$part][] = $what;// = array(new ArrayList($stack[$part]), $what);
+		foreach($append2 as $part => $what) {
+			foreach($what as $swhat) {
+				$stack[$part][] = $swhat;// = array(new ArrayList($stack[$part]), $what);
+			}
 		}
 		return $stack['p1'];
 	}

@@ -33,6 +33,12 @@ class PMaild2 {
 		$handshake .= sha1(pack('H*', $key).$handshake, true);
 		fwrite($sock, $handshake);
 	}
+
+	public function createStore($uuid = null) {
+		$packet = array(
+			'
+		);
+	}
 }
 
 $adm = new PMaild2('127.0.0.1',10006,'89bce390-273a-4338-af63-70a4d4c6d032','625b6355c39f4d34eba455fd20e5976c1ae1016e16e1b7ad7aae3d7db075ed60');
