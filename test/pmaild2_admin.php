@@ -4,6 +4,7 @@ date_default_timezone_set('GMT');
 
 class PMaild2 {
 	private $fd;
+	private $seq;
 
 	public function __construct($host, $port, $uuid, $key) {
 		$sock = fsockopen('ssl://'.$host, $port, $errno, $errstr, 10);
@@ -32,12 +33,41 @@ class PMaild2 {
 		$handshake = str_repeat("\0", 16).$stamp;
 		$handshake .= sha1(pack('H*', $key).$handshake, true);
 		fwrite($sock, $handshake);
+
+		$this->seq = 0;
+	}
+
+	protected function _event($evt, $ref) {
+		$pkt = array(
+			'evt' => $evt,
+			'ref' => $ref,
+			'stp' => round(microtime(true)*1000000), // magic stamp
+		);
+		$ack = $this->seq++;
+		$pkt = array(
+			'typ' => 'log',
+			'pkt' => $pkt,
+			'ack' => $ack,
+		);
+		$this->_sendPacket($pkt);
+		return $this->_waitAck($ack);
+	}
+
+	public function askUuid() {
+		// ask remote peer to be kind enough to produce an uuid and send it to us
+		$pkt = array(
+			'typ' => 'qry',
+			'pkt' => array('qry' => 'uuid'),
+		);
+		$this->_sendPacket($pkt);
+		$res = $this->_waitAck($ack);
+		if ($res) return $res['uuid'];
+		return false;
 	}
 
 	public function createStore($uuid = null) {
-		$packet = array(
-			'
-		);
+		if (is_null($uuid)) $uuid = $this->askUuid();
+		$res = $this->_event('store/add', 'ref' => $uuid);
 	}
 }
 
