@@ -34,15 +34,47 @@ class PMaild2 {
 		$handshake .= sha1(pack('H*', $key).$handshake, true);
 		fwrite($sock, $handshake);
 
+		$this->fd = $sock;
+
 		$this->seq = 0;
 	}
 
-	protected function _event($evt, $ref) {
+	protected function _sendPacket(array $pkt) {
+		$pkt = json_encode($pkt);
+		if (strlen($pkt) > 65535) throw new \Exception('Error: packet is too big!');
+		return fwrite($this->fd, pack('n', strlen($pkt)).$pkt);
+	}
+
+	protected function _readPacket() {
+		$len = fread($this->fd, 2);
+		if (feof($this->fd)) throw new \Exception('Connection interrupt!');
+		list(,$len) = unpack('n', $len);
+		if ($len == 0) throw new \Exception('Invalid packet!');
+
+		$data = fread($this->fd, $len);
+		if (strlen($data) != $len) throw new \Exception('Could not read enough data (expect: '.$len.' got: '.strlen($data).')');
+
+		return json_decode($data, true);
+	}
+
+	protected function _waitAck($ack) {
+		while(1) {
+			$pkt = $this->_readPacket();
+			if (!isset($pkt['ack'])) continue;
+			if ($pkt['ack'] == $ack) return $pkt['res'];
+		}
+	}
+
+	protected function _event($evt, $ref, $fd = NULL) {
 		$pkt = array(
 			'evt' => $evt,
 			'ref' => $ref,
-			'stp' => round(microtime(true)*1000000), // magic stamp
+			'stp' => (int)round(microtime(true)*1000000), // magic stamp
 		);
+		if (!is_null($fd)) {
+			fseek($fd, 0, SEEK_END);
+			$pkt['dat'] = ftell($fd);
+		}
 		$ack = $this->seq++;
 		$pkt = array(
 			'typ' => 'log',
@@ -50,26 +82,34 @@ class PMaild2 {
 			'ack' => $ack,
 		);
 		$this->_sendPacket($pkt);
+		if (!is_null($fd)) {
+			// send extra data too
+			rewind($fd);
+			stream_copy_to_stream($fd, $this->fd);
+		}
 		return $this->_waitAck($ack);
 	}
 
 	public function askUuid() {
 		// ask remote peer to be kind enough to produce an uuid and send it to us
+		$ack = $this->seq++;
 		$pkt = array(
 			'typ' => 'qry',
 			'pkt' => array('qry' => 'uuid'),
+			'ack' => $ack,
 		);
 		$this->_sendPacket($pkt);
 		$res = $this->_waitAck($ack);
-		if ($res) return $res['uuid'];
-		return false;
+		return $res;
 	}
 
 	public function createStore($uuid = null) {
 		if (is_null($uuid)) $uuid = $this->askUuid();
-		$res = $this->_event('store/add', 'ref' => $uuid);
+		if (!$this->_event('store/add', $uuid)) return false;
+		return $uuid;
 	}
 }
 
 $adm = new PMaild2('127.0.0.1',10006,'89bce390-273a-4338-af63-70a4d4c6d032','625b6355c39f4d34eba455fd20e5976c1ae1016e16e1b7ad7aae3d7db075ed60');
+var_dump($adm->createStore());
 
