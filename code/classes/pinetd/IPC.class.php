@@ -37,6 +37,7 @@ class IPC {
 	private $ports = array(); /*!< Port routing table */
 	private $bcast_listen = array(); /*!< list of broadcast listeners */
 	private $parent_ipc = NULL;
+	private $wfds = array();
 
 	const CMD_PING = 'PING'; /*!< PING command, should receive RES_PING from peer */
 	const CMD_NOOP = 'NOOP'; /*!< NOOP command, just to NOOP (NB: this is virtual, should never be sent) */
@@ -139,6 +140,7 @@ class IPC {
 	 */
 	public function removeSocket($fd) {
 		unset($this->fds[(int)$fd]);
+		unset($this->wfds[(int)$fd]);
 	}
 
 	/**
@@ -495,6 +497,14 @@ class IPC {
 		return true;
 	}
 
+	public function addWriteBuffer($fd, &$buffer) {
+		if (isset($this->wfds[(int)$fd])) return;
+		$this->wfds[(int)$fd] = array(
+			'fd' => $fd,
+			'buffer' => &$buffer,
+		);
+	}
+
 	/**
 	 * \brief Wait for something to happen (or for timeout) and handle it
 	 * \param $timeout Timeout for select() in microseconds
@@ -502,6 +512,7 @@ class IPC {
 	 */
 	public function selectSockets($timeout) {
 		$r = array();
+		$w = array();
 		$now = time();
 		foreach($this->fds as &$c) {
 			if ( (isset($c['timeout'])) && ($c['timeout'] > 0)) {
@@ -512,10 +523,13 @@ class IPC {
 			}
 			$r[] = $c['fd'];
 		}
+		foreach($this->wfds as &$c) {
+			$w[] = $c['fd'];
+		}
 
-		$n = @stream_select($r, $w=null, $e=null, 0, $timeout);
+		$n = @stream_select($r, $w, $e=null, 0, $timeout);
 		pcntl_signal_dispatch();
-		if (($n==0) && (count($r)>0)) $n = count($r); // stream_select returns weird values sometimes Oo
+		if (($n==0) && ((count($r)>0) || (count($w) > 0))) $n = count($r) + count($w); // stream_select returns weird values sometimes Oo
 		if ($n<=0) {
 			// nothing has happened, let's collect garbage collector cycles
 			gc_collect_cycles();
@@ -533,6 +547,16 @@ class IPC {
 			} else {
 				call_user_func_array($info['callback'], &$info['data']);
 			}
+		}
+		foreach($w as $fd) {
+			$info = &$this->wfds[(int)$fd];
+			$res = fwrite($fd, $info['buffer']);
+			if ($res == strlen($info['buffer'])) { // write completed?
+				$info['buffer'] = '';
+				unset($this->wfds[(int)$fd]);
+				continue;
+			}
+			$info['buffer'] = substr($info['buffer'], $res);
 		}
 		$this->waitChildren();
 		return $n;
