@@ -116,11 +116,37 @@ class PMaild2 {
 		return $uuid;
 	}
 
-	public function listStores() {
+	public function getStores() {
 		return $this->_query('store');
+	}
+
+	public function getStore($store) {
+		return $this->_query('store', $store);
+	}
+
+	public function createDomain($domain, $store) {
+		return $this->_event('domain/add', $domain.'/'.$store);
+	}
+
+	public function getDomains() {
+		return $this->_query('domain');
+	}
+
+	public function getDomain($domain) {
+		return $this->_query('domain', $domain);
 	}
 }
 
 $adm = new PMaild2('127.0.0.1',10006,'89bce390-273a-4338-af63-70a4d4c6d032','625b6355c39f4d34eba455fd20e5976c1ae1016e16e1b7ad7aae3d7db075ed60');
-var_dump($adm->listStores());
+//var_dump($adm->listStores());
+$domain = $adm->getDomain('example.com');
+
+if (!$domain) {
+	$store = $adm->createStore();
+	var_dump($store);
+	var_dump($adm->createDomain('example.com', $store));
+} else {
+	var_dump($domain);
+}
+
 
