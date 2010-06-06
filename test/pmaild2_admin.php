@@ -90,17 +90,24 @@ class PMaild2 {
 		return $this->_waitAck($ack);
 	}
 
-	public function askUuid() {
-		// ask remote peer to be kind enough to produce an uuid and send it to us
+	protected function _query($type, $ref = null) {
 		$ack = $this->seq++;
 		$pkt = array(
+			'qry' => $type,
+		);
+		if (!is_null($ref)) $pkt['ref'] = $ref;
+		$pkt = array(
 			'typ' => 'qry',
-			'pkt' => array('qry' => 'uuid'),
+			'pkt' => $pkt,
 			'ack' => $ack,
 		);
 		$this->_sendPacket($pkt);
-		$res = $this->_waitAck($ack);
-		return $res;
+		return $this->_waitAck($ack);
+	}
+
+	public function askUuid() {
+		// ask remote peer to be kind enough to produce an uuid and send it to us
+		return $this->_query('uuid');
 	}
 
 	public function createStore($uuid = null) {
@@ -108,8 +115,12 @@ class PMaild2 {
 		if (!$this->_event('store/add', $uuid)) return false;
 		return $uuid;
 	}
+
+	public function listStores() {
+		return $this->_query('store');
+	}
 }
 
 $adm = new PMaild2('127.0.0.1',10006,'89bce390-273a-4338-af63-70a4d4c6d032','625b6355c39f4d34eba455fd20e5976c1ae1016e16e1b7ad7aae3d7db075ed60');
-var_dump($adm->createStore());
+var_dump($adm->listStores());
 
