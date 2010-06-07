@@ -68,7 +68,7 @@ class PMaild2 {
 	protected function _event($evt, $ref, $fd = NULL) {
 		$pkt = array(
 			'evt' => $evt,
-			'ref' => $ref,
+			'ref' => http_build_query($ref, '', '&'),
 			'stp' => (int)round(microtime(true)*1000000), // magic stamp
 		);
 		if (!is_null($fd)) {
@@ -95,7 +95,7 @@ class PMaild2 {
 		$pkt = array(
 			'qry' => $type,
 		);
-		if (!is_null($ref)) $pkt['ref'] = $ref;
+		if (!is_null($ref)) $pkt['ref'] = http_build_query($ref, '', '&');
 		$pkt = array(
 			'typ' => 'qry',
 			'pkt' => $pkt,
@@ -112,7 +112,7 @@ class PMaild2 {
 
 	public function createStore($uuid = null) {
 		if (is_null($uuid)) $uuid = $this->askUuid();
-		if (!$this->_event('store/add', $uuid)) return false;
+		if (!$this->_event('store/add', array('store' => $uuid))) return false;
 		return $uuid;
 	}
 
@@ -121,11 +121,11 @@ class PMaild2 {
 	}
 
 	public function getStore($store) {
-		return $this->_query('store', $store);
+		return $this->_query('store', array('store' => $store));
 	}
 
 	public function createDomain($domain, $store) {
-		return $this->_event('domain/add', $domain.'/'.$store);
+		return $this->_event('domain/add', array('domain' => $domain, 'store' => $store));
 	}
 
 	public function getDomains() {
@@ -133,7 +133,7 @@ class PMaild2 {
 	}
 
 	public function getDomain($domain) {
-		$res = $this->_query('domain', $domain);
+		$res = $this->_query('domain', array('domain' => $domain));
 		foreach($res as $sres) return $sres;
 		return $res;
 	}
@@ -142,20 +142,20 @@ class PMaild2 {
 		if (is_null($uuid)) $uuid = $this->askUuid();
 		$fd = fopen('php://temp', 'r+');
 		fwrite($fd, json_encode($properties));
-		if (!$this->_event('account/add', $store.'/'.$uuid, $fd)) return false;
+		if (!$this->_event('account/add', array('store' => $store, 'account' => $uuid), $fd)) return false;
 		return $uuid;
 	}
 
 	public function createLoginToAccount($store, $login, $account) {
-		return $this->_event('login/add', $store.'/'.$login.'/account/'.$account);
+		return $this->_event('login/add', array('store' => $store, 'login' => $login, 'type' => 'account', 'target' => $account));
 	}
 
 	public function getLogins($store) {
-		return $this->_query('login', $store);
+		return $this->_query('login', array('store' => $store));
 	}
 
 	public function getLogin($store, $login) {
-		$res = $this->_query('login', $store.'/'.$login);
+		$res = $this->_query('login', array('store' => $store, 'login' => $login));
 		foreach($res as $sres) return $sres;
 		return $res;
 	}
