@@ -133,7 +133,13 @@ class PMaild2 {
 	}
 
 	public function getDomain($domain) {
-		return $this->_query('domain', $domain);
+		$res = $this->_query('domain', $domain);
+		foreach($res as $sres) return $sres;
+		return $res;
+	}
+
+	public function listLogins($store) {
+		return $this->_query('login', $store);
 	}
 }
 
@@ -147,6 +153,7 @@ if (!$domain) {
 	var_dump($adm->createDomain('example.com', $store));
 } else {
 	var_dump($domain);
+	var_dump($adm->listLogins($domain['store']));
 }
 
 
