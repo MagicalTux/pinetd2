@@ -138,22 +138,47 @@ class PMaild2 {
 		return $res;
 	}
 
-	public function listLogins($store) {
+	public function createAccount($store, array $properties = array(), $uuid = NULL) {
+		if (is_null($uuid)) $uuid = $this->askUuid();
+		$fd = fopen('php://temp', 'r+');
+		fwrite($fd, json_encode($properties));
+		if (!$this->_event('account/add', $store.'/'.$uuid, $fd)) return false;
+		return $uuid;
+	}
+
+	public function createLoginToAccount($store, $login, $account) {
+		return $this->_event('login/add', $store.'/'.$login.'/account/'.$account);
+	}
+
+	public function getLogins($store) {
 		return $this->_query('login', $store);
+	}
+
+	public function getLogin($store, $login) {
+		$res = $this->_query('login', $store.'/'.$login);
+		foreach($res as $sres) return $sres;
+		return $res;
 	}
 }
 
 $adm = new PMaild2('127.0.0.1',10006,'89bce390-273a-4338-af63-70a4d4c6d032','625b6355c39f4d34eba455fd20e5976c1ae1016e16e1b7ad7aae3d7db075ed60');
 //var_dump($adm->listStores());
+
 $domain = $adm->getDomain('example.com');
 
-if (!$domain) {
-	$store = $adm->createStore();
-	var_dump($store);
-	var_dump($adm->createDomain('example.com', $store));
+if ($domain) {
+	$store = $domain['store'];
 } else {
-	var_dump($domain);
-	var_dump($adm->listLogins($domain['store']));
+	$store = $adm->createStore();
+	var_dump($adm->createDomain('example.com', $store));
 }
 
+$login = $adm->getLogin($store, 'test');
+
+if (!$login) {
+	$account = $adm->createAccount($store, array('password' => crypt('test')));
+	var_dump($adm->createLoginToAccount($store, 'test', $account));
+} else {
+	var_dump($login);
+}
 
