@@ -66,6 +66,7 @@ class PMaild2 {
 	}
 
 	protected function _event($evt, $ref, $fd = NULL) {
+		ksort($ref);
 		$pkt = array(
 			'evt' => $evt,
 			'ref' => http_build_query($ref, '', '&'),
@@ -91,6 +92,7 @@ class PMaild2 {
 	}
 
 	protected function _query($type, $ref = null) {
+		ksort($ref);
 		$ack = $this->seq++;
 		$pkt = array(
 			'qry' => $type,
