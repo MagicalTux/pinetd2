@@ -8,24 +8,24 @@ class PMaild2 {
 
 	public function __construct($host, $port, $uuid, $key) {
 		$sock = fsockopen('ssl://'.$host, $port, $errno, $errstr, 10);
-		if (!$sock) throw new \Exception('Failed to connect: '.$errstr);
+		if (!$sock) throw new Exception('Failed to connect: '.$errstr);
 
 		$handshake = fread($sock, 44); // remote id
 
 		// check uuid
-		$uuidb = uuid_parse($uuid);
-		if (substr($handshake, 0, 16) != $uuidb) throw new \Exception('Peer didn\'t identify correctly');
+		$uuidb = pack('H*', str_replace('-', '', $uuid));
+		if (substr($handshake, 0, 16) != $uuidb) throw new Exception('Peer didn\'t identify correctly');
 
 		// check timestamp drift
 		$stamp = unpack('N2', substr($handshake, 16, 8));
 		$stamp[1] ^= $stamp[2];
 		$stamp = (($stamp[1] << 32) | $stamp[2]) / 1000000;
 		$offset = abs(microtime(true)-$stamp);
-		if ($offset > 0.5) throw new \Exception('Time drift is over 0.5 secs ('.$offset.'), please resync servers');
+		if ($offset > 0.5) throw new Exception('Time drift is over 0.5 secs ('.$offset.'), please resync servers');
 
 		// check signature
 		$sign = sha1(pack('H*', $key).substr($handshake, 0, 24), true);
-		if ($sign != substr($handshake, 24)) throw new \Exception('Bad signature');
+		if ($sign != substr($handshake, 24)) throw new Exception('Bad signature');
 
 		// send our own packet
 		$stamp = (int)round(microtime(true)*1000000);
@@ -41,18 +41,18 @@ class PMaild2 {
 
 	protected function _sendPacket(array $pkt) {
 		$pkt = json_encode($pkt);
-		if (strlen($pkt) > 65535) throw new \Exception('Error: packet is too big!');
+		if (strlen($pkt) > 65535) throw new Exception('Error: packet is too big!');
 		return fwrite($this->fd, pack('n', strlen($pkt)).$pkt);
 	}
 
 	protected function _readPacket() {
 		$len = fread($this->fd, 2);
-		if (feof($this->fd)) throw new \Exception('Connection interrupt!');
+		if (feof($this->fd)) throw new Exception('Connection interrupt!');
 		list(,$len) = unpack('n', $len);
-		if ($len == 0) throw new \Exception('Invalid packet!');
+		if ($len == 0) throw new Exception('Invalid packet!');
 
 		$data = fread($this->fd, $len);
-		if (strlen($data) != $len) throw new \Exception('Could not read enough data (expect: '.$len.' got: '.strlen($data).')');
+		if (strlen($data) != $len) throw new Exception('Could not read enough data (expect: '.$len.' got: '.strlen($data).')');
 
 		return json_decode($data, true);
 	}
@@ -110,6 +110,18 @@ class PMaild2 {
 		return $this->_query('uuid');
 	}
 
+	public function createNode($uuid, $ip, $port, $key) {
+		$fd = fopen('php://temp', 'r+');
+		fwrite($fd, json_encode(array('ip' => $ip, 'port' => $port, 'key' => $key)));
+		$res = $this->_event('node/add', array('node' => $uuid), $fd);
+		fclose($fd);
+		return $res;
+	}
+
+	public function getNodes() {
+		return $this->_query('node');
+	}
+
 	public function createStore($uuid = null) {
 		if (is_null($uuid)) $uuid = $this->askUuid();
 		if (!$this->_event('store/add', array('store' => $uuid))) return false;
@@ -143,6 +155,7 @@ class PMaild2 {
 		$fd = fopen('php://temp', 'r+');
 		fwrite($fd, json_encode($properties));
 		if (!$this->_event('account/add', array('store' => $store, 'account' => $uuid), $fd)) return false;
+		fclose($fd);
 		return $uuid;
 	}
 
@@ -181,4 +194,7 @@ if (!$login) {
 } else {
 	var_dump($login);
 }
+
+var_dump($adm->getNodes());
+
 
