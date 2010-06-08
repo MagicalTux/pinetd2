@@ -122,6 +122,10 @@ class PMaild2 {
 		return $this->_query('node');
 	}
 
+	public function getNode($node) {
+		return $this->_query('node', array('node' => $node));
+	}
+
 	public function createStore($uuid = null) {
 		if (is_null($uuid)) $uuid = $this->askUuid();
 		if (!$this->_event('store/add', array('store' => $uuid))) return false;
