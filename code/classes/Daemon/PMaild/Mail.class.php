@@ -375,6 +375,10 @@ class Mail {
 						$only_header = true;
 						$p_search = substr($p_search, 0, -5);
 					}
+					if (strtoupper(substr($p_search, -7)) == '.HEADER') {
+						$only_header = true;
+						$p_search = substr($p_search, 0, -7);
+					}
 					$part = $this->DAO('mime')->loadByField($this->where()+array('imap_part' => $p_search));
 					if ($part) {
 						// partial body request, answer it!
