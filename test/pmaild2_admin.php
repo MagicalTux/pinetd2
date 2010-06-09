@@ -65,7 +65,7 @@ class PMaild2 {
 		}
 	}
 
-	protected function _event($evt, $ref, $fd = NULL) {
+	protected function _event($evt, array $ref, $fd = NULL) {
 		ksort($ref);
 		$pkt = array(
 			'evt' => $evt,
@@ -92,7 +92,7 @@ class PMaild2 {
 	}
 
 	protected function _query($type, $ref = null) {
-		ksort($ref);
+		if (!is_null($ref)) ksort($ref);
 		$ack = $this->seq++;
 		$pkt = array(
 			'qry' => $type,
@@ -143,7 +143,11 @@ class PMaild2 {
 	}
 
 	public function createDomain($domain, $store) {
-		return $this->_event('domain/add', array('domain' => $domain, 'store' => $store));
+		$fd = fopen('php://temp', 'r+');
+		fwrite($fd, json_encode(array('store' => $store)));
+		$res = $this->_event('domain/add', array('domain' => $domain), $fd);
+		fclose($fd);
+		return $res;
 	}
 
 	public function getDomains() {
@@ -165,8 +169,16 @@ class PMaild2 {
 		return $uuid;
 	}
 
+	public function createLogin($store, $login, $type, $target) {
+		$fd = fopen('php://temp', 'r+');
+		fwrite($fd, json_encode(array('type' => $type, 'target' => $target)));
+		$res = $this->_event('login/add', array('store' => $store, 'login' => $login), $fd);
+		fclose($fd);
+		return $res;
+	}
+
 	public function createLoginToAccount($store, $login, $account) {
-		return $this->_event('login/add', array('store' => $store, 'login' => $login, 'type' => 'account', 'target' => $account));
+		return $this->createLogin($store, $login, 'account', $account);
 	}
 
 	public function getLogins($store) {
