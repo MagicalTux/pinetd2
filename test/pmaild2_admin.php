@@ -5,6 +5,7 @@ date_default_timezone_set('GMT');
 class PMaild2 {
 	private $fd;
 	private $seq;
+	private $uuid;
 
 	public function __construct($host, $port, $uuid, $key) {
 		$sock = fsockopen('ssl://'.$host, $port, $errno, $errstr, 10);
@@ -35,8 +36,8 @@ class PMaild2 {
 		fwrite($sock, $handshake);
 
 		$this->fd = $sock;
-
 		$this->seq = 0;
+		$this->uuid = $uuid;
 	}
 
 	protected function _sendPacket(array $pkt) {
@@ -113,6 +114,22 @@ class PMaild2 {
 	}
 
 	public function createNode($uuid, $ip, $port, $key) {
+		// connect to the new node first
+		$info = $this->_query('node', array('node' => $this->uuid));
+		if (!$info) return false;
+		try {
+			$node = new self($ip, $port, $uuid, $key);
+		} catch(Exception $e) {
+			return false;
+		}
+
+		// create an entry for us on the new node
+		$node->subCreateNode($info['node'], $info['ip'], $info['port'], $info['key']);
+		// and add the node to us
+		$this->subCreateNode($uuid, $ip, $port, $key);
+	}
+
+	private function subCreateNode($uuid, $ip, $port, $key) {
 		$fd = fopen('php://temp', 'r+');
 		fwrite($fd, json_encode(array('ip' => $ip, 'port' => $port, 'key' => $key)));
 		$res = $this->_event('node/add', array('node' => $uuid), $fd);
@@ -192,7 +209,7 @@ class PMaild2 {
 	}
 }
 
-$adm = new PMaild2('127.0.0.1',10006,'89bce390-273a-4338-af63-70a4d4c6d032','625b6355c39f4d34eba455fd20e5976c1ae1016e16e1b7ad7aae3d7db075ed60');
+$adm = new PMaild2('127.0.0.1',10006,'eb720e74-223d-4660-b83f-852a1de7040e','5726a8e0dbf1f65e443de80c5dbe28c2fcced407aa70ff241017458cbe7474e1');
 //var_dump($adm->listStores());
 
 $domain = $adm->getDomain('example.com');
@@ -215,4 +232,5 @@ if (!$login) {
 
 var_dump($adm->getNodes());
 
+var_dump($adm->createNode('5880f24b-0f87-4abd-9d1f-c9f124bbf939', '127.0.0.1', 20006, 'f799839ef564b5086907ffd03024d161dd530088b0dfa25e7e9ceb34983fb045'));
 
