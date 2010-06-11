@@ -123,6 +123,12 @@ class PMaild2 {
 			return false;
 		}
 
+		// the node might have a wrong ip/port for itself
+		$node_info = stream_socket_get_name($this->fd, true);
+		$node_info = explode(':', $node_info);
+		$info['ip'] = $node_info[0];
+		$info['port'] = $node_info[1];
+
 		// create an entry for us on the new node
 		$node->subCreateNode($info['node'], $info['ip'], $info['port'], $info['key']);
 		// and add the node to us
