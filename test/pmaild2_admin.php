@@ -130,9 +130,9 @@ class PMaild2 {
 		$info['port'] = $node_info[1];
 
 		// create an entry for us on the new node
-		$node->subCreateNode($info['node'], $info['ip'], $info['port'], $info['key']);
+		if (!$node->subCreateNode($info['node'], $info['ip'], $info['port'], $info['key'])) return false;
 		// and add the node to us
-		$this->subCreateNode($uuid, $ip, $port, $key);
+		return $this->subCreateNode($uuid, $ip, $port, $key);
 	}
 
 	private function subCreateNode($uuid, $ip, $port, $key) {
