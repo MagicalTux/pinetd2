@@ -115,7 +115,7 @@ class PMaild2 {
 
 	public function createNode($uuid, $ip, $port, $key) {
 		// connect to the new node first
-		$info = $this->_query('node', array('node' => $this->uuid));
+		$info = $this->getNode($this->uuid);
 		if (!$info) return false;
 		try {
 			$node = new self($ip, $port, $uuid, $key);
@@ -148,7 +148,9 @@ class PMaild2 {
 	}
 
 	public function getNode($node) {
-		return $this->_query('node', array('node' => $node));
+		$res = $this->_query('node', array('node' => $node));
+		if (isset($res[$node])) return $res[$node];
+		return NULL;
 	}
 
 	public function createStore($uuid = null) {
