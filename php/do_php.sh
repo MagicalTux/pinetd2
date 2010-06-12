@@ -159,7 +159,7 @@ echo -n "Configuring..."
  --with-mysql="$MYSQLI_DIR" --with-mysqli="$MYSQLI_PATH" --with-mhash --with-config-file-path="$BUILD_ROOT" \
  --enable-libxml --enable-dom --enable-xml --enable-xmlreader --enable-xmlwriter --with-openssl=/usr \
  --with-curl=/usr --with-curlwrappers --with-bz2 --with-uuid --enable-wddx --enable-intl \
- --with-imap=/usr --with-imap-ssl --enable-proctitle --enable-mailparse --enable-soap
+ --with-imap=/usr --with-imap-ssl --enable-proctitle --enable-mailparse --enable-soap --with-gmp=/usr
 
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
