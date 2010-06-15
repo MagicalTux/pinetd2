@@ -50,6 +50,7 @@ class Client extends \Daemon\FTPd\Client {
 			}
 			if (is_dir($alias)) continue;
 			if (file_exists($alias)) @unlink($alias);
+			if (is_link($alias)) @unlink($alias);
 
 			$parent = dirname($alias);
 			if (!is_dir($parent)) mkdir($parent, 0755, true);
