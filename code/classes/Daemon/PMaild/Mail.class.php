@@ -377,7 +377,7 @@ class Mail {
 					}
 					if (strtoupper(substr($p_search, -7)) == '.HEADER') {
 						$only_header = true;
-						$p_search = substr($p_search, 0, -7);
+						$p_search = substr($p_search, 0, -7).'.TEXT'; // dirty hack
 					}
 					$part = $this->DAO('mime')->loadByField($this->where()+array('imap_part' => $p_search));
 					if ($part) {
