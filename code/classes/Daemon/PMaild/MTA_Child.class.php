@@ -288,7 +288,7 @@ class MTA_Child extends \pinetd\ProcessChild {
 			if (substr($cap, 0, 5) == 'size ') {
 				$capa['size'] = true;
 				$maxsize = substr($cap, 5);
-				if ($size > $maxsize) {
+				if (($size > $maxsize) && ($maxsize > 0)) {
 					throw new \Exception('Mail is too big for remote system', 500);
 				}
 			}
