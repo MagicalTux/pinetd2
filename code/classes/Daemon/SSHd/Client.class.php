@@ -40,6 +40,9 @@ class Client extends \pinetd\TCP\Client {
 
 	protected function handlePkt($pkt) {
 		switch(ord($pkt[0])) {
+			case self::SSH_MSG_IGNORE:
+				// fake traffic to keep cnx alive and confuse listeners
+				return;
 			case self::SSH_MSG_KEXINIT:
 				$this->payloads['I_C'] = $pkt;
 				$data = array();
@@ -58,6 +61,10 @@ class Client extends \pinetd\TCP\Client {
 				$data['reserved'] = bin2hex(substr($pkt, 1));
 				$this->capa = $data;
 				$this->ssh_determineEncryption();
+				break;
+			case self::SSH_MSG_NEWKEYS:
+				// initialize encryption [recv/send]
+				$this->sendPacket(chr(self::SSH_MSG_NEWKEYS)); // send before we enable send encryption
 				break;
 			case self::SSH_MSG_KEXDH_INIT:
 				// secure key exchange - diffie-hellman-group1-sha1
@@ -78,6 +85,9 @@ class Client extends \pinetd\TCP\Client {
 				$K = gmp_powm($e, $y, $p);
 				$K_bin = pack('H*', gmp_strval($K, 16));
 				if (ord($K_bin[0]) & 0x80) $K_bin = "\0" . $K_bin;
+
+				// store shared secret in session
+				$this->capa['K'] = $K_bin;
 
 				$pub = $this->skey['pub'];
 
@@ -122,37 +132,55 @@ class Client extends \pinetd\TCP\Client {
 		$my_hmac = array_flip($this->getHmacAlgList());
 		$my_comp = array_flip($this->getCompAlgList());
 
+		$fallback_cnt = 0;
+
 		$kex = null;
-		foreach($this->capa['kex_algorithms'] as $alg)
+		foreach($this->capa['kex_algorithms'] as $alg) {
 			if (isset($my_kex_alg[$alg])) { $kex = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($kex)) { $this->close(); return; }
 		$key_alg = null;
-		foreach($this->capa['server_host_key_algorithms'] as $alg)
+		foreach($this->capa['server_host_key_algorithms'] as $alg) {
 			if (isset($my_key_alg[$alg])) { $key_alg = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($key_alg)) { $this->close(); return; }
 		$cipher_send = null;
-		foreach($this->capa['encryption_algorithms_server_to_client'] as $alg)
+		foreach($this->capa['encryption_algorithms_server_to_client'] as $alg) {
 			if (isset($my_cipher[$alg])) { $cipher_send = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($cipher_send)) { $this->close(); return; }
 		$cipher_recv = null;
-		foreach($this->capa['encryption_algorithms_client_to_server'] as $alg)
+		foreach($this->capa['encryption_algorithms_client_to_server'] as $alg) {
 			if (isset($my_cipher[$alg])) { $cipher_recv = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($cipher_recv)) { $this->close(); return; }
 		$hmac_send = null;
-		foreach($this->capa['mac_algorithms_server_to_client'] as $alg)
+		foreach($this->capa['mac_algorithms_server_to_client'] as $alg) {
 			if (isset($my_hmac[$alg])) { $hmac_send = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($hmac_send)) { $this->close(); return; }
 		$hmac_recv = null;
-		foreach($this->capa['mac_algorithms_client_to_server'] as $alg)
+		foreach($this->capa['mac_algorithms_client_to_server'] as $alg) {
 			if (isset($my_hmac[$alg])) { $hmac_recv = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($hmac_recv)) { $this->close(); return; }
 		$comp_send = null;
-		foreach($this->capa['compression_algorithms_server_to_client'] as $alg)
+		foreach($this->capa['compression_algorithms_server_to_client'] as $alg) {
 			if (isset($my_comp[$alg])) { $comp_send = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($comp_send)) { $this->close(); return; }
 		$comp_recv = null;
-		foreach($this->capa['compression_algorithms_client_to_server'] as $alg)
+		foreach($this->capa['compression_algorithms_client_to_server'] as $alg) {
 			if (isset($my_comp[$alg])) { $comp_recv = $alg; break; }
+			$fallback_cnt++;
+		}
 		if (is_null($comp_recv)) { $this->close(); return; }
 
 		$this->capa['kex'] = $kex;
@@ -163,6 +191,7 @@ class Client extends \pinetd\TCP\Client {
 		$this->capa['hmac_recv'] = $hmac_recv;
 		$this->capa['comp_send'] = $comp_send;
 		$this->capa['comp_recv'] = $comp_recv;
+		$this->capa['fallback_cnt'] = $fallback_cnt; // if not 0, means the client didn't guess right
 	}
 
 	protected function ssh_sendAlgorithmNegotiationPacket() {
