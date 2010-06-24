@@ -67,17 +67,19 @@ class Client extends \pinetd\TCP\Client {
 					break;
 				}
 				// RFC 4253 page 21: 8. Diffie-Hellman Key Exchange
-				$dh_prime = gmp_init('179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007');
+				$p = gmp_init('179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007');
 				list(,$len) = unpack('N', substr($pkt, 1, 4));
 				$e_bin = substr($pkt, 5, $len);
 				$e = gmp_init(bin2hex($e_bin), 16); // not really optimized but works
 				$y = gmp_init(bin2hex(openssl_random_pseudo_bytes(64)), 16);
-				$f = gmp_powm(2, $y, $dh_prime);
+				$f = gmp_powm(2, $y, $p);
 				$f_bin = pack('H*', gmp_strval($f, 16));
 				if (ord($f_bin[0]) & 0x80) $f_bin = "\0" . $f_bin;
-				$K = gmp_powm($e, $y, $dh_prime);
+				$K = gmp_powm($e, $y, $p);
 				$K_bin = pack('H*', gmp_strval($K, 16));
 				if (ord($K_bin[0]) & 0x80) $K_bin = "\0" . $K_bin;
+
+				$pub = $this->skey['pub'];
 
 				// H = hash(V_C || V_S || I_C || I_S || K_S || e || f || K)
 				$sha = array(
@@ -85,24 +87,26 @@ class Client extends \pinetd\TCP\Client {
 					$this->str($this->payloads['V_S']),
 					$this->str($this->payloads['I_C']),
 					$this->str($this->payloads['I_S']),
-					$this->str($this->skey['pub']),
+					$this->str($pub),
 					$this->str($e_bin),
 					$this->str($f_bin),
 					$this->str($K_bin)
 				);
-				foreach($sha as $x) var_dump(bin2hex($x));
-				$H = sha1(implode('', $sha), true);
+				$sha = implode('', $sha);
+				$H = sha1($sha, true);
 				// sign $H
 				if (!openssl_sign($H, $s, $this->skey['pkeyid'])) {
 					Logger::log(Logger::LOG_WARN, 'Could not sign exchange key');
 					$this->close();
 					break;
 				}
+
+				$s = $this->str($this->skey['type']).$this->str($s);
+
 				$pkt = chr(self::SSH_MSG_KEXDH_REPLY);
-				$pkt .= $this->str($this->skey['pub']);
+				$pkt .= $this->str($pub);
 				$pkt .= $this->str($f_bin);
 				$pkt .= $this->str($s);
-				var_dump(bin2hex($pkt));
 				$this->sendPacket($pkt);
 				break;
 			default:
@@ -201,7 +205,7 @@ class Client extends \pinetd\TCP\Client {
 		$pub = explode(' ', file_get_contents($key.'.pub'));
 		$pub = base64_decode($pub[1]);
 		$pkeyid = openssl_get_privatekey($pkey);
-		$this->skey = array('priv' => $pkey, 'pub' => $pub, 'pkeyid' => $pkeyid);
+		$this->skey = array('priv' => $pkey, 'pub' => $pub, 'pkeyid' => $pkeyid, 'type' => $this->capa['key_alg']);
 		return true;
 	}
 
