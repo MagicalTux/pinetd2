@@ -47,8 +47,8 @@ class Client extends \Daemon\FTPd\Client {
 			if (!is_null($extra)) $link_target .= '/'.$extra;
 			if (is_link($alias)) {
 				if (readlink($alias) == $link_target) continue;
-			}
-			if (is_dir($alias)) continue;
+			} else if (is_dir($alias)) continue;
+
 			if (file_exists($alias)) @unlink($alias);
 			if (is_link($alias)) @unlink($alias);
 
