@@ -75,6 +75,8 @@ class Channel {
 
 		$this->tp->channelChangeObject($this->channel, $class);
 
+		$class->init_post();
+
 		return $class;
 	}
 
@@ -85,6 +87,10 @@ class Channel {
 
 	final public function closed() {
 		$this->closed = true;
+	}
+
+	public function gotEof() {
+		// overload me to receive EOF event
 	}
 
 	final public function eof() {
@@ -117,6 +123,10 @@ class Channel {
 	public function windowAdjust($bytes) {
 		$this->window_out += $bytes;
 		$this->send(''); // force flush if possible
+	}
+
+	protected function str($str) {
+		return pack('N', strlen($str)).$str;
 	}
 
 	protected function parseStr(&$pkt) {

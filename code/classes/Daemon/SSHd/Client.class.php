@@ -175,6 +175,12 @@ class Client extends \pinetd\TCP\Client {
 				if (!isset($this->channels[$channel])) break;
 				$this->channels[$channel]->recv($data);
 				break;
+			case self::SSH_MSG_CHANNEL_EOF:
+				list(,$channel) = unpack('N', substr($pkt, 0, 4));
+				if (!isset($this->channels[$channel])) break;
+				$this->channels[$channel]->gotEof();
+				unset($this->channels[$channel]);
+				break;
 			case self::SSH_MSG_CHANNEL_CLOSE:
 				list(,$channel) = unpack('N', substr($pkt, 0, 4));
 				if (!isset($this->channels[$channel])) break;
