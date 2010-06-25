@@ -52,8 +52,8 @@ class Channel {
 		$this->send($this->buf_in);
 		$this->buf_in = '';
 
+		// refill window if needed
 		if ($this->recv_spent > 1024) {
-			// restore remote window
 			$this->window($this->recv_spent);
 			$this->recv_spent = 0;
 		}
@@ -116,6 +116,7 @@ class Channel {
 
 	public function windowAdjust($bytes) {
 		$this->window_out += $bytes;
+		$this->send(''); // force flush if possible
 	}
 
 	protected function parseStr(&$pkt) {

@@ -38,6 +38,8 @@ class SFTP extends Channel {
 	}
 
 	protected function parseBuffer() {
+		if (strlen($this->buf_in) < 4) return; // not enough data yet
+		list(,$len) = unpack('N', $this->buf_in);
 		var_dump(bin2hex($this->buf_in));
 		$this->buf_in = '';
 	}
