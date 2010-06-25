@@ -91,23 +91,22 @@ class Client extends \pinetd\TCP\Client {
 
 	protected function handlePkt($pkt) {
 		$id = ord($pkt[0]);
+		$pkt = substr($pkt, 1);
+
 		if (($id > 69) && (is_null($this->login))) {
 			$this->disconnect(self::SSH_DISCONNECT_PROTOCOL_ERROR, 'need to login first');
 			return;
 		}
 
-		switch(ord($pkt[0])) {
-			case self::SSH_MSG_DISCONNECT:
-				$this->close();
-				break;
+		switch($id) {
+			case self::SSH_MSG_DISCONNECT: $this->close(); break;
 			case self::SSH_MSG_IGNORE:
 			case self::SSH_MSG_UNIMPLEMENTED:
 			case self::SSH_MSG_DEBUG:
-				// fake/useless traffic to keep cnx alive and confuse listeners
+				// fake/useless traffic to keep cnx alive and/or confuse listeners
 				return;
 			case self::SSH_MSG_SERVICE_REQUEST:
-				list(,$len) = unpack('N', substr($pkt, 1, 4));
-				$text = substr($pkt, 5, $len);
+				$text = $this->parseStr($pkt);
 				$res = $this->ssh_serviceInit($text);
 				if ($res) {
 					$pkt = chr(self::SSH_MSG_SERVICE_ACCEPT).$this->str($text);
@@ -117,10 +116,10 @@ class Client extends \pinetd\TCP\Client {
 				}
 				break;
 			case self::SSH_MSG_KEXINIT:
-				$this->payloads['I_C'] = $pkt;
+				$this->payloads['I_C'] = chr($id).$pkt;
 				$data = array();
-				$data['cookie'] = bin2hex(substr($pkt, 1, 16));
-				$pkt = substr($pkt, 17); // remove packet code (1 byte) & cookie (16 bytes)
+				$data['cookie'] = bin2hex(substr($pkt, 0, 16));
+				$pkt = substr($pkt, 16); // remove packet code (1 byte) & cookie (16 bytes)
 				$list_list = array('kex_algorithms','server_host_key_algorithms','encryption_algorithms_client_to_server','encryption_algorithms_server_to_client','mac_algorithms_client_to_server','mac_algorithms_server_to_client','compression_algorithms_client_to_server','compression_algorithms_server_to_client','languages_client_to_server','languages_server_to_client');
 				foreach($list_list as $list) {
 					$res = $this->parseNameList($pkt);
@@ -150,7 +149,6 @@ class Client extends \pinetd\TCP\Client {
 				/***************************** USER AUTH ****************************/
 
 			case self::SSH_MSG_USERAUTH_REQUEST:
-				$pkt = substr($pkt, 1);
 				$user = $this->parseStr($pkt);
 				$service = $this->parseStr($pkt);
 				$method = $this->parseStr($pkt);
@@ -160,14 +158,42 @@ class Client extends \pinetd\TCP\Client {
 				/**************************** CHANNELS *****************************/
 
 			case self::SSH_MSG_CHANNEL_OPEN:
-				$pkt = substr($pkt, 1);
 				$type = $this->parseStr($pkt);
 				list(,$channel, $window, $packet_max) = unpack('N3', $pkt);
 				$pkt = substr($pkt, 12);
 				$this->ssh_openChannel($type, $channel, $window, $packet_max, $pkt);
 				break;
+			case self::SSH_MSG_CHANNEL_DATA:
+				list(,$channel) = unpack('N', substr($pkt, 0, 4));
+				$pkt = substr($pkt, 4);
+				$data = $this->parseStr($pkt);
+				if (!isset($this->channels[$channel])) break;
+				$this->channels[$channel]->recv($data);
+				break;
+			case self::SSH_MSG_CHANNEL_CLOSE:
+				list(,$channel) = unpack('N', substr($pkt, 0, 4));
+				if (!isset($this->channels[$channel])) break;
+				$this->channels[$channel]->close();
+				unset($this->channels[$channel]);
+				break;
+			case self::SSH_MSG_CHANNEL_REQUEST:
+				list(,$channel) = unpack('N', substr($pkt, 0, 4));
+				$pkt = substr($pkt, 4);
+				$request = $this->parseStr($pkt);
+				$want_reply = (bool)ord($pkt[0]);
+				$pkt = substr($pkt, 1);
+				if (!isset($this->channels[$channel])) {
+					if ($want_reply) {
+						$this->sendPacket(pack('CN', self::SSH_MSG_CHANNEL_FAILURE, $channel));
+					}
+					break;
+				}
+				$res = $this->channels[$channel]->request($request, $pkt);
+				if ($want_reply)
+					$this->sendPacket(pack('CN', $res ? self::SSH_MSG_CHANNEL_SUCCESS : self::SSH_MSG_CHANNEL_FAILURE, $channel));
+				break;
 			default:
-				echo "Unknown packet: ".bin2hex($pkt)."\n";
+				echo "Unknown packet [$id]: ".bin2hex($pkt)."\n";
 				$pkt = pack('CN', self::SSH_MSG_UNIMPLEMENTED, $this->seq_recv);
 				$this->sendPacket($pkt);
 		}
@@ -177,6 +203,26 @@ class Client extends \pinetd\TCP\Client {
 		$pkt = pack('CNN', self::SSH_MSG_CHANNEL_OPEN_FAILURE, $channel, $errno);
 		$pkt .= $this->str($msg);
 		$pkt .= $this->str('');
+		$this->sendPacket($pkt);
+	}
+
+	public function channelEof($channel) {
+		if (!isset($this->channels[$channel])) return false;
+		$pkt = pack('CN', self::SSH_MSG_CHANNEL_EOF, $channel);
+		$this->sendPacket($pkt);
+	}
+
+	public function channelClose($channel) {
+		if (!isset($this->channels[$channel])) return false;
+		$this->channels[$channel]->closed();
+		$pkt = pack('CN', self::SSH_MSG_CHANNEL_CLOSE, $channel);
+		$this->sendPacket($pkt);
+	}
+
+	public function channelWrite($channel, $str) {
+		if (!isset($this->channels[$channel])) return false;
+		$pkt = pack('CN', self::SSH_MSG_CHANNEL_DATA, $channel);
+		$pkt.= $this->str($str);
 		$this->sendPacket($pkt);
 	}
 
@@ -313,8 +359,7 @@ class Client extends \pinetd\TCP\Client {
 		$p = gmp_init('179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007');
 
 		// read $e from client
-		list(,$len) = unpack('N', substr($pkt, 1, 4));
-		$e_bin = substr($pkt, 5, $len);
+		$e_bin = $this->parseStr($pkt);
 		$e = gmp_init(bin2hex($e_bin), 16); // not really optimized but works
 
 		$y = gmp_init(bin2hex(openssl_random_pseudo_bytes(64)), 16);
