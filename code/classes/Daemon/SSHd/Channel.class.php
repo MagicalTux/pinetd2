@@ -12,8 +12,10 @@ class Channel {
 	protected $buf_out = '';
 	protected $buf_in = '';
 	protected $closed = false;
+	protected $recv_spent = 0;
 
 	final public function __construct($tp, $channel, $window, $packet_max, $pkt) {
+		if (is_null($tp)) return;
 		$this->tp = $tp;
 		$this->channel = $channel;
 		$this->window_out = $window;
@@ -41,17 +43,44 @@ class Channel {
 	public function request($request, $data) {
 		$func = '_req_'.str_replace('-', '_', $request);
 		if (is_callable(array($this, $func))) return $this->$func($data);
+		echo "Request for $request denied.\n";
 		return false;
 	}
 
 	protected function parseBuffer() {
 		// default implementation: echo (overload me!)
 		$this->send($this->buf_in);
-		if (strpos($this->buf_in, "\x04") !== false) {
-			$this->eof();
-			$this->close();
-		}
 		$this->buf_in = '';
+
+		if ($this->recv_spent > 1024) {
+			// restore remote window
+			$this->window($this->recv_spent);
+			$this->recv_spent = 0;
+		}
+	}
+
+	final public function translate($class) {
+		$class = relativeclass($this, 'SFTP');
+		$class = new $class(NULL,NULL,NULL,NULL,NULL);
+		$class->tp = $this->tp;
+		$class->channel = $this->channel;
+		$class->window_out = $this->window_out;
+		$class->window_in = $this->window_in;
+		$class->packet_max_out = $this->packet_max_out;
+		$class->packet_max_in = $this->packet_max_in;
+		$class->buf_out = $this->buf_out;
+		$class->buf_in = $this->buf_in;
+		$class->closed = $this->closed;
+		$class->recv_spent = $this->recv_spent;
+
+		$this->tp->channelChangeObject($this->channel, $class);
+
+		return $class;
+	}
+
+	final public function window($bytes) {
+		$this->tp->channelWindow($this->channel, $bytes);
+		$this->window_in += $bytes;
 	}
 
 	final public function closed() {
@@ -69,6 +98,7 @@ class Channel {
 	}
 
 	final public function recv($str) {
+		$this->recv_spent += strlen($str);
 		$this->window_in -= strlen($str);
 		$this->buf_in = $str;
 		$this->parseBuffer();
@@ -82,6 +112,22 @@ class Channel {
 		$this->tp->channelWrite($this->channel, substr($this->buf_out, 0, $max_send));
 		$this->window_out -= $max_send;
 		$this->buf_out = substr($this->buf_out, $max_send);
+	}
+
+	public function windowAdjust($bytes) {
+		$this->window_out += $bytes;
+	}
+
+	protected function parseStr(&$pkt) {
+		list(,$len) = unpack('N', substr($pkt, 0, 4));
+		if ($len == 0) {
+			$pkt = substr($pkt, 4);
+			return '';
+		}
+		if ($len+4 > strlen($pkt)) return false;
+		$res = substr($pkt, 4, $len);
+		$pkt = substr($pkt, $len+4);
+		return $res;
 	}
 }
 

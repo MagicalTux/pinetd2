@@ -163,6 +163,11 @@ class Client extends \pinetd\TCP\Client {
 				$pkt = substr($pkt, 12);
 				$this->ssh_openChannel($type, $channel, $window, $packet_max, $pkt);
 				break;
+			case self::SSH_MSG_CHANNEL_WINDOW_ADJUST:
+				list(, $channel, $bytes) = unpack('N2', $pkt);
+				if (!isset($this->channels[$channel])) break;
+				$this->channels[$channel]->windowAdjust($bytes);
+				break;
 			case self::SSH_MSG_CHANNEL_DATA:
 				list(,$channel) = unpack('N', substr($pkt, 0, 4));
 				$pkt = substr($pkt, 4);
@@ -224,6 +229,18 @@ class Client extends \pinetd\TCP\Client {
 		$pkt = pack('CN', self::SSH_MSG_CHANNEL_DATA, $channel);
 		$pkt.= $this->str($str);
 		$this->sendPacket($pkt);
+	}
+
+	public function channelWindow($channel, $bytes) {
+		if (!isset($this->channels[$channel])) return false;
+		$pkt = pack('CN', self::SSH_MSG_CHANNEL_WINDOW_ADJUST, $bytes);
+		$this->sendPacket($pkt);
+	}
+
+	public function channelChangeObject($channel, $obj) {
+		if (!isset($this->channels[$channel])) return false;
+		$this->channels[$channel] = $obj;
+		return true;
 	}
 
 	protected function ssh_openChannel($type, $channel, $window, $packet_max, $pkt) {
