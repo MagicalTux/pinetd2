@@ -21,11 +21,6 @@ class Session extends Channel {
 		}
 	}
 
-	protected function parseBuffer_sftp() {
-		var_dump(bin2hex($this->buf_in));
-		$this->buf_in = '';
-	}
-
 	protected function parseBuffer_shell() {
 		if (strpos($this->buf_in, "\x04") !== false) {
 			$pos = strpos($this->buf_in, "\x04");
@@ -51,10 +46,11 @@ class Session extends Channel {
 	}
 
 	protected function _req_subsystem($pkt) {
+		$opkt = $pkt;
 		$syst = $this->parseStr($pkt);
 		if ($syst != 'sftp') return false;
 		$class = $this->translate('SFTP');
-		return $class->request('subsystem', $pkt);
+		return $class->request('subsystem', $opkt);
 	}
 }
 
