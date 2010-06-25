@@ -14,6 +14,7 @@ class Client extends \pinetd\TCP\Client {
 	private $seq_recv = -1;
 	private $seq_send = -1;
 	private $login = NULL;
+	private $channels = array();
 
 	private $cipher = array(); // encoding type
 
@@ -68,6 +69,11 @@ class Client extends \pinetd\TCP\Client {
 	const SSH_DISCONNECT_AUTH_CANCELLED_BY_USER = 13;
 	const SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE = 14;
 	const SSH_DISCONNECT_ILLEGAL_USER_NAME = 15;
+
+	const SSH_OPEN_ADMINISTRATIVELY_PROHIBITED = 1;
+	const SSH_OPEN_CONNECT_FAILED = 2;
+	const SSH_OPEN_UNKNOWN_CHANNEL_TYPE = 3;
+	const SSH_OPEN_RESOURCE_SHORTAGE = 4;
 
 	function welcomeUser() {
 		$this->state = 'new';
@@ -154,11 +160,42 @@ class Client extends \pinetd\TCP\Client {
 				/**************************** CHANNELS *****************************/
 
 			case self::SSH_MSG_CHANNEL_OPEN:
+				$pkt = substr($pkt, 1);
+				$type = $this->parseStr($pkt);
+				list(,$channel, $window, $packet_max) = unpack('N3', $pkt);
+				$pkt = substr($pkt, 12);
+				$this->ssh_openChannel($type, $channel, $window, $packet_max, $pkt);
+				break;
 			default:
 				echo "Unknown packet: ".bin2hex($pkt)."\n";
 				$pkt = pack('CN', self::SSH_MSG_UNIMPLEMENTED, $this->seq_recv);
 				$this->sendPacket($pkt);
 		}
+	}
+
+	protected function ssh_openChannelError($channel, $errno, $msg) {
+		$pkt = pack('CNN', self::SSH_MSG_CHANNEL_OPEN_FAILURE, $channel, $errno);
+		$pkt .= $this->str($msg);
+		$pkt .= $this->str('');
+		$this->sendPacket($pkt);
+	}
+
+	protected function ssh_openChannel($type, $channel, $window, $packet_max, $pkt) {
+		if (isset($this->channels[$channel])) {
+			$this->disconnect(self::SSH_DISCONNECT_PROTOCOL_ERROR, 'Protocol error: channel is already in use');
+			return;
+		}
+		if ($type != 'session')
+			return $this->ssh_openChannelError($channel, self::SSH_OPEN_UNKNOWN_CHANNEL_TYPE, 'unknown channel type requested');
+
+		$class = relativeclass($this, 'Session');
+		$class = new $class($this, $channel, $window, $packet_max, $pkt);
+		$this->channels[$channel] = $class;
+
+		$pkt = pack('CNNNN', self::SSH_MSG_CHANNEL_OPEN_CONFIRMATION, $channel, $channel, $class->remoteWindow(), $class->maxPacket());
+		$pkt.= $class->specificConfirmationData();
+
+		$this->sendPacket($pkt);
 	}
 
 	protected function login($login, $password, $service) {
@@ -497,7 +534,7 @@ class Client extends \pinetd\TCP\Client {
 		$pkt = chr(self::SSH_MSG_DISCONNECT);
 		$pkt .= pack('N', $code);
 		$pkt .= $this->str($text);
-		$pkt .= $this->str('C');
+		$pkt .= $this->str('');
 		$this->sendPacket($pkt);
 		$this->close();
 	}
