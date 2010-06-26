@@ -6,6 +6,8 @@ namespace Daemon\SSHd;
 
 class SFTP extends Channel {
 	private $fs;
+	private $handles;
+	private $last_h = 0;
 
 	const SSH_FXP_INIT = 1;
 	const SSH_FXP_VERSION = 2;
@@ -60,6 +62,45 @@ class SFTP extends Channel {
 				if ($version < 3) return $this->close(); // we are too recent for this little guy
 				$pkt = pack('CN', self::SSH_FXP_VERSION, 3);
 				$this->sendPacket($pkt);
+				break;
+			case self::SSH_FXP_OPENDIR:
+				list(,$rid) = unpack('N', $packet);
+				$packet = substr($packet, 4);
+				$path = $this->parseStr($packet);
+				$dir = $this->fs->opendir($path);
+				if (!$dir) {
+					$this->sendStatus($rid, self::SSH_FX_NO_SUCH_FILE, 'Unable to open dir');
+					break;
+				}
+				$this->sendHandle($rid, $dir);
+				break;
+			case self::SSH_FXP_READDIR:
+				list(,$rid) = unpack('N', $packet);
+				$packet = substr($packet, 4);
+				$h = $this->getHandle($this->parseStr($packet));
+				if (!$h) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad dir handle');
+					break;
+				}
+				$list = array();
+				for($i = 0; $i < 10; $i++) {
+					$tmp = $this->fs->readDir($h);
+					if ($tmp === false) {
+						$list = false;
+						break;
+					}
+					if (!$tmp) break;
+					$list[] = array('filename' => $tmp['name'], 'longname' => $tmp['text'], 'attrs' => $tmp['sftp']);
+				}
+				if ($list === false) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad dir handle');
+					break;
+				}
+				if (!$list) {
+					$this->sendStatus($rid, self::SSH_FX_EOF, 'EOF');
+					break;
+				}
+				$this->sendFxpName($rid, $list);
 				break;
 			case self::SSH_FXP_STAT:
 			case self::SSH_FXP_LSTAT:
@@ -130,10 +171,32 @@ class SFTP extends Channel {
 		$this->sendPacket($pkt);
 	}
 
+	protected function sendHandle($rid, $h) {
+		if (!is_string($h)) $h = $this->makeHandle($h);
+		$pkt = pack('CN', self::SSH_FXP_HANDLE, $rid).$this->str($h);
+		$this->sendPacket($pkt);
+	}
+
 	public function gotEof() {
 		// that's an exit request
 		$this->eof();
 		$this->close();
+	}
+
+	protected function makeHandle($res) {
+		while(1) {
+			$this->last_h = ($this->last_h+1) & 0xffffffff;
+			$h = pack('N', $this->last_h);
+			if (!isset($this->handles[$h])) {
+				$this->handles[$h] = $res;
+				return $h;
+			}
+		}
+	}
+
+	protected function getHandle($h) {
+		if (!isset($this->handles[$h])) return false;
+		return $this->handles[$h];
 	}
 }
 

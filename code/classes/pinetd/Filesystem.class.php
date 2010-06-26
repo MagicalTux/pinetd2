@@ -125,6 +125,33 @@ class Filesystem {
 		return $fil;
 	}
 
+	public function openDir($dir) {
+		$fil = $this->convertPath($dir);
+		if ((is_null($fil)) || ($fil === false)) return NULL;
+
+		$full_path = $this->root . $fil;
+
+		clearstatcache();
+		$dir = @opendir($full_path);
+
+		if (!$dir) return NULL;
+
+		return array('type' => 'dir', 'handle' => $dir, 'path' => $full_path);
+	}
+
+	public function readDir($dir) {
+		if ($dir['type'] != 'dir') return false;
+		$fil = readdir($dir['handle']);
+		if ($fil === false) return NULL;
+		return $this->_stat($dir['path'].'/'.$fil);
+	}
+
+	public function closeDir($dir) {
+		if ($dir['type'] != 'dir') return false;
+		closedir($dir['handle']);
+		return true;
+	}
+
 	public function listDir($dir) {
 		$fil = $this->convertPath($dir);
 		if ((is_null($fil)) || ($fil === false)) return NULL;
