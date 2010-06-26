@@ -71,7 +71,7 @@ class SFTP extends Channel {
 		$packet = substr($packet, 1);
 		switch($id) {
 			case self::SSH_FXP_INIT:
-				list(,$version) = unpack('N', $packet);
+				$version = $this->parseInt32($packet);
 				if ($version < 3) return $this->close(); // we are too recent for this little guy
 				$pkt = pack('CN', self::SSH_FXP_VERSION, 3);
 				$this->sendPacket($pkt);
@@ -167,8 +167,7 @@ class SFTP extends Channel {
 				$this->sendPacket($pkt);
 				break;
 			case self::SSH_FXP_CLOSE:
-				list(,$rid) = unpack('N', $packet);
-				$packet = substr($packet, 4);
+				$rid = $this->parseInt32($packet);
 				$h_bin = $this->parseStr($packet);
 				$h = $this->getHandle($h_bin);
 				if (!$h) {
@@ -180,8 +179,7 @@ class SFTP extends Channel {
 				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
 				break;
 			case self::SSH_FXP_OPENDIR:
-				list(,$rid) = unpack('N', $packet);
-				$packet = substr($packet, 4);
+				$rid = $this->parseInt32($packet);
 				$path = $this->parseStr($packet);
 				$dir = $this->fs->opendir($path);
 				if (!$dir) {
@@ -191,8 +189,7 @@ class SFTP extends Channel {
 				$this->sendHandle($rid, $dir);
 				break;
 			case self::SSH_FXP_READDIR:
-				list(,$rid) = unpack('N', $packet);
-				$packet = substr($packet, 4);
+				$rid = $this->parseInt32($packet);
 				$h = $this->getHandle($this->parseStr($packet));
 				if (!$h) {
 					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad dir handle');
@@ -231,8 +228,7 @@ class SFTP extends Channel {
 			case self::SSH_FXP_STAT:
 			case self::SSH_FXP_LSTAT:
 				// 00000002000000012f
-				list(,$rid) = unpack('N', $packet);
-				$packet = substr($packet, 4);
+				$rid = $this->parseInt32($packet);
 				$path = $this->parseStr($packet);
 				$stat = $this->fs->stat($path, $id == self::SSH_FXP_STAT);
 				if (!$stat) {
@@ -253,8 +249,7 @@ class SFTP extends Channel {
 				}
 				break;
 			case self::SSH_FXP_MKDIR:
-				list(,$rid) = unpack('N', $packet);
-				$packet = substr($packet, 4);
+				$rid = $this->parseInt32($packet);
 				$path = $this->parseStr($packet);
 				$attrs = $this->parseAttrs($packet);
 				if (!$this->fs->mkDir($path, $attrs['mode'] ?: 0777)) {
@@ -264,8 +259,7 @@ class SFTP extends Channel {
 				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
 				break;
 			case self::SSH_FXP_RMDIR:
-				list(,$rid) = unpack('N', $packet);
-				$packet = substr($packet, 4);
+				$rid = $this->parseInt32($packet);
 				$path = $this->parseStr($packet);
 				if (!$this->fs->rmDir($path)) {
 					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Could not remove dir');
@@ -274,8 +268,7 @@ class SFTP extends Channel {
 				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
 				break;
 			case self::SSH_FXP_REALPATH:
-				list(,$rid) = unpack('N', $packet);
-				$packet = substr($packet, 4);
+				$rid = $this->parseInt32($packet);
 				$path = $this->parseStr($packet);
 				$res = $this->fs->realpath($path);
 				if (!$res) {
@@ -286,7 +279,7 @@ class SFTP extends Channel {
 				break;
 			default:
 				echo "Unknown packet id [$id]: ".bin2hex($packet)."\n";
-				list(,$rid) = unpack('N', $packet);
+				$rid = $this->parseInt32($packet);
 				$this->sendStatus($rid, self::SSH_FX_OP_UNSUPPORTED, "Unknown packet id [$id]: ".bin2hex($packet));
 		}
 	}
