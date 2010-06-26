@@ -53,6 +53,13 @@ class SFTP extends Channel {
 	const SSH_FILEXFER_ATTR_ACMODTIME = 0x00000008;
 	const SSH_FILEXFER_ATTR_EXTENDED = 0x80000000;
 
+	const SSH_FXF_READ = 0x00000001;
+	const SSH_FXF_WRITE = 0x00000002;
+	const SSH_FXF_APPEND = 0x00000004;
+	const SSH_FXF_CREAT = 0x00000008;
+	const SSH_FXF_TRUNC = 0x00000010;
+	const SSH_FXF_EXCL = 0x00000020;
+
 	protected function init_post() {
 		$class = relativeclass($this, 'Filesystem');
 		$this->fs = new $class();
@@ -70,6 +77,95 @@ class SFTP extends Channel {
 				$this->sendPacket($pkt);
 				break;
 			case self::SSH_FXP_VERSION: break; // ignore it
+			case self::SSH_FXP_OPEN:
+				$rid = $this->parseInt32($packet);
+				$path = $this->parseStr($packet);
+				$flags = $this->parseInt32($packet);
+				$attrs = $this->parseAttrs($packet);
+				if (($flags & self::SSH_FXF_EXCL) && ($this->fs->fileExists($path))) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'File already exists (SSH_FXF_EXCL)');
+					break;
+				}
+				if (!($flags & self::SSH_FXF_CREAT) && (!$this->fs->fileExists($path))) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'File does not exists (no SSH_FXF_CREAT)');
+					break;
+				}
+				if ($flags & self::SSH_FXF_APPEND) {
+					$mode = 'a';
+				} elseif ($flags & self::SSH_FXF_READ) {
+					$mode = 'r';
+				} elseif ($flags & self::SSH_FXF_WRITE) {
+					$mode = 'w';
+				}
+				if (($flags & self::SSH_FXF_READ) && (($flags & self::SSH_FXF_WRITE) | ($flags & self::SSH_FXF_APPEND)))
+					$mode .= '+';
+				if ($flags & self::SSH_FXF_TRUNC) {
+					$mode = 'w+';
+				} elseif ($mode[0] == 'w') {
+					if ($this->fs->fileExists($path))
+						$mode = 'r+';
+				}
+
+				$fp = $this->fs->open($path, $mode);
+				if (!$fp) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Failed to open file');
+					break;
+				}
+				$this->sendHandle($rid, $fp);
+				break;
+			case self::SSH_FXP_READ:
+				$rid = $this->parseInt32($packet);
+				$h = $this->getHandle($this->parseStr($packet));
+				$offset = $this->parseInt32($packet) << 32;
+				$offset|= $this->parseInt32($packet);
+				$len = $this->parseInt32($packet);
+				if ((!$h) || (!is_resource($h))) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad handle');
+					break;
+				}
+				fseek($h, $offset);
+				$data = fread($h, $len);
+				if ($data === false) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Read failed');
+					break;
+				}
+				$pkt = pack('C', self::SSH_FXP_DATA).$this->str($data);
+				unset($data);
+				$this->sendPacket($pkt);
+				break;
+			case self::SSH_FXP_WRITE:
+				$rid = $this->parseInt32($packet);
+				$h = $this->getHandle($this->parseStr($packet));
+				$offset = $this->parseInt32($packet) << 32;
+				$offset|= $this->parseInt32($packet);
+				$data = $this->parseStr($packet);
+				if ((!$h) || (!is_resource($h))) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad handle');
+					break;
+				}
+				fseek($h, $offset);
+				$res = fwrite($h, $data);
+				if ($res === false) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Write failed');
+					break;
+				}
+				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
+				break;
+			case self::SSH_FXP_FSTAT:
+				$rid = $this->parseInt32($packet);
+				$h = $this->getHandle($this->parseStr($packet));
+				if ((!$h) || (!is_resource($h))) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad handle');
+					break;
+				}
+				$stat = $this->fs->stat($h);
+				if (!$stat) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Failed to get stats');
+					break;
+				}
+				$pkt = pack('CN', self::SSH_FXP_ATTRS, $rid).$stat['sftp'];
+				$this->sendPacket($pkt);
+				break;
 			case self::SSH_FXP_CLOSE:
 				list(,$rid) = unpack('N', $packet);
 				$packet = substr($packet, 4);
@@ -122,6 +218,16 @@ class SFTP extends Channel {
 				}
 				$this->sendFxpName($rid, $list);
 				break;
+			case self::SSH_FXP_REMOVE:
+				$rid = $this->parseInt32($packet);
+				$file = $this->parseStr($packet);
+				$res = $this->fs->unLink($file);
+				if (!$res) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'SSH_FXP_REMOVE failed');
+					break;
+				}
+				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
+				break;
 			case self::SSH_FXP_STAT:
 			case self::SSH_FXP_LSTAT:
 				// 00000002000000012f
@@ -135,13 +241,34 @@ class SFTP extends Channel {
 					$this->sendFxpAttrs($rid, $stat['sftp']);
 				}
 				break;
+			case self::SSH_FXP_RENAME:
+				$rid = $this->parseInt32($packet);
+				$oldpath = $this->parseStr($packet);
+				$newpath = $this->parseStr($packet);
+				$res = $this->fs->rename($oldpath, $newpath);
+				if (!$res) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Failed to rename file');
+				} else {
+					$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
+				}
+				break;
 			case self::SSH_FXP_MKDIR:
 				list(,$rid) = unpack('N', $packet);
 				$packet = substr($packet, 4);
 				$path = $this->parseStr($packet);
 				$attrs = $this->parseAttrs($packet);
 				if (!$this->fs->mkDir($path, $attrs['mode'] ?: 0777)) {
-					$this->sendStatus($rid, self::SSH_FX_PERMISSION_DENIED, 'Unable to create dir');
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Unable to create dir');
+					break;
+				}
+				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
+				break;
+			case self::SSH_FXP_RMDIR:
+				list(,$rid) = unpack('N', $packet);
+				$packet = substr($packet, 4);
+				$path = $this->parseStr($packet);
+				if (!$this->fs->rmDir($path)) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Could not remove dir');
 					break;
 				}
 				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');

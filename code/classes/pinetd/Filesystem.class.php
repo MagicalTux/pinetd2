@@ -193,9 +193,9 @@ class Filesystem {
 
 	protected function _stat($fil, $follow = true) {
 		if ($follow) {
-			$stat = stat($fil);
+			$stat = @stat($fil);
 		} else {
-			$stat = lstat($file);
+			$stat = @lstat($file);
 		}
 
 		if (!$stat) return false;
@@ -252,37 +252,15 @@ class Filesystem {
 		return $data;
 	}
 
-	public function open($file, $write, $resume) {
-		if ($write) {
+	public function open($file, $mode) {
+		if ($mode[0] != 'r') {
 			if (!$this->isWritable($file)) return false;
 		}
-		
 		$fil = $this->convertPath($file);
 		if ((is_null($fil)) || ($fil === false)) return false;
 
 		$fil = $this->root . $fil;
-
-		if ($write) @touch($fil);
-		$fp = fopen($fil, ($write?'rb+':'rb'));
-
-		if (!$fp) return false;
-
-		fseek($fp, 0, SEEK_END);
-		$size = ftell($fp);
-
-		if ($resume > $size) {
-			fclose($fp);
-			return false;
-		}
-
-		if ($resume == -1) { // APPEND
-			fseek($fp, 0, SEEK_END);
-		} else {
-			fseek($fp, $resume, SEEK_SET);
-			if ($write) ftruncate($fp, $resume);
-		}
-
-		return array('fp' => $fp, 'size' => $size);
+		return fopen($fil, $mode);
 	}
 
 	public function close($fp) {
