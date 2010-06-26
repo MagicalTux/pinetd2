@@ -47,6 +47,12 @@ class SFTP extends Channel {
 	const SSH_FX_CONNECTION_LOST = 7;
 	const SSH_FX_OP_UNSUPPORTED = 8;
 
+	const SSH_FILEXFER_ATTR_SIZE = 0x00000001;
+	const SSH_FILEXFER_ATTR_UIDGID = 0x00000002;
+	const SSH_FILEXFER_ATTR_PERMISSIONS = 0x00000004;
+	const SSH_FILEXFER_ATTR_ACMODTIME = 0x00000008;
+	const SSH_FILEXFER_ATTR_EXTENDED = 0x80000000;
+
 	protected function init_post() {
 		$class = relativeclass($this, 'Filesystem');
 		$this->fs = new $class();
@@ -62,6 +68,20 @@ class SFTP extends Channel {
 				if ($version < 3) return $this->close(); // we are too recent for this little guy
 				$pkt = pack('CN', self::SSH_FXP_VERSION, 3);
 				$this->sendPacket($pkt);
+				break;
+			case self::SSH_FXP_VERSION: break; // ignore it
+			case self::SSH_FXP_CLOSE:
+				list(,$rid) = unpack('N', $packet);
+				$packet = substr($packet, 4);
+				$h_bin = $this->parseStr($packet);
+				$h = $this->getHandle($h_bin);
+				if (!$h) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad handle');
+					break;
+				}
+				$this->fs->close($h);
+				unset($this->handles[$h_bin]);
+				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
 				break;
 			case self::SSH_FXP_OPENDIR:
 				list(,$rid) = unpack('N', $packet);
@@ -115,6 +135,17 @@ class SFTP extends Channel {
 					$this->sendFxpAttrs($rid, $stat['sftp']);
 				}
 				break;
+			case self::SSH_FXP_MKDIR:
+				list(,$rid) = unpack('N', $packet);
+				$packet = substr($packet, 4);
+				$path = $this->parseStr($packet);
+				$attrs = $this->parseAttrs($packet);
+				if (!$this->fs->mkDir($path, $attrs['mode'] ?: 0777)) {
+					$this->sendStatus($rid, self::SSH_FX_PERMISSION_DENIED, 'Unable to create dir');
+					break;
+				}
+				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
+				break;
 			case self::SSH_FXP_REALPATH:
 				list(,$rid) = unpack('N', $packet);
 				$packet = substr($packet, 4);
@@ -164,6 +195,35 @@ class SFTP extends Channel {
 
 	protected function sendPacket($packet) {
 		$this->send($this->str($packet));
+	}
+
+	protected function parseAttrs(&$pkt) {
+		$flags = $this->parseInt32($pkt);
+		$res = array();
+		if ($flags & self::SSH_FILEXFER_ATTR_SIZE) {
+			$res['size'] = $this->parseInt32($pkt) << 32;
+			$res['size']|= $this->parseInt32($pkt);
+		}
+		if ($flags & self::SSH_FILEXFER_ATTR_UIDGID) {
+			$res['uid'] = $this->parseInt32($pkt);
+			$res['gid'] = $this->parseInt32($pkt);
+		}
+		if ($flags & self::SSH_FILEXFER_ATTR_PERMISSIONS) {
+			$res['mode'] = $this->parseInt32($pkt);
+		}
+		if ($flags & self::SSH_FILEXFER_ATTR_ACMODTIME) {
+			$res['atime'] = $this->parseInt32($pkt);
+			$res['mtime'] = $this->parseInt32($pkt);
+		}
+		if ($flags & self::SSH_FILEXFER_ATTR_EXTENDED) {
+			$res['ext'] = array();
+			$count = $this->parseInt32($pkt);
+			for($i = 0; $i < $count; $i++) {
+				$key = $this->parseStr($pkt);
+				$res['ext'][$key] = $this->parseStr($pkt);
+			}
+		}
+		return $res;
 	}
 
 	protected function sendStatus($rid, $status, $msg) {

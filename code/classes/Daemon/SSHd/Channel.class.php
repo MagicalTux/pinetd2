@@ -129,6 +129,12 @@ class Channel {
 		return pack('N', strlen($str)).$str;
 	}
 
+	protected function parseInt32(&$pkt) {
+		list(,$int) = unpack('N', substr($pkt, 0, 4));
+		$pkt = substr($pkt, 4);
+		return $int;
+	}
+
 	protected function parseStr(&$pkt) {
 		list(,$len) = unpack('N', substr($pkt, 0, 4));
 		if ($len == 0) {

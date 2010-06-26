@@ -217,15 +217,15 @@ class Filesystem {
 		if ($year == date('Y')) {
 			$timeline = sprintf('%02d:%02d', $hour, $mins);
 		} else {
-			$timeline = sprintf('%05d', $year);
+			$timeline = sprintf(' %04d', $year);
 		}
 
-		$res = sprintf('%s %4u %-8d %-8d %8u %s %2d %s %s',
+		$res = sprintf('%s %3u %-8d %-8d %8u %s %2d %s %s',
 			$flag,
-			1, /* TODO: nlinks */
+			$stat['nlink']?:1, /* TODO: nlinks */
 			0, /* owner id */
 			0, /* group id */
-			$fdata['size'], /* size */
+			$stat['size'], /* size */
 			$month, /* month name */
 			$day,
 			$timeline,
@@ -286,7 +286,16 @@ class Filesystem {
 	}
 
 	public function close($fp) {
-		return fclose($fp);
+		if (is_resource($fp)) {
+			fclose($fp);
+			return true;
+		}
+		switch($fp['type']) {
+			case 'dir': closedir($fp['handle']); break;
+			case 'file': fclose($fp['handle']); break;
+			default: return false;
+		}
+		return true;
 	}
 
 	public function doRecursiveRMD($dir) {
@@ -324,13 +333,13 @@ class Filesystem {
 		return @rmdir($this->root . $fil);
 	}
 
-	public function mkDir($dir) {
+	public function mkDir($dir, $mode = 0777) {
 		if (!$this->isWritable($dir)) return false;
 		
 		$fil = $this->convertPath($dir);
 		if ((is_null($fil)) || ($fil === false)) return false;
 
-		return @mkdir($this->root . $fil);
+		return @mkdir($this->root . $fil, $mode);
 	}
 
 	public function size($fil) {
