@@ -446,7 +446,7 @@ class Client extends \pinetd\TCP\Client {
 			if (isset($my_kex_alg[$alg])) { $kex = $alg; break; }
 			$fallback_cnt++;
 		}
-		if (is_null($kex)) { $this->close(); return; }
+		if (is_null($kex)) { $this->disconnect(self::SSH_DISCONNECT_PROTOCOL_ERROR, 'No matching KEX'); return; }
 		$key_alg = null;
 		foreach($this->capa['server_host_key_algorithms'] as $alg) {
 			if (isset($my_key_alg[$alg])) { $key_alg = $alg; break; }
@@ -569,8 +569,8 @@ class Client extends \pinetd\TCP\Client {
 	protected function getCipherAlgList() {
 		$mapping = array(
 			'rijndael-128' => 'aes128-cbc',
-			'rijndael-192' => 'aes192-cbc',
-			'rijndael-256' => 'aes256-cbc',
+//			'rijndael-192' => 'aes192-cbc',
+//			'rijndael-256' => 'aes256-cbc',
 			'blowfish' => 'blowfish-cbc',
 			'serpent' => 'serpent256-cbc',
 //			'arcfour' => 'arcfour', // Only cbc for now
