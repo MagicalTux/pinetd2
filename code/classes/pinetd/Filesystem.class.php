@@ -1,6 +1,6 @@
 <?php
 
-namespace Daemon\FTPd;
+namespace pinetd;
 
 class Filesystem {
 	protected $cwd = '/';
@@ -122,7 +122,7 @@ class Filesystem {
 	public function realpath($path) {
 		$fil = $this->convertPath($path);
 		if ((is_null($fil)) || ($fil === false)) return NULL;
-		return substr($fil, strlen($this->root));
+		return $fil;
 	}
 
 	public function listDir($dir) {
@@ -151,7 +151,7 @@ class Filesystem {
 		$fil = $this->convertPath($fil);
 		if ((is_null($fil)) || ($fil === false)) return false;
 
-		return $this->_stat($fil);
+		return $this->_stat($this->root . $fil);
 	}
 
 	protected function _basename($name, $ext = '') {
@@ -164,8 +164,12 @@ class Filesystem {
 		return $name;
 	}
 
-	protected function _stat($fil) {
-		$stat = stat($fil);
+	protected function _stat($fil, $follow = true) {
+		if ($follow) {
+			$stat = stat($fil);
+		} else {
+			$stat = lstat($file);
+		}
 
 		if (!$stat) return false;
 		
@@ -179,13 +183,41 @@ class Filesystem {
 		$flag.=$xflg.$xflg;
 		$blocks=$stat["nlink"];
 
+		// FTP-like stat line
+		list($year, $month, $day, $hour, $mins) = explode('|', date('Y|M|d|H|i', $stat['mtime']));
+
+		// $timeline: same year: "HH:SS". Other: " YYYY" (%5d)
+		if ($year == date('Y')) {
+			$timeline = sprintf('%02d:%02d', $hour, $mins);
+		} else {
+			$timeline = sprintf('%05d', $year);
+		}
+
+		$res = sprintf('%s %4u %-8d %-8d %8u %s %2d %s %s',
+			$flag,
+			1, /* TODO: nlinks */
+			0, /* owner id */
+			0, /* group id */
+			$fdata['size'], /* size */
+			$month, /* month name */
+			$day,
+			$timeline,
+			$this->_basename($fil)
+		);
+
+		if (is_link($fil)) {
+			$res.=" -> ".readlink($fil);
+		}
 
 		$data = array(
 			'name' => $this->_basename($fil),
 			'flags' => $flag,
+			'mode' => $stat['mode'],
 			'blocks' => $blocks,
 			'size' => $stat['size'],
+			'atime' => $stat['atime'],
 			'mtime' => $stat['mtime'],
+			'text' => $res,
 		);
 
 		if (is_link($fil)) $data['link'] = readlink($fil);

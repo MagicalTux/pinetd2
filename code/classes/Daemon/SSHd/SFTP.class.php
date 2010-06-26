@@ -35,14 +35,18 @@ class SFTP extends Channel {
 	const SSH_FXP_EXTENDED = 200;
 	const SSH_FXP_EXTENDED_REPLY = 201;
 
-	const SSH_FILEXFER_ATTR_SIZE = 0x00000001;
-	const SSH_FILEXFER_ATTR_UIDGID = 0x00000002;
-	const SSH_FILEXFER_ATTR_PERMISSIONS = 0x00000004;
-	const SSH_FILEXFER_ATTR_ACMODTIME = 0x00000008;
-	const SSH_FILEXFER_ATTR_EXTENDED = 0x80000000;
+	const SSH_FX_OK = 0;
+	const SSH_FX_EOF = 1;
+	const SSH_FX_NO_SUCH_FILE = 2;
+	const SSH_FX_PERMISSION_DENIED = 3;
+	const SSH_FX_FAILURE = 4;
+	const SSH_FX_BAD_MESSAGE = 5;
+	const SSH_FX_NO_CONNECTION = 6;
+	const SSH_FX_CONNECTION_LOST = 7;
+	const SSH_FX_OP_UNSUPPORTED = 8;
 
 	protected function init_post() {
-		$class = relativeclass($this, 'FileSystem');
+		$class = relativeclass($this, 'Filesystem');
 		$this->fs = new $class();
 		$this->fs->setRoot('/tmp');
 	}
@@ -57,16 +61,40 @@ class SFTP extends Channel {
 				$pkt = pack('CN', self::SSH_FXP_VERSION, 3);
 				$this->sendPacket($pkt);
 				break;
+			case self::SSH_FXP_STAT:
+			case self::SSH_FXP_LSTAT:
+				// 00000002000000012f
+				list(,$rid) = unpack('N', $packet);
+				$packet = substr($packet, 4);
+				$path = $this->parseStr($packet);
+				$stat = $this->fs->stat($path, $id == self::SSH_FXP_STAT);
+				if (!$stat) {
+					$this->sendStatus($rid, self::SSH_FX_NO_SUCH_FILE, 'Unable to stat file');
+				} else {
+					$this->sendFxpAttrs($rid, $stat['sftp']);
+				}
+				break;
 			case self::SSH_FXP_REALPATH:
 				list(,$rid) = unpack('N', $packet);
 				$packet = substr($packet, 4);
 				$path = $this->parseStr($packet);
 				$res = $this->fs->realpath($path);
-				$this->sendFxpName($rid, array(array('filename' => $res, 'longname' => $res)));
+				if (!$res) {
+					$this->sendStatus($rid, self::SSH_FX_NO_SUCH_FILE, 'Unable to realpath file');
+				} else {
+					$this->sendFxpName($rid, array(array('filename' => $res, 'longname' => $res)));
+				}
 				break;
 			default:
 				echo "Unknown packet id [$id]: ".bin2hex($packet)."\n";
+				list(,$rid) = unpack('N', $packet);
+				$this->sendStatus($rid, self::SSH_FX_OP_UNSUPPORTED, "Unknown packet id [$id]: ".bin2hex($packet));
 		}
+	}
+
+	protected function sendFxpAttrs($rid, $attrs) {
+		$packet = pack('CN', self::SSH_FXP_ATTRS, $rid).$attrs;
+		$this->sendPacket($packet);
 	}
 
 	protected function sendFxpName($rid, array $files) {
@@ -76,6 +104,7 @@ class SFTP extends Channel {
 			$packet .= $this->str($info['longname']);
 			$packet .= $info['attrs'] ?: pack('NN', 0,0);
 		}
+		$this->sendPacket($packet);
 	}
 
 	protected function parseBuffer() {
@@ -94,6 +123,17 @@ class SFTP extends Channel {
 
 	protected function sendPacket($packet) {
 		$this->send($this->str($packet));
+	}
+
+	protected function sendStatus($rid, $status, $msg) {
+		$pkt = pack('CNN', self::SSH_FXP_STATUS, $rid, $status) . $this->str($msg) . $this->str('');
+		$this->sendPacket($pkt);
+	}
+
+	public function gotEof() {
+		// that's an exit request
+		$this->eof();
+		$this->close();
 	}
 }
 
