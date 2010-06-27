@@ -290,11 +290,12 @@ class Client extends \pinetd\TCP\Client {
 			$SUID = new SUID($user, $group);
 		}
 
-		if (($this->IPC->canChroot()) && ($login['root'] != '/')) {
-			if (chroot($login['root'])) {
-				$login['root'] = '/';
-			}
-		}
+// Cannot chroot yet, need to find how we'll handle the loading of the next classes
+//		if (($this->IPC->canChroot()) && ($login['root'] != '/')) {
+//			if (chroot($login['root'])) {
+//				$login['root'] = '/';
+//			}
+//		}
 
 		if ($SUID) {
 			if (!$SUID->setIt()) {
