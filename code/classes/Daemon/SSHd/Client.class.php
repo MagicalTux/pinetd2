@@ -456,6 +456,7 @@ class Client extends \pinetd\TCP\Client {
 	protected function ssh_initEncryption() {
 		// init I/O encryption
 		$mapping = array(
+			'aes128-ctr' => array(MCRYPT_RIJNDAEL_128, 'ctr', 16),
 			'aes256-cbc' => array(MCRYPT_RIJNDAEL_256, MCRYPT_MODE_CBC, 32),
 			'aes192-cbc' => array(MCRYPT_RIJNDAEL_192, MCRYPT_MODE_CBC, 24),
 			'aes128-cbc' => array(MCRYPT_RIJNDAEL_128, MCRYPT_MODE_CBC, 16),
@@ -731,22 +732,20 @@ class Client extends \pinetd\TCP\Client {
 
 	protected function getCipherAlgList() {
 		$mapping = array(
-			'rijndael-128' => 'aes128-cbc',
-//			'rijndael-192' => 'aes192-cbc',
-//			'rijndael-256' => 'aes256-cbc',
-			'blowfish' => 'blowfish-cbc',
-			'serpent' => 'serpent256-cbc',
-//			'arcfour' => 'arcfour', // Only cbc for now
-			'cast-128' => 'cast128-cbc',
-			'tripledes' => '3des-cbc',
+			'aes128-ctr' => 'rijndael-128',
+			'aes128-cbc' => 'rijndael-128',
+			'blowfish-cbc' => 'blowfish',
+			'serpent256-cbc' => 'serpent',
+			'cast128-cbc' => 'cast-128',
+			'3des-cbc' => 'tripledes',
 		);
-		$list = mcrypt_list_algorithms();
+		$list = array_flip(mcrypt_list_algorithms());
 		$final = array();
-		foreach($list as $alg) if (isset($mapping[$alg])) $final[$mapping[$alg]] = $mapping[$alg];
-		// reorder by priority
-		$final_ord = array();
-		foreach($mapping as $alg) if (isset($final[$alg])) $final_ord[] = $alg;
-		return $final_ord;
+		foreach($mapping as $ssh_alg => $alg) {
+			if (!isset($list[$alg])) continue;
+			$final[] = $ssh_alg;
+		}
+		return $final;
 	}
 
 	protected function getHmacAlgList() {
