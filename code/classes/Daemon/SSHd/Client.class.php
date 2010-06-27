@@ -371,6 +371,12 @@ class Client extends \pinetd\TCP\Client {
 		$this->cipher['send'] = array('name' => $this->capa['cipher_send'], 'block_size' => $block_send, 'mod' => $mod_send, 'hmac' => $hmac_send, 'hmac_key' => $mac_send);
 	}
 
+	protected function gmp_binval($g) {
+		$hex = gmp_strval($g, 16);
+		if (strlen($hex) & 1) $hex = '0'.$hex;
+		return pack('H*', $hex);
+	}
+
 	protected function ssh_KeyExchangeDHInit($pkt) {
 		// secure key exchange - diffie-hellman-group1-sha1
 		if (!$this->loadSkey()) {
@@ -389,11 +395,11 @@ class Client extends \pinetd\TCP\Client {
 
 		// compute $f and $K
 		$f = gmp_powm(2, $y, $p);
-		$f_bin = pack('H*', gmp_strval($f, 16));
+		$f_bin = $this->gmp_binval($f);
 		if (ord($f_bin[0]) & 0x80) $f_bin = "\0" . $f_bin;
 		// TODO: it seems that sometimes we fail to compute a valid $K. This is totally random
 		$K = gmp_powm($e, $y, $p);
-		$K_bin = pack('H*', gmp_strval($K, 16));
+		$K_bin = $this->gmp_binval($K);
 		if (ord($K_bin[0]) & 0x80) $K_bin = "\0" . $K_bin;
 
 		$pub = $this->skey['pub'];
