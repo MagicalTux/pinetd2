@@ -548,7 +548,6 @@ class Client extends \pinetd\TCP\Client {
 		$f = gmp_powm(2, $y, $p);
 		$f_bin = $this->gmp_binval($f);
 		if (ord($f_bin[0]) & 0x80) $f_bin = "\0" . $f_bin;
-		// TODO: it seems that sometimes we fail to compute a valid $K. This is totally random
 		$K = gmp_powm($e, $y, $p);
 		$K_bin = $this->gmp_binval($K);
 		if (ord($K_bin[0]) & 0x80) $K_bin = "\0" . $K_bin;
@@ -872,7 +871,6 @@ class Client extends \pinetd\TCP\Client {
 				$tmp = substr($this->buf, 0, $mac_len);
 				$this->buf = substr($this->buf, $mac_len);
 				if ($tmp != $mac) {
-					// TODO: send a disconnect packet
 					Logger::log(Logger::LOG_WARN, 'Invalid MAC for packet in input stream!');
 					$this->disconnect(self::SSH_DISCONNECT_MAC_ERROR, 'could not understand mac');
 					break;
