@@ -90,6 +90,10 @@ class Client extends \pinetd\TCP\Client {
 		$this->payloads['V_S'] = "SSH-2.0-pinetd PHP/".phpversion();
 	}
 
+	public function getLogin() {
+		return $this->login;
+	}
+
 	protected function handlePkt($pkt) {
 		$id = ord($pkt[0]);
 		$pkt = substr($pkt, 1);
@@ -273,7 +277,12 @@ class Client extends \pinetd\TCP\Client {
 	protected function login($login, $password, $service) {
 		$info = $this->IPC->checkAccess($login, $password, $this->peer, $service);
 		if (!$info) return false;
-		$this->login = $info['login'];
+		return $this->doLogin($info);
+	}
+
+	protected function doLogin($login) {
+		// overload me to add set_uid or chroot() calls
+		$this->login = $login;
 		return true;
 	}
 
@@ -369,8 +378,7 @@ class Client extends \pinetd\TCP\Client {
 			default: return false;
 		}
 
-		$this->login = $info['login'];
-		return true;
+		return $this->doLogin($info);
 	}
 
 	protected function ssh_handleUserAuthRequest($user, $service, $method, $pkt) {

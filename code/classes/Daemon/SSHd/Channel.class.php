@@ -25,6 +25,10 @@ class Channel {
 		$this->init($pkt);
 	}
 
+	final public function getLogin() {
+		return $this->tp->getLogin();
+	}
+
 	// return the amount of bytes we allow remote party to send us
 	public function remoteWindow() {
 		return $this->window_in;
@@ -74,8 +78,6 @@ class Channel {
 		$class->recv_spent = $this->recv_spent;
 
 		$this->tp->channelChangeObject($this->channel, $class);
-
-		$class->init_post();
 
 		return $class;
 	}

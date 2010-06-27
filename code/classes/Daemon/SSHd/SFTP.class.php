@@ -60,10 +60,18 @@ class SFTP extends Channel {
 	const SSH_FXF_TRUNC = 0x00000010;
 	const SSH_FXF_EXCL = 0x00000020;
 
-	protected function init_post() {
+	protected function _req_subsystem($pkt) {
+		$syst = $this->parseStr($pkt);
+		if ($syst != 'sftp') return false;
+
+		$login = $this->getLogin();
+		if (!isset($login['root'])) return false;
+
 		$class = relativeclass($this, 'Filesystem');
 		$this->fs = new $class();
-		$this->fs->setRoot('/tmp');
+		$this->fs->setOptions($login);
+		if (!$this->fs->setRoot($login['root'])) return false;
+		return true;
 	}
 
 	protected function handlePacket($packet) {
@@ -313,12 +321,6 @@ class SFTP extends Channel {
 			$packet = $this->parseStr($this->buf_in);
 			$this->handlePacket($packet);
 		}
-	}
-
-	protected function _req_subsystem($pkt) {
-		$syst = $this->parseStr($pkt);
-		if ($syst != 'sftp') return false;
-		return true;
 	}
 
 	protected function sendPacket($packet) {
