@@ -300,6 +300,12 @@ class SFTP extends Channel {
 	}
 
 	protected function parseBuffer() {
+		// refill window if needed
+		if ($this->recv_spent > 1024) {
+			$this->window($this->recv_spent);
+			$this->recv_spent = 0;
+		}
+
 		if (strlen($this->buf_in) < 4) return; // not enough data yet
 		list(,$len) = unpack('N', $this->buf_in);
 		if (strlen($this->buf_in) < ($len+4)) return; // not enough data yet

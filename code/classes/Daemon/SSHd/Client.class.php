@@ -15,6 +15,7 @@ class Client extends \pinetd\TCP\Client {
 	private $seq_send = -1;
 	private $login = NULL;
 	private $channels = array();
+	private $kex_sent = false;
 
 	private $cipher = array(); // encoding type
 
@@ -133,6 +134,8 @@ class Client extends \pinetd\TCP\Client {
 				$data['reserved'] = bin2hex(substr($pkt, 1));
 				$this->capa = $data;
 				$this->ssh_determineEncryption();
+				if (!$this->kex_sent) $this->ssh_sendAlgorithmNegotiationPacket();
+				$this->kex_sent = false;
 				break;
 			case self::SSH_MSG_NEWKEYS:
 				// initialize encryption [recv/send]
@@ -239,7 +242,7 @@ class Client extends \pinetd\TCP\Client {
 
 	public function channelWindow($channel, $bytes) {
 		if (!isset($this->channels[$channel])) return false;
-		$pkt = pack('CN', self::SSH_MSG_CHANNEL_WINDOW_ADJUST, $bytes);
+		$pkt = pack('CNN', self::SSH_MSG_CHANNEL_WINDOW_ADJUST, $channel, $bytes);
 		$this->sendPacket($pkt);
 	}
 
@@ -522,6 +525,7 @@ class Client extends \pinetd\TCP\Client {
 		$pkt .= str_repeat("\0", 4);
 		$this->payloads['I_S'] = $pkt;
 		$this->sendPacket($pkt);
+		$this->kex_sent = true;
 	}
 
 	protected function parseStr(&$pkt) {
