@@ -106,7 +106,7 @@ class Channel {
 	final public function recv($str) {
 		$this->recv_spent += strlen($str);
 		$this->window_in -= strlen($str);
-		$this->buf_in = $str;
+		$this->buf_in .= $str;
 		$this->parseBuffer();
 	}
 
