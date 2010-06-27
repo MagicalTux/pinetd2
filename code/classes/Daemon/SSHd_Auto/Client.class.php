@@ -8,12 +8,13 @@ class Client extends \Daemon\SSHd\Client {
 
 		if (crypt($pass, $data['Password']) != $data['Password']) return false;
 
-		return array(
+		$info = array(
 			'root' => $data['Path'],
 			'suid_user' => 'nobody', // force suid on login
 			'suid_group' => 'nobody', // force suid on login
 			'write_level' => $data['Access'],
 		);
+		return $this->doLogin($info);
 	}
 
 	protected function serverCall($method, array $params) {
