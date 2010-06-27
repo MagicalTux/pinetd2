@@ -218,10 +218,10 @@ class Client extends \pinetd\TCP\Client {
 			$user = null;
 			$group = null;
 			if (isset($res['user'])) $user = $res['user'];
-			if (isset($res['group'])) $user = $res['group'];
+			if (isset($res['group'])) $group = $res['group'];
 
 			if (is_null($user)) $user = $SUID['User'];
-			if (is_null($group)) $user = $SUID['Group'];
+			if (is_null($group)) $group = $SUID['Group'];
 
 			$SUID = new SUID($user, $group);
 		} elseif (isset($res['user'])) {

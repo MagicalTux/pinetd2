@@ -2,6 +2,7 @@
 
 namespace Daemon\SSHd;
 use pinetd\Logger;
+use pinetd\SUID;
 
 class Client extends \pinetd\TCP\Client {
 	private $state;
@@ -281,7 +282,28 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	protected function doLogin($login) {
-		// overload me to add set_uid or chroot() calls
+		$SUID = $this->IPC->canSUID();
+		if ($SUID) {
+			$user = $login['suid_user'] ?: $SUID['User'];
+			$group = $login['suid_group'] ?: $SUID['Group'];
+
+			$SUID = new SUID($user, $group);
+		}
+
+		if (($this->IPC->canChroot()) && ($login['root'] != '/')) {
+			if (chroot($login['root'])) {
+				$login['root'] = '/';
+			}
+		}
+
+		if ($SUID) {
+			if (!$SUID->setIt()) {
+				$this->disconnect(self::SSH_DISCONNECT_BY_APPLICATION, 'failed to suid to the correct user');
+				$this->IPC->killSelf($this->fd);
+				return false;
+			}
+		}
+
 		$this->login = $login;
 		return true;
 	}
