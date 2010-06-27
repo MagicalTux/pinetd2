@@ -277,6 +277,67 @@ class Client extends \pinetd\TCP\Client {
 		return true;
 	}
 
+	protected function loginPK($login, $service, $pk_algo, $pk_key, $pk_fingerprint, $pk_signature) {
+		$info = $this->IPC->getPublicKeyAccess($login, $pk_algo.':'.$pk_fingerprint, $this->peer, $service);
+		if (!$info) return false;
+		if ($info['type'] != $pk_algo) return false; // ?!
+		if (base64_decode($info['key']) != $pk_key) return false; // not the right public key (md5 collision?)
+
+		if (is_null($pk_signature)) return true;
+
+		// make packet for sign
+		$signed = $this->str($this->session_id).chr(self::SSH_MSG_USERAUTH_REQUEST).$this->str($login).$this->str($service).$this->str('publickey')."\x01".$this->str($info['type']).$this->str(base64_decode($info['key']));
+
+		// unfortunately I haven't managed to get openssl to understand the openssh public key and use openssl_verify, so let's just do that manually
+		switch($pk_algo) {
+			case 'ssh-dss':
+				// DSA signature check as of csrc.nist.gov/publications/fips/archive/fips186-2/fips186-2.pdf
+				// parse public key
+				$tmp = base64_decode($info['key']);
+				if ($this->parseStr($tmp) != 'ssh-dss') return false;
+				$p_bin = $this->parseStr($tmp);
+				$q_bin = $this->parseStr($tmp);
+				$g_bin = $this->parseStr($tmp);
+				$y_bin = $this->parseStr($tmp);
+
+				// parse signature (r_s)
+				$tmp = $pk_signature;
+				if ($this->parseStr($tmp) != 'ssh-dss') return false;
+				$r_s = $this->parseStr($tmp);
+
+				if (strlen($r_s) != 40) return false; // 160bits r + 160bits s
+				$r_bin = substr($r_s, 0, 20);
+				$s_bin = substr($r_s, 20, 20);
+
+				// init gmp
+				$p = gmp_init(bin2hex($p_bin), 16);
+				$q = gmp_init(bin2hex($q_bin), 16);
+				$g = gmp_init(bin2hex($g_bin), 16);
+				$y = gmp_init(bin2hex($y_bin), 16);
+				$r = gmp_init(bin2hex($r_bin), 16);
+				$s = gmp_init(bin2hex($s_bin), 16);
+				$M = gmp_init(sha1($signed), 16);
+
+				if (gmp_cmp($r, $q) > 0) return false;
+				if (gmp_cmp($s, $q) > 0) return false;
+
+				// computation
+				$w = gmp_invert($s, $q);
+				$u1 = gmp_mod(gmp_mul($M, $w), $q);
+				$u2 = gmp_mod(gmp_mul($r, $w), $q);
+				$v = gmp_mod(gmp_mod(gmp_mul(gmp_powm($g, $u1, $p), gmp_powm($y, $u2, $p)), $p), $q);
+
+				if (gmp_cmp($v, $r) == 0) { // sign check success!
+					break;
+				}
+				return false;
+			default: return false;
+		}
+
+		$this->login = $info['login'];
+		return true;
+	}
+
 	protected function ssh_handleUserAuthRequest($user, $service, $method, $pkt) {
 		if ($service != 'ssh-connection') {
 			$pkt = chr(self::SSH_MSG_USERAUTH_FAILURE).$this->str('').chr(0);
@@ -293,7 +354,28 @@ class Client extends \pinetd\TCP\Client {
 				$this->sendPacket($pkt);
 				return;
 			case 'publickey':
-				break; // ?
+				$authreq = (bool)ord($pkt[0]);
+				$pkt = substr($pkt, 1);
+				$pk_algo = $this->parseStr($pkt);
+				$pk_key = $this->parseStr($pkt);
+				$pk_fingerprint = md5($pk_key);
+				$pk_signature = null;
+				if ($authreq) $pk_signature = $this->parseStr($pkt);
+//				echo "Pubkey auth, ".($authreq?'AUTH':'KEY').' '.$pk_algo.' '.$pk_fingerprint."\n";
+
+				$try = $this->loginPK($user, $service, $pk_algo, $pk_key, $pk_fingerprint, $pk_signature);
+				if (!$try) break;
+
+				if ($authreq) {
+					// success
+					$pkt = chr(self::SSH_MSG_USERAUTH_SUCCESS);
+					$this->sendPacket($pkt);
+					return;
+				}
+
+				$pkt = chr(self::SSH_MSG_USERAUTH_PK_OK).$this->str($pk_algo).$this->str($pk_key);
+				$this->sendPacket($pkt);
+				return;
 		}
 		$pkt = chr(self::SSH_MSG_USERAUTH_FAILURE).$this->str('publickey,password').chr(0);
 		$this->sendPacket($pkt);
@@ -526,6 +608,12 @@ class Client extends \pinetd\TCP\Client {
 		$this->payloads['I_S'] = $pkt;
 		$this->sendPacket($pkt);
 		$this->kex_sent = true;
+	}
+
+	protected function parseInt32(&$pkt) {
+		list(,$int) = unpack('N', substr($pkt, 0, 4));
+		$pkt = substr($pkt, 4);
+		return $int;
 	}
 
 	protected function parseStr(&$pkt) {
