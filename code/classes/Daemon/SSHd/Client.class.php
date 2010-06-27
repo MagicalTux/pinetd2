@@ -288,8 +288,43 @@ class Client extends \pinetd\TCP\Client {
 		// make packet for sign
 		$signed = $this->str($this->session_id).chr(self::SSH_MSG_USERAUTH_REQUEST).$this->str($login).$this->str($service).$this->str('publickey')."\x01".$this->str($info['type']).$this->str(base64_decode($info['key']));
 
-		// unfortunately I haven't managed to get openssl to understand the openssh public key and use openssl_verify, so let's just do that manually
 		switch($pk_algo) {
+			case 'ssh-rsa':
+				// RSA signature RFC3447
+				// parse public key
+				$tmp = base64_decode($info['key']);
+				if ($this->parseStr($tmp) != 'ssh-rsa') return false;
+				$e_bin = $this->parseStr($tmp);
+				$n_bin = $this->parseStr($tmp);
+
+				// read signature
+				$tmp = $pk_signature;
+				if ($this->parseStr($tmp) != 'ssh-rsa') return false;
+				$s_bin = $this->parseStr($tmp);
+
+				// convert to gmp
+				$e = gmp_init(bin2hex($e_bin), 16);
+				$n = gmp_init(bin2hex($n_bin), 16);
+				$s = gmp_init(bin2hex($s_bin), 16); // signature
+
+				// check
+				if (gmp_cmp($s, gmp_sub($n, 1)) > 0) return false;
+
+				// decode signature
+				$m = gmp_powm($s, $e, $n);
+				$m_bin = "\0".$this->gmp_binval($m); // starts with 0x00 0x01, but gmp drops the first 0x00
+				$emLen = strlen($m_bin);
+
+				// EMSA-PKCS1-v1_5 encoding of our own hash
+				$t = pack('H*', '3021300906052b0e03021a05000414'); // RFC 3447 page 43 - means "SHA-1" in DER encoding
+				$t.= sha1($signed, true);
+				$ps = str_repeat("\xff", strlen($m_bin)-strlen($t)-3); // emLen - tLen - 3
+				$em = "\x00\x01".$ps."\x00".$t; // EM = 0x00 || 0x01 || PS || 0x00 || T
+
+				// check signature
+				if ($m_bin == $em) break;
+
+				return false;
 			case 'ssh-dss':
 				// DSA signature check as of csrc.nist.gov/publications/fips/archive/fips186-2/fips186-2.pdf
 				// parse public key
