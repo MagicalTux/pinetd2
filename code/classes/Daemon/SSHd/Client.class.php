@@ -3,6 +3,7 @@
 namespace Daemon\SSHd;
 use pinetd\Logger;
 use pinetd\SUID;
+use pinetd\Crypto;
 
 class Client extends \pinetd\TCP\Client {
 	private $state;
@@ -584,12 +585,38 @@ class Client extends \pinetd\TCP\Client {
 				if (is_null($this->session_id)) $this->session_id = $H;
 
 				// sign $H
-				if (!openssl_sign($H, $s, $this->skey['pkeyid'])) {
-					Logger::log(Logger::LOG_WARN, 'Could not sign exchange key');
-					$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'Failed to sign exchange hash');
-					return;
+				switch($this->capa['key_alg']) {
+					case 'ssh-dss': // openssl doesn't seem to accept to generate DSA signatures with sha1 (error:0606B06E:digital envelope routines:EVP_SignFinal:wrong public key type)
+						// we need to load the private key
+						$key = Crypto::dsa_read_pem($this->skey['priv'], true);
+						if ($key === false) {
+							Logger::log(Logger::LOG_WARN, 'Could not parse private DSA key');
+							$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'host misconfiguration');
+							return;
+						}
+						// generate signature
+						$H = gmp_init(sha1($H), 16);
+						$bytes_len = strlen(gmp_strval($key['q'], 16))/2;
+						while(1) {
+							$k = gmp_init(bin2hex(openssl_random_pseudo_bytes($bytes_len)), 16);
+							$k = gmp_mod($k, $key['q']);
+							$r = gmp_mod(gmp_powm($key['g'], $k, $key['p']), $key['q']);
+							if (gmp_cmp($r, 0) == 0) continue;
+							$s = gmp_mod(gmp_mul(gmp_invert($k, $key['q']), gmp_add($H, gmp_mul($key['x'], $r))), $key['q']);
+							if (gmp_cmp($s, 0) == 0) continue;
+							break;
+						}
+						$s = $this->gmp_binval($r).$this->gmp_binval($s);
+						break;
+					case 'ssh-rsa':
+					default:
+						if (!openssl_sign($H, $s, $this->skey['pkeyid'])) {
+							Logger::log(Logger::LOG_WARN, 'Could not sign exchange key: '.openssl_error_string());
+							$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'Failed to sign exchange hash');
+							return;
+						}
+						break;
 				}
-
 				$s = $this->str($this->skey['type']).$this->str($s);
 
 				$pkt = chr(self::SSH_MSG_KEXDH_REPLY);
