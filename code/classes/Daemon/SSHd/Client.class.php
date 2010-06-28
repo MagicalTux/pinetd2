@@ -530,63 +530,77 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	protected function ssh_KeyExchangeDHInit($pkt) {
-		// secure key exchange - diffie-hellman-group1-sha1
+		// secure key exchange
 		if (!$this->loadSkey()) {
 			Logger::log(Logger::LOG_WARN, 'Could not load server key');
 			$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'server misconfiguration');
 			return;
 		}
-		// RFC 4253 page 21: 8. Diffie-Hellman Key Exchange
-		$p = gmp_init('179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007');
 
-		// read $e from client
-		$e_bin = $this->parseStr($pkt);
-		$e = gmp_init(bin2hex($e_bin), 16); // not really optimized but works
+		switch($this->capa['kex']) {
+			case 'diffie-hellman-group1-sha1':
+			case 'diffie-hellman-group14-sha1':
+				// RFC 4253 page 21: 8. Diffie-Hellman Key Exchange
+				// Both groups have the same generator
+				if ($this->capa['kex'] == 'diffie-hellman-group1-sha1') {
+					$p = gmp_init('179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007');
+					$y = gmp_init(bin2hex(openssl_random_pseudo_bytes(64)), 16);
+				} else { // diffie-hellman-group14-sha1
+					$p = gmp_init('FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AACAA68FFFFFFFFFFFFFFFF', 16);
+					$y = gmp_init(bin2hex(openssl_random_pseudo_bytes(128)), 16);
+				}
 
-		$y = gmp_init(bin2hex(openssl_random_pseudo_bytes(64)), 16);
+				// read $e from client
+				$e_bin = $this->parseStr($pkt);
+				$e = gmp_init(bin2hex($e_bin), 16); // not really optimized but works
 
-		// compute $f and $K
-		$f = gmp_powm(2, $y, $p);
-		$f_bin = $this->gmp_binval($f);
-		if (ord($f_bin[0]) & 0x80) $f_bin = "\0" . $f_bin;
-		$K = gmp_powm($e, $y, $p);
-		$K_bin = $this->gmp_binval($K);
-		if (ord($K_bin[0]) & 0x80) $K_bin = "\0" . $K_bin;
 
-		$pub = $this->skey['pub'];
+				// compute $f and $K
+				$f = gmp_powm(2, $y, $p);
+				$f_bin = $this->gmp_binval($f);
+				if (ord($f_bin[0]) & 0x80) $f_bin = "\0" . $f_bin;
+				$K = gmp_powm($e, $y, $p);
+				$K_bin = $this->gmp_binval($K);
+				if (ord($K_bin[0]) & 0x80) $K_bin = "\0" . $K_bin;
 
-		// H = hash(V_C || V_S || I_C || I_S || K_S || e || f || K)
-		$sha = array(
-			$this->str($this->payloads['V_C']),
-			$this->str($this->payloads['V_S']),
-			$this->str($this->payloads['I_C']),
-			$this->str($this->payloads['I_S']),
-			$this->str($pub),
-			$this->str($e_bin),
-			$this->str($f_bin),
-			$this->str($K_bin)
-		);
-		$H = sha1(implode('', $sha), true);
+				$pub = $this->skey['pub'];
 
-		// store shared secret in session
-		$this->capa['K'] = $this->str($K_bin);
-		$this->capa['H'] = $H;
-		if (is_null($this->session_id)) $this->session_id = $H;
+				// H = hash(V_C || V_S || I_C || I_S || K_S || e || f || K)
+				$sha = array(
+					$this->str($this->payloads['V_C']),
+					$this->str($this->payloads['V_S']),
+					$this->str($this->payloads['I_C']),
+					$this->str($this->payloads['I_S']),
+					$this->str($pub),
+					$this->str($e_bin),
+					$this->str($f_bin),
+					$this->str($K_bin)
+				);
+				$H = sha1(implode('', $sha), true);
 
-		// sign $H
-		if (!openssl_sign($H, $s, $this->skey['pkeyid'])) {
-			Logger::log(Logger::LOG_WARN, 'Could not sign exchange key');
-			$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'Failed to sign exchange hash');
-			return;
+				// store shared secret in session
+				$this->capa['K'] = $this->str($K_bin);
+				$this->capa['H'] = $H;
+				if (is_null($this->session_id)) $this->session_id = $H;
+
+				// sign $H
+				if (!openssl_sign($H, $s, $this->skey['pkeyid'])) {
+					Logger::log(Logger::LOG_WARN, 'Could not sign exchange key');
+					$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'Failed to sign exchange hash');
+					return;
+				}
+
+				$s = $this->str($this->skey['type']).$this->str($s);
+
+				$pkt = chr(self::SSH_MSG_KEXDH_REPLY);
+				$pkt .= $this->str($pub);
+				$pkt .= $this->str($f_bin);
+				$pkt .= $this->str($s);
+				$this->sendPacket($pkt);
+				break;
+			default:
+				$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'Unsupported key exchange algo');
 		}
-
-		$s = $this->str($this->skey['type']).$this->str($s);
-
-		$pkt = chr(self::SSH_MSG_KEXDH_REPLY);
-		$pkt .= $this->str($pub);
-		$pkt .= $this->str($f_bin);
-		$pkt .= $this->str($s);
-		$this->sendPacket($pkt);
 	}
 
 	protected function ssh_determineEncryption() {
@@ -753,7 +767,7 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	protected function getKeyExchAlgList() {
-		return array('diffie-hellman-group1-sha1');//,'diffie-hellman-group14-sha1');
+		return array('diffie-hellman-group14-sha1','diffie-hellman-group1-sha1');
 	}
 
 	protected function getPKAlgList() {
