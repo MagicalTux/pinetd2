@@ -3,7 +3,7 @@ namespace Daemon\FTPd_Auto;
 
 class Client extends \Daemon\FTPd\Client {
 	protected function checkAccess($login, $pass) {
-		$data = $this->serverCall('getLogin', array('login' => $login));
+		$data = $this->serverCall('getLogin', array('login' => $login, 'ip' => $this->peer[0]));
 		if (is_null($data)) return false;
 
 		if (crypt($pass, $data['Password']) != $data['Password']) return false;
