@@ -418,6 +418,7 @@ class Client extends \pinetd\TCP\Client {
 				$password = $this->parseStr($pkt);
 				if (!$this->login($user, $password, $service)) {
 					Logger::log(Logger::LOG_WARN, 'Logging in of '.$user.' failed from '.$this->peer[0]);
+					sleep(4); // avoid immediate retry
 					break;
 				}
 				Logger::log(Logger::LOG_WARN, 'User '.$user.' logged in from '.$this->peer[0]);
