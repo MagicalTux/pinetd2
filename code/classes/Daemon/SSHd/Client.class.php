@@ -416,7 +416,11 @@ class Client extends \pinetd\TCP\Client {
 				$change = (bool)ord($pkt[0]);
 				$pkt = substr($pkt, 1);
 				$password = $this->parseStr($pkt);
-				if (!$this->login($user, $password, $service)) break;
+				if (!$this->login($user, $password, $service)) {
+					Logger::log(Logger::LOG_WARN, 'Logging in of '.$user.' failed from '.$this->peer[0]);
+					break;
+				}
+				Logger::log(Logger::LOG_WARN, 'User '.$user.' logged in from '.$this->peer[0]);
 				$pkt = chr(self::SSH_MSG_USERAUTH_SUCCESS);
 				$this->sendPacket($pkt);
 				return;
