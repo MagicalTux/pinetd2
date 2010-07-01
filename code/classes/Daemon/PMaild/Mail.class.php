@@ -219,7 +219,6 @@ class Mail {
 			$type = explode('/', $info['content_type']);
 			if ($type[0] == 'multipart') {
 				$append['p'.$part] = new Quoted(strtoupper($type[1]));
-				continue;
 			} else {
 				$props = array();
 				if (isset($info['charset'])) {
