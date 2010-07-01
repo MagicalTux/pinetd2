@@ -998,9 +998,11 @@ A OK FETCH completed
 				default: return false;
 			}
 		}
+
+		return $where;
 	}
 
-	protected function _cmd_search($argv) {
+	protected function _cmd_search($argv, $lin) {
 		array_shift($argv); // "SEARCH"
 		$param = implode(' ', $argv);
 		$param = $this->parseFetchParam($param);
@@ -1024,7 +1026,7 @@ A OK FETCH completed
 
 	protected function _cmd_uid_search($argv) {
 		array_unshift($argv, 'SEARCH');
-		$this->_cmd_search($argv);
+		$this->_cmd_search($argv, 'UID');
 	}
 
 	protected function _cmd_uid_fetch($argv) {
