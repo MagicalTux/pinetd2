@@ -1022,6 +1022,7 @@ A OK FETCH completed
 			$req = 'SELECT `mailid` FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = '.$this->sql->quote_escape($this->info['account']->id).' AND `folder` = '.$this->sql->quote_escape($this->selectedFolder);
 			if ($where) $req.= ' AND '.implode(' AND ', $where);
 			$req.= ' LIMIT 500';
+			var_dump($req);
 			$res = $this->sql->query($req);
 			while($row = $res->fetch_assoc()) {
 				if ($lin == 'UID') {
