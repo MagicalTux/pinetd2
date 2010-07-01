@@ -1015,12 +1015,29 @@ A OK FETCH completed
 			}
 		}
 
-		$where = $this->_parseSearchCond($param);
+		$where = $this->_parseSearchCond($param, $charset);
 		if ($where === false) {
 			var_dump($param);
 		} else {
-			var_dump($where);
+			$req = 'SELECT `mailid` FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = '.$this->sql->quote_escape($this->info['account']->id).' AND `folder` = '.$this->sql->quote_escape($this->selectedFolder);
+			if ($where) $req.= ' AND '.implode(' AND ', $where);
+			$req.= ' LIMIT 500';
+			$res = $this->sql->query($req);
+			while($row = $res->fetch_assoc()) {
+				if ($lin == 'UID') {
+					$final[] = $row['mailid'];
+				} else {
+					if (!isset($this->reverseMap[$uid])) {
+						// we do not know this mail, allocate an id quickly
+						$id = $this->allocateQuickId($row['mailid']);
+					} else {
+						$id = $this->reverseMap[$row['mailid']];
+					}
+					$final[] = $id;
+				}
+			}
 		}
+		if ($final) $this->sendMsg('SEARCH '.implode(' ', $final), '*');
 		$this->sendMsg('OK SEARCH completed');
 	}
 
