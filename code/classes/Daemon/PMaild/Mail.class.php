@@ -276,6 +276,9 @@ class Mail {
 				}
 			}
 
+			if ($type[0] == 'multipart')
+				continue;
+
 			$stack[$tmp] = $res;
 		}
 
