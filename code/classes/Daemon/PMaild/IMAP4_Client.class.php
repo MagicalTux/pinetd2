@@ -979,22 +979,22 @@ A OK FETCH completed
 			$t = strtoupper($param[$i]);
 			switch($t) {
 				case 'ALL': break;
-				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)==0'; break;
+				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)=0'; break;
 				case 'ANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)>0'; break;
 				case 'DELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)>0'; break;
 				case 'DRAFT': $where[] = 'FIND_IN_SET(\'draft\',`flags`)>0'; break;
 				case 'FLAGGED': $where[] = 'FIND_IN_SET(\'flagged\',`flags`)>0'; break;
 				case 'LARGER': $size = (int)$param[++$i]; $where[] = '`size` > '.$size; break;
-				case 'NEW': $where[] = 'FIND_IN_SET(\'seen\',`flags`)==0'; $where[] = 'FIND_IN_SET(\'recent\',`flags`)>0'; break;
-				case 'OLD': $where[] = 'FIND_IN_SET(\'recent\',`flags`)==0'; break;
+				case 'NEW': $where[] = 'FIND_IN_SET(\'seen\',`flags`)=0'; $where[] = 'FIND_IN_SET(\'recent\',`flags`)>0'; break;
+				case 'OLD': $where[] = 'FIND_IN_SET(\'recent\',`flags`)=0'; break;
 				case 'RECENT': $where[] = 'FIND_IN_SET(\'recent\',`flags`)>0'; break;
 				case 'SEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)>0'; break;
 				case 'SMALLER': $size = (int)$param[++$i]; $where[] = '`size` < '.$size; break;
-				case 'UNANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)==0'; break;
-				case 'UNDELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)==0'; break;
-				case 'UNDRAFT': $where[] = 'FIND_IN_SET(\'draft\',`flags`)==0'; break;
-				case 'UNFLAGGED': $where[] = 'FIND_IN_SET(\'flagged\',`flags`)==0'; break;
-				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)==0'; break;
+				case 'UNANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)=0'; break;
+				case 'UNDELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)=0'; break;
+				case 'UNDRAFT': $where[] = 'FIND_IN_SET(\'draft\',`flags`)=0'; break;
+				case 'UNFLAGGED': $where[] = 'FIND_IN_SET(\'flagged\',`flags`)=0'; break;
+				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)=0'; break;
 				default: return false;
 			}
 		}
