@@ -574,24 +574,22 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		}
 		$uidnext = $this->updateUidMap();
 
-		if ($unseen > 0) {
-			// got a unseen mail, fetch its ID
-			$req = 'SELECT `mailid` FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' ';
-			$req.= 'AND `folder`=\''.$this->sql->escape_string($pos).'\' AND FIND_IN_SET(\'seen\',`flags`)=0 ';
-			$req.= 'ORDER BY `mailid` ASC LIMIT 1';
-			$res = $this->sql->query($req);
-			if ($res) $res = $res->fetch_assoc();
-			if ($res) {
-				$unseen = $row['mailid'];
-				$unseen = $this->reverseMap[$unseen];
-			}
+		// search for unseen messages
+		$req = 'SELECT `mailid` FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' ';
+		$req.= 'AND `folder`=\''.$this->sql->escape_string($pos).'\' AND FIND_IN_SET(\'seen\',`flags`)=0 ';
+		$req.= 'ORDER BY `mailid` ASC LIMIT 1';
+		$res = $this->sql->query($req);
+		if ($res) $res = $res->fetch_assoc();
+		if ($res) {
+			$unseen = $res['mailid'];
+			$unseen = $this->reverseMap[$unseen];
 		}
 
 		if ($recent > 0) {
 			// got recent mails, fetch their IDs
 			$req = 'SELECT `mailid` FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = \''.$this->sql->escape_string($this->info['account']->id).'\' ';
 			$req.= 'AND `folder`=\''.$this->sql->escape_string($pos).'\' AND FIND_IN_SET(\'recent\',`flags`)>0 ';
-			$req.= 'ORDER BY `mailid` ASC LIMIT 1';
+			$req.= 'ORDER BY `mailid` ASC';
 			$res = $this->sql->query($req);
 			while($row = $res->fetch_assoc()) {
 				$this->recent[$row['mailid']] = $row['mailid'];
