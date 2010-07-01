@@ -220,31 +220,32 @@ class Mail {
 			if ($type[0] == 'multipart') {
 				$append['p'.$part] = new Quoted(strtoupper($type[1]));
 				continue;
+			} else {
+				$props = array();
+				if (isset($info['charset'])) {
+					$props[] = new Quoted('CHARSET');
+					$props[] = new Quoted($info['charset']);
+				}
+				if (isset($info['content_name'])) {
+					$props[] = new Quoted('NAME');
+					$props[] = new Quoted($info['content_name']);
+				}
+
+				$cid = NULL;
+				if (isset($info['content_id'])) $cid = new Quoted('<'.$info['content_id'].'>');
+				$desc = NULL;
+				if (isset($info['content_description'])) $desc = new Quoted($info['content_description']);
+
+				$res = array(new Quoted(strtoupper($type[0])), new Quoted(strtoupper($type[1])), $props, $cid, $desc, new Quoted(strtoupper($info['transfer_encoding'])), ($info['ending_pos_body'] - $info['starting_pos_body']));
+				if (strtolower($type[0]) == 'text') {
+					$res[] = $info['body_line_count'];
+				}
+				if ($info['content_type'] == 'message/rfc822') {
+					$append2['p'.$part][] = $info['body_line_count'];
+					$res[] = $this->getEnvelope($part.'.1'); // get envelope of contents
+				}
 			}
 
-			$props = array();
-			if (isset($info['charset'])) {
-				$props[] = new Quoted('CHARSET');
-				$props[] = new Quoted($info['charset']);
-			}
-			if (isset($info['content_name'])) {
-				$props[] = new Quoted('NAME');
-				$props[] = new Quoted($info['content_name']);
-			}
-
-			$cid = NULL;
-			if (isset($info['content_id'])) $cid = new Quoted('<'.$info['content_id'].'>');
-			$desc = NULL;
-			if (isset($info['content_description'])) $desc = new Quoted($info['content_description']);
-
-			$res = array(new Quoted(strtoupper($type[0])), new Quoted(strtoupper($type[1])), $props, $cid, $desc, new Quoted(strtoupper($info['transfer_encoding'])), ($info['ending_pos_body'] - $info['starting_pos_body']));
-			if (strtolower($type[0]) == 'text') {
-				$res[] = $info['body_line_count'];
-			}
-			if ($info['content_type'] == 'message/rfc822') {
-				$append2['p'.$part][] = $info['body_line_count'];
-				$res[] = $this->getEnvelope($part.'.1'); // get envelope of contents
-			}
 			if ($add_extra) {
 				// get disposition if any
 				$disposition = NULL;
