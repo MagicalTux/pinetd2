@@ -582,7 +582,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$res = $this->sql->query($req);
 			while($row = $res->fetch_assoc()) {
 				if ($unseen == 0) {
-					$unseen = $res['mailid'];
+					$unseen = $row['mailid'];
 					$unseen = $this->reverseMap[$unseen];
 				}
 				$this->recent[$unseen] = $unseen;
