@@ -255,6 +255,7 @@ class Mail {
 						$disposition[1][] = new Quoted('FILENAME');
 						$disposition[1][] = new Quoted($info['disposition_filename']);
 					}
+					if (!$disposition[1]) $disposition[1] = NULL;
 				}
 				if ($type[0] == 'multipart') {
 					$multipart_props = array();
