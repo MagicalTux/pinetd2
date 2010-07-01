@@ -24,6 +24,10 @@ class Mail {
 		return file_exists($this->file);
 	}
 
+	public function getBean() {
+		return $this->data;
+	}
+
 	public function getId() {
 		return $this->data->mailid;
 	}

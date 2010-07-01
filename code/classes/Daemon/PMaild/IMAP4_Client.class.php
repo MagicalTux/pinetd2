@@ -800,7 +800,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						$res[] = $mail->getStructure();
 						break;
 					}
-					// TODO: clear "Recent" flag
+					$this->storeFlags($mail, 'add', 'seen');
+					$this->storeFlags($mail, 'sub', 'recent');
 				case 'BODY.PEEK':
 					$res_body = $mail->fetchBody($item_param);
 					foreach($res_body as $t => $v) {
@@ -970,6 +971,35 @@ A OK FETCH completed
 		return;
 	}
 
+	protected function _parseSearchCond(array $param) {
+		$param = array_values($param); // just to be sure
+		$where = array();
+
+		for($i = 0; $i < count($param); $i++) {
+			$t = strtoupper($param[$i]);
+			switch($t) {
+				case 'ALL': break;
+				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)==0'; break;
+				case 'ANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)>0'; break;
+				case 'DELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)>0'; break;
+				case 'DRAFT': $where[] = 'FIND_IN_SET(\'draft\',`flags`)>0'; break;
+				case 'FLAGGED': $where[] = 'FIND_IN_SET(\'flagged\',`flags`)>0'; break;
+				case 'LARGER': $size = (int)$param[++$i]; $where[] = '`size` > '.$size; break;
+				case 'NEW': $where[] = 'FIND_IN_SET(\'seen\',`flags`)==0'; $where[] = 'FIND_IN_SET(\'recent\',`flags`)>0'; break;
+				case 'OLD': $where[] = 'FIND_IN_SET(\'recent\',`flags`)==0'; break;
+				case 'RECENT': $where[] = 'FIND_IN_SET(\'recent\',`flags`)>0'; break;
+				case 'SEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)>0'; break;
+				case 'SMALLER': $size = (int)$param[++$i]; $where[] = '`size` < '.$size; break;
+				case 'UNANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)==0'; break;
+				case 'UNDELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)==0'; break;
+				case 'UNDRAFT': $where[] = 'FIND_IN_SET(\'draft\',`flags`)==0'; break;
+				case 'UNFLAGGED': $where[] = 'FIND_IN_SET(\'flagged\',`flags`)==0'; break;
+				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)==0'; break;
+				default: return false;
+			}
+		}
+	}
+
 	protected function _cmd_search($argv) {
 		array_shift($argv); // "SEARCH"
 		$param = implode(' ', $argv);
@@ -982,7 +1012,13 @@ A OK FETCH completed
 				return;
 			}
 		}
-		var_dump($param);
+
+		$where = $this->_parseSearchCond($param);
+		if ($where === false) {
+			var_dump($param);
+		} else {
+			var_dump($where);
+		}
 		$this->sendMsg('OK SEARCH completed');
 	}
 
@@ -1007,9 +1043,13 @@ A OK FETCH completed
 	}
 
 	protected function storeFlags($where, $mode, $flags) {
-		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+		if (is_object($where)) {
+			$result = $where->getBean();
+		} else {
+			$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+			$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder)+$where);
+		}
 
-		$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder)+$where);
 		foreach($result as $mail) {
 			if ($mail->flags == '') {
 				$tmpfl = array();
