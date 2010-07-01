@@ -49,6 +49,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	protected $idle_mode = false;
 	protected $idle_queue = array();
 	protected $idle_event = NULL;
+	protected $recent = array();
 
 	function __construct($fd, $peer, $parent, $protocol) {
 		parent::__construct($fd, $peer, $parent, $protocol);
@@ -579,15 +580,16 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$req.= 'AND `folder`=\''.$this->sql->escape_string($pos).'\' AND FIND_IN_SET(\'recent\',`flags`)>0 ';
 			$req.= 'ORDER BY `mailid` ASC LIMIT 1';
 			$res = $this->sql->query($req);
-			if ($res) $res = $res->fetch_assoc();
-			if ($res) {
-				$unseen = $res['mailid'];
-				// TODO: clear "recent" flag where mailid <= unseen
-				$unseen = $this->reverseMap[$unseen];
-//				$unseen = array_search($unseen, $this->uidmap);
+			while($row = $res->fetch_assoc()) {
+				if ($unseen == 0) {
+					$unseen = $res['mailid'];
+					$unseen = $this->reverseMap[$unseen];
+				}
+				$this->recent[$unseen] = $unseen;
+				$req = 'UPDATE `z'.$this->info['domainid'].'_mails` SET `flags` = REPLACE(`flags`,\'recent\',\'\')';
+				$this->sql->query($req);
 			}
 		}
-
 
 		// send response
 		$this->sendMsg($total.' EXISTS', '*');
@@ -801,7 +803,6 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						break;
 					}
 					$this->storeFlags($mail, 'add', 'seen');
-					$this->storeFlags($mail, 'sub', 'recent');
 				case 'BODY.PEEK':
 					$res_body = $mail->fetchBody($item_param);
 					foreach($res_body as $t => $v) {
@@ -987,7 +988,7 @@ A OK FETCH completed
 				case 'LARGER': $size = (int)$param[++$i]; $where[] = '`size` > '.$size; break;
 				case 'NEW': $where[] = 'FIND_IN_SET(\'seen\',`flags`)=0'; $where[] = 'FIND_IN_SET(\'recent\',`flags`)>0'; break;
 				case 'OLD': $where[] = 'FIND_IN_SET(\'recent\',`flags`)=0'; break;
-				case 'RECENT': $where[] = 'FIND_IN_SET(\'recent\',`flags`)>0'; break;
+				case 'RECENT': if (!$this->recent) { $where[] = '0'; break; } $where[] = '`mailid` IN ('.implode(',', $this->recent).')'; break;
 				case 'SEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)>0'; break;
 				case 'SMALLER': $size = (int)$param[++$i]; $where[] = '`size` < '.$size; break;
 				case 'UNANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)=0'; break;
