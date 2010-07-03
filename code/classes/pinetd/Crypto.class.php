@@ -90,5 +90,22 @@ class Crypto {
 		}
 		return $array;
 	}
+
+	public static function hmac($algo, $data, $key, $raw_output = false) {
+		if (function_exists('hash_hmac')) return hash_hmac($algo, $data, $key, $raw_output);
+		$size = 64;
+		$opad = str_repeat(chr(0x5C), $size);
+		$ipad = str_repeat(chr(0x36), $size);
+		if (strlen($key) > $size) {
+			$key = str_pad($algo($key, true), $size, chr(0x00));
+		} else {
+			$key = str_pad($key, $size, chr(0x00));
+		}
+		for ($i = 0; $i < strlen($key) - 1; $i++) {
+			$opad[$i] = $opad[$i] ^ $key[$i];
+			$ipad[$i] = $ipad[$i] ^ $key[$i];
+		}
+		return $algo($opad . $algo($ipad, $data, true), $raw_output);
+	}
 }
 

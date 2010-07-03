@@ -82,7 +82,7 @@ class Auth {
 					return false; // password disabled?
 			}
 		}
-		if ($pass != $pass) return false; // auth failed
+		if ($account->password != $pass) return false; // auth failed
 		Logger::log(Logger::LOG_DEBUG, get_class($this).': User '.$login.' logged in successfully'.(is_null($mode)?'':' on '.$mode));
 		$account->last_login = $this->SQL->now();
 		$account->commit(); // will also commit password if set
