@@ -353,6 +353,11 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		if ($this->protocol == 'tcp') return $this->sendMsg('BAD Need SSL before logging in');
 		$this->login = $argv[1];
 		$pass = $argv[2];
+		if (preg_match('/^{([0-9]+)}$/', $pass, $match)) {
+			$this->sendMsg(base64_encode('Password'), '+');
+			$pass = $this->readLine();
+			$this->debug('Pass: '.$pass);
+		}
 		if (!$this->identify($pass)) {
 			$this->sendMsg('NO Login or password are invalid.');
 			return;
