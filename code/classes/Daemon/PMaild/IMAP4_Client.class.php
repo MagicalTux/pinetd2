@@ -354,8 +354,8 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 		$this->login = $argv[1];
 		$pass = $argv[2];
 		if (preg_match('/^{([0-9]+)}$/', $pass, $match)) {
-			$this->sendMsg(base64_encode('Password'), '+');
-			$pass = $this->readLine();
+			$this->sendMsg('Password', '+');
+			$pass = rtrim($this->readLine()); // will be sent with CR LF
 			$this->debug('Pass: '.$pass);
 		}
 		if (!$this->identify($pass)) {
