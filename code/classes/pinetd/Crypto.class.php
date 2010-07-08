@@ -91,6 +91,12 @@ class Crypto {
 		return $array;
 	}
 
+	public static function hmac_algos() {
+		if (function_exists('hash_algos')) return hash_algos();
+		return array('sha1','md5');
+	}
+
+	// hmac implementation in userland with fallback to hash_hmac
 	public static function hmac($algo, $data, $key, $raw_output = false) {
 		if (function_exists('hash_hmac')) return hash_hmac($algo, $data, $key, $raw_output);
 		$size = 64;
