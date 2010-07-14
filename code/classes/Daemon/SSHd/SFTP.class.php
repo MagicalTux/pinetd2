@@ -119,7 +119,7 @@ class SFTP extends Channel {
 					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Failed to open file');
 					break;
 				}
-				$this->sendHandle($rid, $fp);
+				$this->sendHandle($rid, $fp, $path);
 				break;
 			case self::SSH_FXP_READ:
 				$rid = $this->parseInt32($packet);
@@ -161,8 +161,8 @@ class SFTP extends Channel {
 				break;
 			case self::SSH_FXP_FSTAT:
 				$rid = $this->parseInt32($packet);
-				$h = $this->getHandle($this->parseStr($packet));
-				if ((!$h) || (!is_resource($h))) {
+				$h = $this->getHandleFile($this->parseStr($packet));
+				if ((!$h) || (!is_string($h))) {
 					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad handle');
 					break;
 				}
@@ -194,7 +194,7 @@ class SFTP extends Channel {
 					$this->sendStatus($rid, self::SSH_FX_NO_SUCH_FILE, 'Unable to open dir');
 					break;
 				}
-				$this->sendHandle($rid, $dir);
+				$this->sendHandle($rid, $dir, $path);
 				break;
 			case self::SSH_FXP_READDIR:
 				$rid = $this->parseInt32($packet);
@@ -361,8 +361,8 @@ class SFTP extends Channel {
 		$this->sendPacket($pkt);
 	}
 
-	protected function sendHandle($rid, $h) {
-		if (!is_string($h)) $h = $this->makeHandle($h);
+	protected function sendHandle($rid, $h, $path) {
+		if (!is_string($h)) $h = $this->makeHandle($h, $path);
 		$pkt = pack('CN', self::SSH_FXP_HANDLE, $rid).$this->str($h);
 		$this->sendPacket($pkt);
 	}
@@ -373,12 +373,12 @@ class SFTP extends Channel {
 		$this->close();
 	}
 
-	protected function makeHandle($res) {
+	protected function makeHandle($res, $path) {
 		while(1) {
 			$this->last_h = ($this->last_h+1) & 0xffffffff;
 			$h = pack('N', $this->last_h);
 			if (!isset($this->handles[$h])) {
-				$this->handles[$h] = $res;
+				$this->handles[$h] = array($res, $path);
 				return $h;
 			}
 		}
@@ -386,7 +386,12 @@ class SFTP extends Channel {
 
 	protected function getHandle($h) {
 		if (!isset($this->handles[$h])) return false;
-		return $this->handles[$h];
+		return $this->handles[$h][0];
+	}
+
+	protected function getHandleFile($h) {
+		if (!isset($this->handles[$h])) return false;
+		return $this->handles[$h][1];
 	}
 }
 
