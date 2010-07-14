@@ -182,6 +182,11 @@ class SFTP extends Channel {
 				$pkt = pack('CN', self::SSH_FXP_ATTRS, $rid).$stat['sftp'];
 				$this->sendPacket($pkt);
 				break;
+			case self::SSH_FXP_SETSTAT:
+			case self::SSH_FXP_FSETSTAT:
+				$rid = $this->parseInt32($packet);
+				$this->sendStatus($rid, self::SSH_FX_OK, 'OK');
+				break;
 			case self::SSH_FXP_CLOSE:
 				$rid = $this->parseInt32($packet);
 				$h_bin = $this->parseStr($packet);
