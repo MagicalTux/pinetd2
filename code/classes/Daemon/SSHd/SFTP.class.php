@@ -131,13 +131,21 @@ class SFTP extends Channel {
 					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad handle');
 					break;
 				}
+				if ($len == 0) {
+					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Bad length');
+					break;
+				}
 				fseek($h, $offset);
 				$data = fread($h, $len);
 				if ($data === false) {
 					$this->sendStatus($rid, self::SSH_FX_FAILURE, 'Read failed');
 					break;
 				}
-				$pkt = pack('C', self::SSH_FXP_DATA).$this->str($data);
+				if ($data === '') {
+					$this->sendStatus($rid, self::SSH_FX_EOF, '');
+					break;
+				}
+				$pkt = pack('CN', self::SSH_FXP_DATA, $rid).$this->str($data);
 				unset($data);
 				$this->sendPacket($pkt);
 				break;
