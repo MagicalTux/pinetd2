@@ -589,38 +589,7 @@ class Client extends \pinetd\TCP\Client {
 				if (is_null($this->session_id)) $this->session_id = $H;
 
 				// sign $H
-				switch($this->capa['key_alg']) {
-					case 'ssh-dss': // openssl doesn't seem to accept to generate DSA signatures with sha1 (error:0606B06E:digital envelope routines:EVP_SignFinal:wrong public key type)
-						// we need to load the private key
-						$key = Crypto::dsa_read_pem($this->skey['priv'], true);
-						if ($key === false) {
-							Logger::log(Logger::LOG_WARN, 'Could not parse private DSA key');
-							$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'host misconfiguration');
-							return;
-						}
-						// generate signature
-						$H = gmp_init(sha1($H), 16);
-						$bytes_len = strlen(gmp_strval($key['q'], 16))/2;
-						while(1) {
-							$k = gmp_init(bin2hex(openssl_random_pseudo_bytes($bytes_len)), 16);
-							$k = gmp_mod($k, $key['q']);
-							$r = gmp_mod(gmp_powm($key['g'], $k, $key['p']), $key['q']);
-							if (gmp_cmp($r, 0) == 0) continue;
-							$s = gmp_mod(gmp_mul(gmp_invert($k, $key['q']), gmp_add($H, gmp_mul($key['x'], $r))), $key['q']);
-							if (gmp_cmp($s, 0) == 0) continue;
-							break;
-						}
-						$s = $this->gmp_binval($r).$this->gmp_binval($s);
-						break;
-					case 'ssh-rsa':
-					default:
-						if (!openssl_sign($H, $s, $this->skey['pkeyid'])) {
-							Logger::log(Logger::LOG_WARN, 'Could not sign exchange key: '.openssl_error_string());
-							$this->disconnect(self::SSH_DISCONNECT_KEY_EXCHANGE_FAILED, 'Failed to sign exchange hash');
-							return;
-						}
-						break;
-				}
+				$s = Crypto::sign($H, $this->skey['pkeyid']);
 				$s = $this->str($this->skey['type']).$this->str($s);
 
 				$pkt = chr(self::SSH_MSG_KEXDH_REPLY);
@@ -753,16 +722,13 @@ class Client extends \pinetd\TCP\Client {
 
 	protected function loadSkey() {
 		switch($this->capa['key_alg']) { // ssh-dss,ssh-rsa
-			case 'ssh-rsa': $key = PINETD_ROOT.'/ssl/ssh_host_rsa_key'; break;
-			case 'ssh-dss': $key = PINETD_ROOT.'/ssl/ssh_host_dsa_key'; break;
+			case 'ssh-rsa': $key = PINETD_ROOT.'/ssl/ssh_host_rsa_key'; $pkeyid = Crypto::rsa_read_pem(file_get_contents($key)); break;
+			case 'ssh-dss': $key = PINETD_ROOT.'/ssl/ssh_host_dsa_key'; $pkeyid = Crypto::dsa_read_pem(file_get_contents($key)); break;
 			default: return false;
 		}
-		if (!file_exists($key)) return false;
-		$pkey = file_get_contents($key);
-		$pub = explode(' ', file_get_contents($key.'.pub'));
-		$pub = base64_decode($pub[1]);
-		$pkeyid = openssl_get_privatekey($pkey);
-		$this->skey = array('priv' => $pkey, 'pub' => $pub, 'pkeyid' => $pkeyid, 'type' => $this->capa['key_alg']);
+		if ((!file_exists($key)) || (!$pkeyid)) return false;
+		$pub = Crypto::make_ssh_pk($pkeyid);
+		$this->skey = array('pub' => $pub, 'pkeyid' => $pkeyid, 'type' => $this->capa['key_alg']);
 		return true;
 	}
 
