@@ -111,15 +111,34 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				$level++;
 				if (is_null($string)) throw new Exception('parse error');
 				$array = array();
+				$sub_array = array('type' => $string, 'data' => &$array);
+				$ref[$level++] = &$sub_array;
 				$ref[$level] = &$array;
-				$reference[$string] = &$array;
+				$reference[] = &$sub_array;
 				$reference = &$array;
 				unset($array);
+				unset($sub_array);
 				$string = null;
 				continue;
 			}
-			if (($c == ')') || ($c == ']')) {
+			if ($c == '<') {
+				if (isset($ref[$level+1]['type'])) {
+					$level++;
+					$array = array();
+					$ref[$level++]['pos'] = &$array;
+					$ref[$level] = &$array;
+					$reference = &$array;
+					unset($array);
+					$string = null;
+					continue;
+				} else {
+					throw new Exception('parse error');
+				}
+			}
+			if (($c == ')') || ($c == ']') || ($c == '>')) {
 				$level--;
+				if ($c == ']') $level--;
+				if ($c == '>') $level--;
 				if (!is_null($string)) $reference[] = $string;
 				$string = null;
 				$reference = &$ref[$level];
@@ -788,15 +807,15 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 
 	function fetchParamByMail($mail, $param) {
 		$res = array();
-		foreach($param as $id => $item) {
-			if ((is_array($item)) && (is_int($id))) {
+		foreach($param as $item) {
+			if ((is_array($item)) && (!isset($item['type']))) {
 				$res[] = $this->fetchParamByMail($mail, $item);
 				continue;
 			}
 			$item_param = null;
-			if (!is_int($id)) {
+			if (isset($item['type'])) {
 				$item_param = $item;
-				$item = $id;
+				$item = $item['type'];
 			}
 			switch(strtoupper($item)) {
 				case 'UID':

@@ -294,6 +294,9 @@ class Mail {
 	}
 
 	public function fetchBody($param) {
+		$mail_substr = $param['pos'][0] ?: '0';
+		$param = $param['data'] ?: array('');
+
 		if (count($param) == 0)
 			$param = array('');
 		$len = sizeof($param);
@@ -347,7 +350,7 @@ class Mail {
 						$head .= $lin;
 					}
 					$var[] = strtoupper($p);
-					$res[] = $head;
+					$res[] = $this->applyMailSubstr($mail_substr, $head);
 					break;
 				case 'TEXT':
 					// fetch body text
@@ -367,12 +370,12 @@ class Mail {
 						$str .= $lin;
 					}
 					$var[] = strtoupper($p);
-					$res[] = $str;
+					$res[] = $this->applyMailSubstr($mail_substr, $str);
 					break;
 				case '':
 					// fetch whole file
 					$var[] = '';
-					$res[] = file_get_contents($this->file);
+					$res[] = $this->applyMailSubstr($mail_substr, file_get_contents($this->file));
 					break;
 				default:
 					// check if this is a part request
@@ -402,7 +405,7 @@ class Mail {
 							$data_len = $part->ending_pos_body - $part->starting_pos_body;
 						}
 						$var[] = $p;
-						$res[] = fread($fp, $data_len);
+						$res[] = $this->applyMailSubstr($mail_substr, fread($fp, $data_len));
 						break;
 					}
 					var_dump('BODY UNKNOWN: '.$p);
@@ -411,6 +414,13 @@ class Mail {
 		$var = array('BODY' => $var);
 		foreach($res as $r) $var[] = $r;
 		return $var;
+	}
+
+	protected function applyMailSubstr($substr, $data) {
+		if ($substr == '0') return $data; // nothing to do
+		list($pos, $len) = explode('.', $substr);
+		if (is_null($len)) $len = -1;
+		return (string)substr($data, $pos, $len);
 	}
 
 	public function getEnvelope($part = '1') {
