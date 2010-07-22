@@ -171,7 +171,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			$string .= $c;
 		}
 		if (!is_null($string)) $result[] = $string;
-		if (is_array($result[0])) $result = $result[0];
+		if ((is_array($result[0])) && (!isset($result[0]['type']))) $result = $result[0];
 		unset($result['parent']);
 		return $result;
 	}
