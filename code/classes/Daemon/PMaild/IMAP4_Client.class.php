@@ -813,7 +813,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 				continue;
 			}
 			$item_param = null;
-			if (isset($item['type'])) {
+			if ((is_array($item)) && (isset($item['type']))) {
 				$item_param = $item;
 				$item = $item['type'];
 			}
