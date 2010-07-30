@@ -319,6 +319,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 			fputs($this->fd, $lin);
 		}
 		fclose($fd);
+		if (substr($lin, -1) != "\n") fputs($this->fd, "\r\n"); // force linebreak if there wasn't one
 		$this->sendMsg('.');
 		// mark the message as "read"
 		$flags = array_flip(explode(',', $mail->flags));
