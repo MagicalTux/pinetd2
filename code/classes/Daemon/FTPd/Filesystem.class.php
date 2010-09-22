@@ -13,7 +13,10 @@ class Filesystem extends \pinetd\Filesystem {
 
 		$fil = $this->root . $fil;
 
-		if ($write) @touch($fil);
+		if ($write) {
+			chmod($fil, 0755);
+			@touch($fil);
+		}
 		$fp = fopen($fil, ($write?'rb+':'rb'));
 
 		if (!$fp) return false;
