@@ -259,6 +259,10 @@ class Filesystem {
 		$fil = $this->convertPath($file);
 		if ((is_null($fil)) || ($fil === false)) return false;
 
+		if (($mode[0] != 'r') && (file_exists($fil))) {
+			chmod($fil, 0755);
+		}
+
 		$fil = $this->root . $fil;
 		return fopen($fil, $mode);
 	}
