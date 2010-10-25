@@ -306,10 +306,11 @@ class MTA_Child extends \pinetd\ProcessChild {
 		$this->writeMx($sock, 'DATA');
 		$this->readMxAnswer($sock, 3);
 		$fp = fopen($file, 'r');
+		$time = filectime($file);
 		//
 		$class = relativeclass($this, 'MTA\\Mail');
 		$MTA_Mail = new $class(null, $this->IPC);
-		fputs($sock, $MTA_Mail->header('Received', '(PMaild MTA '.getmypid().' on '.$this->IPC->getName().' processing mail to '.$host.($ssl?' with TLS enabled':'').'); '.date(DATE_RFC2822)));
+		fputs($sock, $MTA_Mail->header('Received', '(PMaild MTA '.getmypid().' on '.$this->IPC->getName().' processing mail to '.$host.($ssl?' with TLS enabled':'').'); '.date(DATE_RFC2822, $time)));
 		while(!feof($fp)) {
 			$lin = fgets($fp);
 			if ($lin[0] == '.') $lin = '.'.$lin;
