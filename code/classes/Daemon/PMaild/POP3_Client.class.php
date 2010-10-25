@@ -200,7 +200,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 
 	function _cmd_stat() {
 		if (!$this->loggedin) return $this->sendMsg('-ERR need to login first');
-		$this->sendMsg('+OK '.$this->info['account']->mail_count.' '.$this->info['account']->mail_quota);
+		$this->sendMsg('+OK '.((int)$this->info['account']->mail_count).' '.((int)$this->info['account']->mail_quota));
 	}
 
 	function _cmd_list($argv) {
