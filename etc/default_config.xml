@@ -189,6 +189,7 @@
 		<TCP Port="80" Daemon="HTTPd"/>
 		<!-- PMaild -->
 		<TCP Port="25" Daemon="PMaild" Service="SMTP" />
+		<TCP Port="587" Daemon="PMaild" Service="SMTP" SSL="~main" />
 		<TCP Port="110" Daemon="PMaild" Service="POP3" />
 		<TCP Port="995" Daemon="PMaild" Service="POP3" SSL="main" />
 		<TCP Port="143" Daemon="PMaild" Service="IMAP4" SSL="~main"/>
