@@ -200,7 +200,27 @@ class POP3_Client extends \pinetd\TCP\Client {
 
 	function _cmd_stat() {
 		if (!$this->loggedin) return $this->sendMsg('-ERR need to login first');
-		$this->sendMsg('+OK '.((int)$this->info['account']->mail_count).' '.((int)$this->info['account']->mail_quota));
+		// some stupid mail clients (http://www.cegedim-logiciels.com/new/index.php?option=com_content&task=view&id=15) do not list mails before getting them
+		// force generation of local ids on STAT
+		$total_size = 0;
+		$count = 0;
+
+		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
+		$list = $DAO_mails->loadByField(array('userid' => $this->info['account']->id));
+		foreach($list as $mail) {
+			$flags = array_flip(explode(',', $mail->flags));
+			if (isset($flags['deleted'])) continue;
+			$num = $this->getLocalNum($mail->mailid);
+			if (isset($this->toDelete[$num])) continue;
+			$file = $this->mailPath($mail->uniqname);
+			if (!file_exists($file)) {
+				$mail->delete();
+				continue;
+			}
+			$total_size += filesize($file);
+			$count++;
+		}
+		$this->sendMsg('+OK '.$count.' '.$total_size);
 	}
 
 	function _cmd_list($argv) {
