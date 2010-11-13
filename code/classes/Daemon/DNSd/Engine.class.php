@@ -116,6 +116,13 @@ class Engine {
 					foreach($record as &$v) $v = strtolower($v); unset($v);
 					$row['data'] = preg_replace_callback('/\\$geo\\[([^]]+)\\]/', function($matches) use ($record) { return $record[$matches[1]]; }, $row['data']);
 				}
+				if (strpos($row['data'], '$peer') !== false) {
+					// use peer infos
+					$peer = $pkt->getPeer();
+					if (!is_array($peer)) $peer = explode(':', $peer);
+					$peer = array('ip' => $peer[0], 'port' => $peer[1]);
+					$row['data'] = preg_replace_callback('/\\$peer\\[([^]]+)\\]/', function($matches) use ($peer) { return $peer[$matches[1]]; }, $row['data']);
+				}
 
 				if (strtolower($row['type']) == 'zone') {
 					// special type: linking to another zone
@@ -203,32 +210,6 @@ class Engine {
 		$typestr = Type::typeToString($type);
 		if (is_null($typestr)) {
 			$pkt->setFlag('rcode', Packet::RCODE_NOTIMP);
-			return;
-		}
-
-		if (strtolower($name) == 'my.dns.st') {
-			// HACK HACK HACK
-			$pkt->setFlag('aa', 1);
-			$pkt->setFlag('ra', 0);
-			
-			$peer = $pkt->getPeer();
-			if (!is_array($peer)) $peer = explode(':', $peer);
-			switch($type) {
-				case Type\RFC1035::TYPE_A: 
-					$answer = $this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
-					$pkt->addAnswer($name.'.', $answer, 600);
-					break;
-				case Type\RFC1035::TYPE_TXT:
-					$answer = $this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
-					$pkt->addAnswer($name.'.', $answer, 600);
-					break;
-				case Type\RFC1035::TYPE_ANY:
-					$answer = $this->makeResponse(array('type' => 'A', 'data' => $peer[0]), $pkt);
-					$pkt->addAnswer($name.'.', $answer, 600);
-					$answer = $this->makeResponse(array('type' => 'TXT', 'data' => implode(' ', $peer)), $pkt);
-					$pkt->addAnswer($name.'.', $answer, 600);
-					break;
-			}
 			return;
 		}
 
