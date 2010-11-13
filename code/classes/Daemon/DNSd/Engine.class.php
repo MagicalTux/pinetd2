@@ -8,7 +8,6 @@ use pinetd\Logger;
 
 // require geoip
 require_once(PINETD_CODE.'/geoip/geoipcity.inc');
-require_once(PINETD_CODE.'/geoip/geoipregionvars.php');
 
 class Engine {
 	const DNS_CLASS_IN = 1; // Teh Internet
@@ -77,6 +76,15 @@ class Engine {
 		return $this->$handler($pkt, $question['qname'], $question['qtype']);
 	}
 
+	protected function geoipRegion($record) {
+		static $regions = NULL;
+		if (is_null($regions)) {
+			require(PINETD_CODE.'/geoip/geoipregionvars.php');
+			$regions = $GEOIP_REGION_NAME;
+		}
+		return $regions[$record['country_code']][$record['region']];
+	}
+
 	protected function buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery = 0, $initial_query = NULL, $max_exp = NULL) {
 		$ohost = $host;
 		if ($ohost != '') $ohost .= '.';
@@ -104,7 +112,7 @@ class Engine {
 					$peer = $pkt->getPeer();
 					if (!is_array($peer)) $peer = explode(':', $peer);
 					$record = (array)geoip_record_by_addr($this->geoip, $peer[0]);
-					$record['region_name'] = $GLOBALS['GEOIP_REGION_NAME'][$record['country_code']][$record['region']];
+					$record['region_name'] = $this->geoipRegion($record);
 					foreach($record as &$v) $v = strtolower($v); unset($v);
 					$row['data'] = preg_replace_callback('/\\$geo\\[([^]]+)\\]/', function($matches) use ($record) { return $record[$matches[1]]; }, $row['data']);
 				}
