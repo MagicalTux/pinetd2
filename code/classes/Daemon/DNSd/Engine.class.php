@@ -8,6 +8,7 @@ use pinetd\Logger;
 
 // require geoip
 require_once(PINETD_CODE.'/geoip/geoipcity.inc');
+require_once(PINETD_CODE.'/geoip/google_dns.php');
 
 class Engine {
 	const DNS_CLASS_IN = 1; // Teh Internet
@@ -111,8 +112,11 @@ class Engine {
 					// geoip origin
 					$peer = $pkt->getPeer();
 					if (!is_array($peer)) $peer = explode(':', $peer);
-					$record = (array)geoip_record_by_addr($this->geoip, $peer[0]);
-					$record['region_name'] = $this->geoipRegion($record);
+					$record = lookup_google_dns($peer[0]); // fast
+					if (is_null($record))
+						$record = (array)geoip_record_by_addr($this->geoip, $peer[0]);
+						$record['region_name'] = $this->geoipRegion($record);
+					}
 					foreach($record as &$v) $v = strtolower($v); unset($v);
 					$row['data'] = preg_replace_callback('/\\$geo\\[([^]]+)\\]/', function($matches) use ($record) { return $record[$matches[1]]; }, $row['data']);
 				}
