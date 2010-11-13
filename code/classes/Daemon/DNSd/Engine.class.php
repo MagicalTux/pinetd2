@@ -113,7 +113,7 @@ class Engine {
 					$peer = $pkt->getPeer();
 					if (!is_array($peer)) $peer = explode(':', $peer);
 					$record = lookup_google_dns($peer[0]); // fast
-					if (is_null($record))
+					if (is_null($record)) {
 						$record = (array)geoip_record_by_addr($this->geoip, $peer[0]);
 						$record['region_name'] = $this->geoipRegion($record);
 					}
