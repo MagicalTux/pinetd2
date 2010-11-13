@@ -6,6 +6,10 @@ use Daemon\DNSd\Type\RFC1035;
 use pinetd\SQL;
 use pinetd\Logger;
 
+// require geoip
+require_once(PINETD_CODE.'/geoip/geoipcity.inc');
+require_once(PINETD_CODE.'/geoip/geoipregionvars.php');
+
 class Engine {
 	const DNS_CLASS_IN = 1; // Teh Internet
 	const DNS_CLASS_CS = 2; // CSNET class (obsolete, used only for examples in some obsolete RFCs)
@@ -19,11 +23,14 @@ class Engine {
 	protected $sql;
 	protected $sql_stmts = NULL;
 	protected $sql_stmts_tmp = array();
+	protected $geoip = NULL;
 
 	public function __construct($parent, $IPC, $localConfig) {
 		$this->parent = $parent;
 		$this->IPC = $IPC;
 		$this->packet_class = relativeclass($this, 'Packet');
+		if (file_exists(PINETD_ROOT.'/etc/GeoLiteCity.dat'))
+			$this->geoip = geoip_open(PINETD_ROOT.'/etc/GeoLiteCity.dat', GEOIP_STANDARD);
 
 		$this->localConfig = $localConfig;
 		// connect to SQL
@@ -91,6 +98,14 @@ class Engine {
 				$res_list[] = $row;
 			foreach($res_list as $row) {
 				++$found;
+
+				if ((!is_null($this->geoip)) && (strpos($row['data'], '$geo') !== false)) {
+					// geoip origin
+					$peer = $pkt->getPeer();
+					$record = (array)geoip_record_by_addr($this->geoip, $peer[0]);
+					$record['region_name'] = $GLOBALS['GEOIP_REGION_NAME'][$record['country_code']][$record['region']];
+					$row['data'] = preg_replace_callback('/\\$geo\\[([^]]+)\\]/', function($matches) use ($record) { return $record[$matches[1]]; }, $row['data']);
+				}
 
 				if (strtolower($row['type']) == 'zone') {
 					// special type: linking to another zone
