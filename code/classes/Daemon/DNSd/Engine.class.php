@@ -105,6 +105,7 @@ class Engine {
 					if (!is_array($peer)) $peer = explode(':', $peer);
 					$record = (array)geoip_record_by_addr($this->geoip, $peer[0]);
 					$record['region_name'] = $GLOBALS['GEOIP_REGION_NAME'][$record['country_code']][$record['region']];
+					foreach($record as &$v) $v = strtolower($v); unset($v);
 					$row['data'] = preg_replace_callback('/\\$geo\\[([^]]+)\\]/', function($matches) use ($record) { return $record[$matches[1]]; }, $row['data']);
 				}
 
