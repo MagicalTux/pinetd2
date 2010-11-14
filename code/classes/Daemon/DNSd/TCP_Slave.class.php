@@ -35,7 +35,7 @@ class TCP_Slave extends \pinetd\TCP\Client {
 			$where = '';
 		}
 		// now, we need to send data back!
-		foreach(array('deletions', 'zones', 'zone_records', 'domains') as $table) {
+		foreach(array('deletions', 'zones', 'zone_records', 'domains','heartbeat') as $table) {
 			// select everything sorted by "changed", and more recent than client's database
 			$req = 'SELECT * FROM `'.$table.'`'.$where.' ORDER BY `changed` ASC';
 			$res = $this->sql->query($req);

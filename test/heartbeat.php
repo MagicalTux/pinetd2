@@ -18,15 +18,60 @@ class Heartbeat {
 			if ($record['class'] != 'IN') continue;
 			if ($record['type'] != 'TXT') continue;
 			$t = explode(' ', $record['txt']);
-			$this->nodes[$t[0]] = array('ip' => $t[0], 'name' => $t[1]);
+			$fd = fsockopen('udp://'.$t[0], 53);
+			$this->nodes[(int)$fd] = array('fd' => $fd, 'ip' => $t[0], 'name' => $t[1]);
 		}
 
 		$this->heartbeat = $heartbeat;
 		$this->password = $password;
+	}
 
-		for($i = 0; $i < 50; $i++) {
-			var_dump(bin2hex($this->makePkt()));
-			sleep(1);
+	public function loop() {
+		$next_announce = microtime(true) + 2;
+		while(1) {
+			$list = array();
+			foreach($this->nodes as $x)
+				$list[] = $x['fd'];
+
+			$n = stream_select($list, $w = null, $e = null, ceil($next_announce - microtime(true)));
+
+			if ($n) {
+				foreach($list as $fd) {
+					$this->handleIn($fd);
+				}
+			}
+
+			if ($next_announce < microtime(true)) {
+				$this->sendAnnounce();
+				$next_announce = microtime(true) + 10;
+			}
+		}
+	}
+
+	protected function sendAnnounce() {
+		echo "Sending announce...\n";
+		$pkt = $this->makePkt();
+		foreach($this->nodes as $x) {
+			stream_socket_sendto($x['fd'], $pkt);
+		}
+	}
+
+	protected function handleIn($fd) {
+		$x = &$this->nodes[(int)$fd];
+		$pkt = stream_socket_recvfrom($fd, 128, 0, $addr);
+		if (substr($pkt, 0, 8) != "HTBT\xff\xff\xff\xff") return; // ignore that
+		$pkt = substr($pkt, 8);
+		list(,$code) = unpack('N', $pkt);
+		switch($code) {
+			case self::PKT_REPLY_ADDED:
+				$x['ack'] = true;
+				break;
+			case self::PKT_REPLY_SYNC:
+				die("Server ".$x['name']." signals we are out of sync, please run ntpd!\n");
+			case self::PKT_REPLY_BADPASS:
+				die("Server ".$x['name']." signals the password is invalid\n");
+			case self::PKT_REPLY_DUPE:
+				die("Server ".$x['name']." signals there is already another active process!\n");
 		}
 	}
 

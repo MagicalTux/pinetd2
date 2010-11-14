@@ -112,6 +112,7 @@ class Engine {
 				if ($row['heartbeat_id'] > 0) {
 					$hb = $row['heartbeat_id'];
 					if (!isset($this->heartbeat[$hb])) continue;
+					if (!$this->heartbeat[$hb]['up']) continue;
 					if ($this->heartbeat[$hb]['expires'] < microtime(true)) continue;
 				}
 				++$found;

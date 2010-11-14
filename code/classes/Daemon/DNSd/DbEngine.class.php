@@ -410,6 +410,64 @@ class DbEngine {
 	/*****
 	 ** Heartbeat Management
 	 *****/
+
+	public function createHeartbeat($key, $max_loadavg = 0) {
+		$insert = array(
+			'key' => $key,
+			'max_loadavg' => $max_loadavg,
+			'changed' => $this->sql->now(),
+		);
+
+		$res = $this->sql->insert('heartbeat', $insert);
+		if (!$res) return false;
+
+		$id = $this->sql->insert_id;
+		$insert['heartbeat_id'] = $id;
+
+		$this->tcp->dispatch('heartbeat', $id, $insert);
+		return $id;
+	}
+
+	public function getHeartbeat($id) {
+		$req = 'SELECT * FROM `heartbeat` WHERE `heartbeat_id` = '.$this->sql->quote_escape($id);
+		$res = $this->sql->query($req)->fetch_assoc();
+		if (!$res) return false;
+
+		return $res;
+	}
+
+	public function updateHeartbeat($id, $key, $max_loadavg = 0) {
+		$hb = $this->getHeartbeat($id);
+		if (!$hb) return false;
+
+		$update = array(
+			'key' => $key,
+			'max_loadavg' => $max_loadavg,
+			'changed' => $this->sql->now(),
+		);
+
+		$req = '';
+
+		foreach($data as $var => $val) {
+			$req .= ($req == ''?'':', ') . '`' . $var . '` = ' . $this->sql->quote_escape($val);
+		}
+
+		$req = 'UPDATE `heartbeat` SET '.$req.' WHERE `heartbeat_id` = '.$this->sql->quote_escape($domain);
+
+		$data['key'] = $domain;
+
+		if (!$this->sql->query($req)) return false;
+
+		$this->tcp->dispatch('heartbeat', $id, $data);
+
+		return true;
+	}
+
+	public function deleteHeartbeat($id) {
+		if (!$id) return false;
+
+		return $this->doDelete('heartbeat', 'heartbeat_id', $id);
+	}
 	
 	public function handleHeartbeat($hb, $peer_data) {
 		if (!is_array($peer_data)) $peer_data = explode(':', $peer_data);
@@ -471,7 +529,7 @@ class DbEngine {
 	public function lastUpdateDate() {
 		$recent = 0;
 
-		foreach(array('deletions', 'domains', 'zone_records', 'zones') as $table) {
+		foreach(array('deletions', 'domains', 'zone_records', 'zones','heartbeat') as $table) {
 			$req = 'SELECT UNIX_TIMESTAMP(MAX(`changed`)) AS changed FROM `'.$table.'`';
 			$res = $this->sql->query($req)->fetch_assoc();
 			if ($res) $recent = max($recent, $res['changed']);
