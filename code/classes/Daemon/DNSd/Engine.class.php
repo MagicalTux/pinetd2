@@ -306,7 +306,23 @@ class Engine {
 		}
 	}
 
+	protected function handleHeartbeat($data, $peer_info) {
+		$data = substr($data, 8); // strip header "HTBT\xff\xff\xff\xff"
+		if (strlen($data) != 42) return; // bad/incomplete packet
+		$info = unpack('Nheartbeat/nloadavg1/nloadavg5/nloadavg15/Npid/Nstamp1/Nstamp2', $data);
+		$info['stamp'] = (($info['stamp1'] << 32) | $info['stamp2']) /1000000;
+
+		$res = $this->IPC->callPort('DNSd::DbEngine::'.$this->sql->unique(), 'handleHeartbeat', array($info, $peer_info));
+		if ($res == 0) return; // refresh accepted
+
+		// encode $res in a packet ($res is an INT)
+		$res = "HTBT\xff\xff\xff\xff".pack('N', $res);
+
+		$this->parent->sendReply($res, $peer_info);
+	}
+
 	public function handlePacket($data, $peer_info) {
+		if (substr($data, 0, 8) == "HTBT\xff\xff\xff\xff") return $this->handleHeartbeat($data, $peer_info);
 		$pkt = new $this->packet_class($peer_info);
 		if (!$pkt->decode($data)) return;
 

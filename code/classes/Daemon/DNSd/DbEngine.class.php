@@ -63,6 +63,7 @@ class DbEngine {
 			case 'zone_records': return 'record_id';
 			case 'zones': return 'zone_id';
 			case 'deletions': return 'key';
+			case 'heartbeat': return 'heartbeat_id';
 			default: return NULL;
 		}
 	}

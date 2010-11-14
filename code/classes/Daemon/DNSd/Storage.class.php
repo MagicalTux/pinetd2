@@ -116,28 +116,64 @@ class Storage {
 			),
 			'serial' => array(
 				'type' => 'INT',
+				'size' => 10,
 				'unsigned' => true,
 				'null' => true,
 			),
 			'refresh' => array(
 				'type' => 'INT',
+				'size' => 10,
 				'unsigned' => true,
 				'null' => true,
 			),
 			'retry' => array(
 				'type' => 'INT',
+				'size' => 10,
 				'unsigned' => true,
 				'null' => true,
 			),
 			'expire' => array(
 				'type' => 'INT',
+				'size' => 10,
 				'unsigned' => true,
 				'null' => true,
 			),
 			'minimum' => array(
 				'type' => 'INT',
+				'size' => 10,
 				'unsigned' => true,
 				'null' => true,
+			),
+			'heartbeat_id' => array(
+				'type' => 'INT',
+				'size' => 10,
+				'unsigned' => true,
+				'null' => true,
+			),
+			'changed' => array(
+				'type' => 'DATETIME',
+				'null' => false,
+				'key' => 'changed',
+			),
+		),
+		'heartbeat' => array(
+			'heartbeat_id' => array(
+				'type' => 'INT',
+				'size' => 11,
+				'null' => false,
+				'auto_increment' => true,
+				'key' => 'PRIMARY',
+			),
+			'key' => array(
+				'type' => 'TEXT',
+				'null' => false,
+			),
+			'max_loadavg' => array(
+				'type' => 'INT',
+				'size' => 10,
+				'unsigned' => true,
+				'null' => false,
+				'default' => 0,
 			),
 			'changed' => array(
 				'type' => 'DATETIME',
@@ -155,7 +191,7 @@ class Storage {
 			),
 			'deletion_table' => array(
 				'type' => 'ENUM',
-				'values' => array('zones', 'domains', 'zone_records'),
+				'values' => array('zones', 'domains', 'zone_records','heartbeat'),
 			),
 			'deletion_id' => array(
 				'type' => 'INT',
