@@ -108,6 +108,12 @@ class Engine {
 			while($row = $res->fetch_assoc())
 				$res_list[] = $row;
 			foreach($res_list as $row) {
+				// handle heartbeat
+				if ($row['heartbeat_id'] > 0) {
+					$hb = $row['heartbeat_id'];
+					if (!isset($this->heartbeat[$hb])) continue;
+					if ($this->heartbeat[$hb]['expires'] < microtime(true)) continue;
+				}
 				++$found;
 
 				if ((!is_null($this->geoip)) && (strpos($row['data'], '$geo') !== false)) {
