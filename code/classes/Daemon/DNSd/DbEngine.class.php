@@ -181,7 +181,7 @@ class DbEngine {
 	 ** Records management
 	 *****/
 
-	public function addRecord($zone, $host, $type, $value, $ttl = 86400) {
+	public function addRecord($zone, $host, $type, $value, $ttl = 86400, $heartbeat = null) {
 		if (!is_numeric($zone)) {
 			$zone = $this->getZone($zone);
 		}
@@ -191,7 +191,7 @@ class DbEngine {
 			$value = array('data' => $value);
 		}
 
-		$allowed = array('mx_priority', 'data', 'resp_person', 'serial', 'refresh', 'retry', 'expire', 'minimum', 'changed');
+		$allowed = array('mx_priority', 'data', 'resp_person', 'serial', 'refresh', 'retry', 'expire', 'minimum');
 
 		$insert = array();
 
@@ -203,6 +203,7 @@ class DbEngine {
 		$insert['host'] = strtolower($host);
 		$insert['type'] = strtoupper($type);
 		$insert['ttl'] = $ttl;
+		$insert['heartbeat'] = null;
 		$insert['changed'] = $this->sql->now();
 
 		$fields = '';
@@ -223,7 +224,7 @@ class DbEngine {
 		return $id;
 	}
 
-	public function changeRecord($record, $host, $type, $value, $ttl = NULL) {
+	public function changeRecord($record, $host, $type, $value, $ttl = NULL, $heartbeat = NULL) {
 
 		// load this record
 		$found = $this->sql->query('SELECT 1 FROM `zone_records` WHERE `record_id` = '.$this->sql->quote_escape($record))->fetch_assoc();
@@ -237,7 +238,7 @@ class DbEngine {
 			$value = array('data' => $value);
 		}
 
-		$allowed = array('mx_priority', 'data', 'resp_person', 'serial', 'refresh', 'retry', 'expire', 'minimum', 'changed');
+		$allowed = array('mx_priority', 'data', 'resp_person', 'serial', 'refresh', 'retry', 'expire', 'minimum');
 
 		foreach($allowed as $var) {
 			if (isset($value[$var])) $data[$var] = $value[$var];
@@ -246,6 +247,7 @@ class DbEngine {
 		if (!is_null($host)) $data['host'] = strtolower($host);
 		if (!is_null($type)) $data['type'] = strtoupper($type);
 		if (!is_null($ttl)) $data['ttl'] = $ttl;
+		if (!is_null($heartbeat)) $data['heartbeat'] = $heartbeat?:NULL;
 		$data['changed'] = $this->sql->now();
 
 		$req = '';
