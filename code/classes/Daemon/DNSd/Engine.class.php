@@ -24,6 +24,7 @@ class Engine {
 	protected $sql_stmts = NULL;
 	protected $sql_stmts_tmp = array();
 	protected $geoip = NULL;
+	protected $heartbeat = array();
 
 	public function __construct($parent, $IPC, $localConfig) {
 		$this->parent = $parent;
@@ -35,6 +36,7 @@ class Engine {
 		$this->localConfig = $localConfig;
 		// connect to SQL
 		$this->sql = SQL::Factory($this->localConfig['Storage']);
+		$this->IPC->listenBroadcast('DNSd::heartbeat::'.$this->sql->unique(), 'Engine', array($this, 'handleHeartbeatIPC'));
 
 		// check if tables exists
 		// TODO: make this look better
@@ -306,11 +308,21 @@ class Engine {
 		}
 	}
 
+	public function handleHeartbeatIPC($hb) {
+		if ($hb['clear']) {
+			unset($this->heartbeat[$hb['heartbeat_id']]);
+			return;
+		}
+		$this->heartbeat[$hb['heartbeat_id']] = $hb;
+	}
+
 	protected function handleHeartbeat($data, $peer_info) {
 		$data = substr($data, 8); // strip header "HTBT\xff\xff\xff\xff"
 		if (strlen($data) != 42) return; // bad/incomplete packet
 		$info = unpack('Nheartbeat/nloadavg1/nloadavg5/nloadavg15/Npid/Nstamp1/Nstamp2', $data);
 		$info['stamp'] = (($info['stamp1'] << 32) | $info['stamp2']) /1000000;
+		$info['hash'] = bin2hex(substr($data, 22));
+		$info['data'] = bin2hex(substr($data, 0, 22));
 
 		$res = $this->IPC->callPort('DNSd::DbEngine::'.$this->sql->unique(), 'handleHeartbeat', array($info, $peer_info));
 		if ($res == 0) return; // refresh accepted

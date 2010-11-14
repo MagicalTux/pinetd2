@@ -11,6 +11,7 @@ class DbEngine {
 	protected $tcp;
 	protected $parent;
 	protected $domainHitCache = array();
+	protected $heartbeat = array();
 
 	function __construct($parent, $localConfig, $IPC) {
 		$this->localConfig = $localConfig;
@@ -27,6 +28,7 @@ class DbEngine {
 		$this->parent = $parent;
 
 		Timer::addTimer(array($this, 'processHits'), 30, $extra = null, true);
+		Timer::addTimer(array($this, 'cleanHeartbeat'), 60, $extra = null, true);
 	}
 
 	function __call($func, $args) {
@@ -403,6 +405,63 @@ class DbEngine {
 		if (!$domain) return false;
 
 		return $this->doDelete('domains', 'key', $domain);
+	}
+
+	/*****
+	 ** Heartbeat Management
+	 *****/
+	
+	public function handleHeartbeat($hb, $peer_data) {
+		if (!is_array($peer_data)) $peer_data = explode(':', $peer_data);
+		$peer_key = $peer_data[0].'_'.$peer_data[1].'_'.$hb['pid'];
+		$k = $hb['heartbeat'];
+		$added = false;
+
+		if (!isset($this->heartbeat[$k])) {
+			// load from database
+			$res = $this->sql->query('SELECT * FROM `heartbeat` WHERE `heartbeat_id` = '.$this->sql->quote_escape($k))->fetch_assoc();
+			if (!$res) return 3; /* PKT_REPLY_BADPASS */
+			$res['expires'] = microtime(true) + 60;
+			$res['up'] = false;
+			$res['peer_key'] = '?';
+			$res['updated'] = 0;
+			$this->heartbeat[$k] = $res;
+		}
+
+		$i = &$this->heartbeat[$k];
+		// check hash
+		$hash = sha1(pack('H*', $hb['data']) . $i['key'], true);
+		if ($hash != pack('H*', $hb['hash'])) return 3; /* PKT_REPLY_BADPASS */
+		// check stamp
+		if (abs($hb['stamp'] - microtime(true)) > 5) return 2; /* PKT_REPLY_SYNC */
+		// check & update peer_key
+		if (($i['peer_key'] != $peer_key) && ($i['updated'] > (microtime(true)-15))) return 4; /* PKT_REPLY_DUPE */
+		if ($i['peer_key'] != $peer_key) {
+			$i['peer_key'] = $peer_key;
+			$added = true;
+		}
+		
+		$i['loadavg'] = $hb['loadavg1']; // use 1 minute load average
+		$i['up'] = $i['loadavg'] < $i['max_loadavg'];
+		$i['expires'] = microtime(true) + 22;
+		$i['updated'] = microtime(true);
+
+		$this->IPC->broadcast('DNSd::heartbeat::'.$this->sql->unique(), $i);
+
+		if ($added) {
+			return 1; /* PKT_REPLY_ADDED */
+		} else {
+			return 0;
+		}
+	}
+
+	public function cleanHeartbeat() {
+		foreach($this->heartbeat as $key => $data) {
+			if ($data['expires'] < microtime(true)) {
+				unset($this->heartbeat[$key]);
+				$this->IPC->broadcast('DNSd::heartbeat::'.$this->sql->unique(), array('heartbeat_id' => $key, 'clear' => true));
+			}
+		}
 	}
 
 	/*****

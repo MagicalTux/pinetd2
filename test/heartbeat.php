@@ -8,6 +8,7 @@ class Heartbeat {
 	const PKT_REPLY_ADDED = 1; /* dnsd loaded us from db */
 	const PKT_REPLY_SYNC = 2; /* we are out of sync (date/time not valid) */
 	const PKT_REPLY_BADPASS = 3; /* bad password */
+	const PKT_REPLY_DUPE = 4; /* server already got us from somewhere else */
 
 	public function __construct($domain, $heartbeat, $password) {
 		// get peers for this heartbeat domain
@@ -45,4 +46,5 @@ class Heartbeat {
 }
 
 $heartbeat = new Heartbeat('xta.net', 1, 'The password');
+$heartbeat->loop();
 
