@@ -203,7 +203,7 @@ class DbEngine {
 		$insert['host'] = strtolower($host);
 		$insert['type'] = strtoupper($type);
 		$insert['ttl'] = $ttl;
-		$insert['heartbeat'] = null;
+		$insert['heartbeat_id'] = $heartbeat;
 		$insert['changed'] = $this->sql->now();
 
 		$fields = '';
@@ -247,7 +247,7 @@ class DbEngine {
 		if (!is_null($host)) $data['host'] = strtolower($host);
 		if (!is_null($type)) $data['type'] = strtoupper($type);
 		if (!is_null($ttl)) $data['ttl'] = $ttl;
-		if (!is_null($heartbeat)) $data['heartbeat'] = $heartbeat?:NULL;
+		if (!is_null($heartbeat)) $data['heartbeat_id'] = $heartbeat?:NULL;
 		$data['changed'] = $this->sql->now();
 
 		$req = '';
