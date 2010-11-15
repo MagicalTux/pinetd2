@@ -49,7 +49,6 @@ class Heartbeat {
 	}
 
 	protected function sendAnnounce() {
-		echo "Sending announce...\n";
 		$pkt = $this->makePkt();
 		foreach($this->nodes as $x) {
 			stream_socket_sendto($x['fd'], $pkt);
