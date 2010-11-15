@@ -508,7 +508,7 @@ class DbEngine {
 		}
 		
 		$i['loadavg'] = $hb['loadavg1']; // use 1 minute load average
-		$i['up'] = $i['loadavg'] < $i['max_loadavg'];
+		$i['up'] = $i['max_loadavg'] ? ($i['loadavg'] < $i['max_loadavg']) : true;
 		$i['expires'] = microtime(true) + 22;
 		$i['updated'] = microtime(true);
 
