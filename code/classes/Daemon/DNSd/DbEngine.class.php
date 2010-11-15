@@ -12,6 +12,7 @@ class DbEngine {
 	protected $parent;
 	protected $domainHitCache = array();
 	protected $heartbeat = array();
+	protected $IPC;
 
 	function __construct($parent, $localConfig, $IPC) {
 		$this->localConfig = $localConfig;
@@ -26,6 +27,7 @@ class DbEngine {
 
 		$this->tcp = $tcp;
 		$this->parent = $parent;
+		$this->IPC = $IPC;
 
 		Timer::addTimer(array($this, 'processHits'), 30, $extra = null, true);
 		Timer::addTimer(array($this, 'cleanHeartbeat'), 60, $extra = null, true);
@@ -436,6 +438,10 @@ class DbEngine {
 		if (!$res) return false;
 
 		return $res;
+	}
+
+	public function getHeartbeatStatus() {
+		return $this->heartbeat;
 	}
 
 	public function updateHeartbeat($id, $key, $max_loadavg = 0) {
