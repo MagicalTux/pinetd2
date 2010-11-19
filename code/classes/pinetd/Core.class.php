@@ -57,6 +57,7 @@ class Core {
 	private $ports = array();
 
 	private $transport_engine;
+	private $bc_flood = array(); // broadcast flood detector
 
 	public function __construct() {
 		$this->config = ConfigManager::invoke();
@@ -261,6 +262,15 @@ class Core {
 	}
 
 	public function broadcast($code, $data = null, $except = 0) {
+		if ((isset($this->bc_flood[$code])) && ($this->bc_flood[$code]['time'] == time())) {
+			$this->bc_flood[$code]['pkt']++;
+			if ($this->bc_flood[$code]['pkt'] > 5) { // more than 5 pkt/sec, block flood
+				\Logger::log(\Logger::LOG_WARN, 'Blocked broadcast flood');
+				return;
+			}
+		} else {
+			$this->bc_flood[$code] = array('time' => time(), 'pkt' => 1);
+		}
 		foreach($this->fdlist as $id => $info) {
 			if ($id == $except) continue;
 			if ($info['type'] != 'daemon') continue;
