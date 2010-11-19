@@ -287,6 +287,7 @@ class Packet {
 		$res = array();
 
 		for($i = 0; $i < $count; ++$i) {
+			if ($offset > strlen($pkt)) return false; // mh
 			// read qname
 			$qname = $this->decodeLabel($pkt, $offset);
 			// read qtype & qclass
