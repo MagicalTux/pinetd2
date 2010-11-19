@@ -265,7 +265,7 @@ class Core {
 		if ((isset($this->bc_flood[$code])) && ($this->bc_flood[$code]['time'] == time())) {
 			$this->bc_flood[$code]['pkt']++;
 			if ($this->bc_flood[$code]['pkt'] > 5) { // more than 5 pkt/sec, block flood
-				\Logger::log(\Logger::LOG_WARN, 'Blocked broadcast flood');
+				Logger::log(Logger::LOG_WARN, 'Blocked broadcast flood');
 				return;
 			}
 		} else {
