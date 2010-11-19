@@ -265,7 +265,7 @@ class Core {
 		foreach($this->fdlist as $id => $info) {
 			if ($id == $except) continue;
 			if ($info['type'] != 'daemon') continue;
-			$this->daemons[$info['key']]['IPC']->broadcast($code, $data);
+			$this->daemons[$info['key']]['IPC']->broadcast_up($code, $data);
 		}
 	}
 

@@ -47,6 +47,7 @@ class IPC {
 	const CMD_CALL = 'CALL'; /*!< CALL a peer function. This will call a function on peer's class */
 	const CMD_NEWPORT = 'NEWPORT'; /*!< Create a new port, and announce to parent (if any) */
 	const CMD_CALLPORT = 'CALLPORT'; /*!< Call a function on a port */
+	const CMD_BCAST_UP = 'BCAST_UP'; /*!< initial broadcast event to core */
 	const CMD_BCAST = 'BCAST'; /*!< broadcast event */
 
 	const RES_PING = 'PONG'; /*!< PONG, the reply to ping */
@@ -274,6 +275,18 @@ class IPC {
 	}
 
 	public function broadcast($code, $data = null, $except = 0) {
+		// broadcast down to core
+		if (!$except) {
+			$this->sendcmd(self::CMD_BCAST, array($code, $data));
+		} else if ($this->parent instanceof Core) {
+			$this->parent->broadcast($code, $data, (int)$this->pipe);
+		} else if (!is_null($this->parent_ipc)) {
+			$this->parent_ipc->broadcast($code, $data, (int)$this->pipe);
+		}
+		return true;
+	}
+
+	public function broadcast_up($code, $data = null, $except = 0) {
 		if (isset($this->bcast_listen[$code]))
 			foreach($this->bcast_listen[$code] as $key => $callback) call_user_func($callback, $data, $code, $key);
 
@@ -288,18 +301,10 @@ class IPC {
 				$class->broadcast($code, $data);
 			}
 			if ($except != (int)$this->pipe) {
-				$this->sendcmd(self::CMD_BCAST, array($code, $data));
+				$this->sendcmd(self::CMD_BCAST_UP, array($code, $data));
 			}
 			return true;
 		}
-		if (!$except) {
-			$this->sendcmd(self::CMD_BCAST, array($code, $data));
-		} else if ($this->parent instanceof Core) {
-			$this->parent->broadcast($code, $data, (int)$this->pipe);
-		} else if (!is_null($this->parent_ipc)) {
-			$this->parent_ipc->broadcast($code, $data, (int)$this->pipe);
-		}
-		return true;
 	}
 
 	protected function internalCallPort($call) {
@@ -368,6 +373,10 @@ class IPC {
 				return true;
 			case self::CMD_PING:
 				$this->sendcmd(self::RES_PING, $cmd[1]);
+				break;
+			case self::CMD_BCAST_UP:
+				// send to all children except (int)$fd
+				$this->broadcast_up($cmd[1][0], $cmd[1][1], (int)$fd);
 				break;
 			case self::CMD_BCAST:
 				// send to all children except (int)$fd
