@@ -34,6 +34,10 @@ class RFC1035 extends Base {
 				$next_values = unpack('Nserial/Nrefresh/Nretry/Nexpire/Nminimum', substr($val, $offset));
 				foreach($next_values as $var => $val) $this->value[$var] = $val;
 				break;
+			case self::TYPE_PTR:
+				$foo_offset = 0;
+				$this->value = $this->pkt->decodeLabel($val, $foo_offset);
+				break;
 			case self::TYPE_MX:
 				$tmp = unpack('n', $val);
 				$this->value = array(
@@ -79,6 +83,8 @@ class RFC1035 extends Base {
 				$res .= $this->pkt->encodeLabel($val['rname'], $offset+strlen($res));
 				$res .= pack('NNNNN', $val['serial'], $val['refresh'], $val['retry'], $val['expire'], $val['minimum']);
 				return $res;
+			case self::TYPE_PTR:
+				return $this->pkt->encodeLabel($val, $offset);
 			case self::TYPE_MX:
 				return pack('n', $val['priority']).$this->pkt->encodeLabel($val['host'], $offset+2);
 			case self::TYPE_TXT:
