@@ -206,7 +206,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 		$count = 0;
 
 		$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
-		$list = $DAO_mails->loadByField(array('userid' => $this->info['account']->id));
+		$list = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => 0));
 		foreach($list as $mail) {
 			$flags = array_flip(explode(',', $mail->flags));
 			if (isset($flags['deleted'])) continue;
@@ -225,7 +225,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 
 	function _cmd_list($argv) {
 		if (!$this->loggedin) return $this->sendMsg('-ERR need to login first');
-		$cond = array('userid' => $this->info['account']->id);
+		$cond = array('userid' => $this->info['account']->id, 'folder' => 0);
 		$onlyone = false;
 		if ($argv[1]) {
 			$id = $argv[1];
@@ -267,7 +267,7 @@ class POP3_Client extends \pinetd\TCP\Client {
 
 	function _cmd_uidl($argv) {
 		if (!$this->loggedin) return $this->sendMsg('-ERR need to login first');
-		$cond = array('userid' => $this->info['account']->id);
+		$cond = array('userid' => $this->info['account']->id, 'folder' => 0);
 		$onlyone = false;
 		if ($argv[1]) {
 			$id = $argv[1];
