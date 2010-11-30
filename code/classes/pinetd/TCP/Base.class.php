@@ -63,7 +63,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		}
 		$cert = $this->IPC->loadCertificate(strtolower($this->daemon['Service']));
 		$this->protocol = $protocol;
-		$this->socket = @stream_socket_server($protocol.'://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+		$this->socket = @stream_socket_server('tcp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
 		if (!$this->socket) {
 			throw new Exception('Error creating listening socket: ['.$errno.'] '.$errstr);
 		}
@@ -172,12 +172,18 @@ abstract class Base extends \pinetd\DaemonBase {
 				$IPC->ping(); // wait for parent to be ready
 				Logger::setIPC($IPC);
 				Logger::log(Logger::LOG_DEBUG, 'Daemon started for client, pid '.getmypid());
+				// enable crypto if required
+				if ($this->protocol == 'ssl')
+					stream_socket_enable_crypto($news, true, STREAM_CRYPTO_METHOD_SSLv23_SERVER);
 				$new->mainLoop($IPC);
 				$IPC->Error('Exited from main loop!', 0);
 				exit;
 			}
 			fclose($pair[0]);
 			fclose($pair[1]);
+		} elseif ($this->protocol == 'ssl') {
+			// enable crypto if required
+			stream_socket_enable_crypto($news, true, STREAM_CRYPTO_METHOD_SSLv23_SERVER);
 		}
 		$this->clients[$news] = array(
 			'socket' => $news,

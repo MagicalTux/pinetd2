@@ -30,8 +30,7 @@ class Client extends \pinetd\TCP\Client {
 	 * \brief Tell the user to wait for resolve
 	 */
 	function welcomeUser() {
-		$this->sendMsg('220-Looking up your hostname...');
-		return true; // returning false will close client
+		return true;
 	}
 
 	/**
