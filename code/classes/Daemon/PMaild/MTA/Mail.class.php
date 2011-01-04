@@ -125,6 +125,7 @@ class Mail {
 		$txn = $this->txn;
 		$this->txn = null;
 		$this->txlog = array();
+		$last_err = null;
 		foreach($this->to as $target) {
 			$total++;
 			$class = relativeclass($this, 'MailTarget');
@@ -132,12 +133,14 @@ class Mail {
 			$err = $MT->process($txn);
 			if (is_null($err)) {
 				$success++;
+			} else {
+				$last_err = $err;
 			}
 			$this->txlog[$target['mail']] = $err;
 		}
 		if ($success != $total) {
 			if ($total == 1) return $this->err($err);
-			return $this->err('450 4.5.3 One or more failure while processing mail (success rate: '.$success.'/'.$total.' - use TXLG for details)');
+			return $this->err('450 4.5.3 One or more failure while processing mail (success rate: '.$success.'/'.$total.' - use TXLG for details) - Last error: '.$last_err);
 		}
 		return true;
 	}
