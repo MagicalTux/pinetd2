@@ -130,6 +130,7 @@ class Mail {
 			$total++;
 			$class = relativeclass($this, 'MailTarget');
 			$MT = new $class($target, $this->from, $this->localConfig, $IPC);
+			$MT->setLogin($this->login);
 			$err = $MT->process($txn);
 			if (is_null($err)) {
 				$success++;

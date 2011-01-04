@@ -11,6 +11,7 @@ class MailTarget {
 	protected $localConfig;
 	protected $sql;
 	protected $IPC;
+	protected $login = NULL;
 
 	function __construct($target, $from, $localConfig, $IPC) {
 		// transmit mail to target
@@ -19,6 +20,10 @@ class MailTarget {
 		$this->localConfig = $localConfig;
 		$this->sql = SQL::Factory($this->localConfig['Storage']);
 		$this->IPC = $IPC;
+	}
+
+	public function setLogin($login) {
+		$this->login = $login;
 	}
 
 	public function makeUniq($path, $domain=null, $account=null) {
@@ -47,7 +52,7 @@ class MailTarget {
 			$res = $antivirus->process($txn);
 			if (!is_null($res)) return $res;
 		}
-		if ($domain->antispam) {
+		if (($domain->antispam) && (is_null($this->login))) {
 			$class = relativeclass($this, 'MailFilter\\AntiSpam');
 			$antispam = new $class($domain->antispam, $domain, $this->localConfig);
 			$res = $antispam->process($txn);
