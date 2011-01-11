@@ -14,6 +14,8 @@ class Filesystem extends \pinetd\Filesystem {
 		$fil = $this->root . $fil;
 
 		if ($write) {
+			// make sure we can write
+			chmod(dirname($fil), 0755);
 			chmod($fil, 0755);
 			@touch($fil);
 		}
@@ -37,6 +39,19 @@ class Filesystem extends \pinetd\Filesystem {
 		}
 
 		return array('fp' => $fp, 'size' => $size);
+	}
+
+	public function unLink($fil) {
+		if (!$this->isWritable($fil)) return false;
+		
+		$fil = $this->convertPath($fil);
+		if ((is_null($fil)) || ($fil === false)) return false;
+
+		// make sure we can delete
+		chmod(dirname($this->root . $fil), 0755);
+		chmod($this->root . $fil, 0755);
+
+		return @unlink($this->root . $fil);
 	}
 }
 
