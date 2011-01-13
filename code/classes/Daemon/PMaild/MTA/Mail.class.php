@@ -84,11 +84,16 @@ class Mail {
 			return $this->err('403 4.5.3 Already gave this destination email once');
 		}
 		if ( (is_null($this->login)) && (!is_null($this->peer)) ) {
+			// check hosts table
+			$SQL = SQL::Factory($this->localConfig['Storage']);
+			$DAO_hosts = $SQL->DAO('hosts', 'ip');
+			$host = $DAO_hosts[$this->peer[0]];
+
+			if ($host->type == 'spam') {
+				return $this->err('503 5.1.2 Spam detected from your host, which has been blocked. Contact postmaster@xta.net with your ip ('.$this->peer[0].') for more informations');
+			}
+
 			if ($mail['type'] == 'remote') {
-				// check for global whitelist
-				$SQL = SQL::Factory($this->localConfig['Storage']);
-				$DAO_hosts = $SQL->DAO('hosts', 'ip');
-				$host = $DAO_hosts[$this->peer[0]];
 				// not in global whitelist?
 				if ((!$host) || ($host->type != 'trust')) {
 					if (!$this->allowRemote) return $this->err('503 5.1.2 Relaying denied');
