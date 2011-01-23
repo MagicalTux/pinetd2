@@ -17,6 +17,9 @@ class Packet {
 	protected $packet_id = NULL;
 	protected $flags = array();
 
+	protected $body = null;
+	protected $body_changed = true;
+
 	protected $question = array();
 	protected $answer = array();
 	protected $authority = array();
@@ -37,6 +40,9 @@ class Packet {
 
 	public function decode($pkt) {
 		// unpack packet's header
+		$this->body = $pkt;
+		$this->body_changed = false;
+
 		$data = unpack('npacket_id/nflags/nqdcount/nancount/nnscount/narcount', $pkt);
 		$this->packet_id = $data['packet_id'];
 
@@ -59,6 +65,8 @@ class Packet {
 	}
 
 	public function resetAnswer() {
+		if ((!$this->answer) && (!$this->authority)) return; // already empty
+		$this->body_changed = true;
 		$this->answer = array();
 		$this->authority = array();
 	}
@@ -72,6 +80,13 @@ class Packet {
 	}
 
 	public function encode() {
+		if (!$this->body_changed) {
+			// no change to packet, only re-encode flags
+			$pkt = $this->body;
+			$flags = pack('n', $this->encodeFlags($this->flags));
+			return substr_replace($pkt, $flags, 2, 2);
+		}
+
 		$qdcount = count($this->question);
 		$ancount = count($this->answer);
 		$nscount = count($this->authority);
@@ -97,6 +112,7 @@ class Packet {
 	}
 
 	public function addAnswer($name, $value, $ttl = 86400, $class = 1) { // no const here, class 1 = IN
+		$this->body_changed = true;
 		$this->answer[] = array(
 			'name' => $name,
 			'class' => $class,
@@ -106,6 +122,7 @@ class Packet {
 	}
 
 	public function addAuthority($name, $value, $ttl = 86400, $class = 1) { // no const here, class 1 = IN
+		$this->body_changed = true;
 		$this->authority[] = array(
 			'name' => $name,
 			'class' => $class,
@@ -115,6 +132,7 @@ class Packet {
 	}
 
 	public function addAdditional($name, $value, $ttl = 86400, $class = 1) { // no const here, class 1 = IN
+		$this->body_changed = true;
 		$this->additional[] = array(
 			'name' => $name,
 			'class' => $class,
