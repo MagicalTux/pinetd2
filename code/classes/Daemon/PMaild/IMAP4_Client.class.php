@@ -109,7 +109,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 			}
 			if ($c == '[') {
 				$level++;
-				if (is_null($string)) throw new Exception('parse error');
+				if (is_null($string)) throw new \Exception('parse error');
 				$array = array();
 				$sub_array = array('type' => $string, 'data' => &$array);
 				$ref[$level++] = &$sub_array;
