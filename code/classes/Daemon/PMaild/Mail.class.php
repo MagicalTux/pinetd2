@@ -7,7 +7,7 @@ class Mail {
 	private $data; // mail
 	private $file; // mail file
 	private $sql;
-	const MIME_CACHE_MAGIC = 0xb0ca1;
+	const MIME_CACHE_MAGIC = 0xb0ca2;
 
 	public function __construct($info, $mail_data, $file, $sql) {
 		$this->info = $info;
@@ -106,8 +106,10 @@ class Mail {
 					$tmp .= ($tmp == ''?'':'.').$n;
 					$cur_depth += $depth[$tmp];
 				}
-				if (!isset($imap_count[$cur_depth-1])) $imap_count[$cur_depth-1] = 0;
-				$imap_count[$cur_depth-1]++;
+				$cur_depth_parent = $parent;
+				if (is_null($cur_depth_parent)) $cur_depth_parent = 'ROOT';
+				if (!isset($imap_count[$cur_depth_parent])) $imap_count[$cur_depth_parent] = 0;
+				$imap_count[$cur_depth_parent]++;
 				$imap_part = '';
 				for($i = 0; $i < $cur_depth; $i++) {
 					$imap_part .= ($i?'.':'').$imap_count[$i];
