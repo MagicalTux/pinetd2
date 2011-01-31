@@ -7,7 +7,7 @@ class Mail {
 	private $data; // mail
 	private $file; // mail file
 	private $sql;
-	const MIME_CACHE_MAGIC = 0xb0ca2;
+	const MIME_CACHE_MAGIC = 0xb0ca3;
 
 	public function __construct($info, $mail_data, $file, $sql) {
 		$this->info = $info;
@@ -98,21 +98,19 @@ class Mail {
 				$depth[$part] = 0;
 				$imap_part = $part_info[$parent]['imap-part'].'.TEXT';
 			} else {
-				$depth[$part] = 1;
-				$cur_depth = 0;
-				$part_p = explode('.', $part);
-				$tmp = '';
-				foreach($part_p as $n) {
-					$tmp .= ($tmp == ''?'':'.').$n;
-					$cur_depth += $depth[$tmp];
-				}
+				// determine a non-null parent name
 				$cur_depth_parent = $parent;
 				if (is_null($cur_depth_parent)) $cur_depth_parent = 'ROOT';
+
+				// init imap_count if required and increment
 				if (!isset($imap_count[$cur_depth_parent])) $imap_count[$cur_depth_parent] = 0;
 				$imap_count[$cur_depth_parent]++;
-				$imap_part = '';
-				for($i = 0; $i < $cur_depth; $i++) {
-					$imap_part .= ($i?'.':'').$imap_count[$i];
+
+				// if we're at root, just put current num. If not, prepend parent's path
+				if (is_null($parent)) {
+					$imap_part = $imap_count[$cur_depth_parent];
+				} else {
+					$imap_part = $part_info[$parent]['imap-part'].'.'.$imap_count[$cur_depth_parent];
 				}
 			}
 			$part_info[$part]['imap-part'] = $imap_part;
