@@ -7,7 +7,7 @@ class Mail {
 	private $data; // mail
 	private $file; // mail file
 	private $sql;
-	const MIME_CACHE_MAGIC = 0xb0ca3;
+	const MIME_CACHE_MAGIC = 0xb0ca4;
 
 	public function __construct($info, $mail_data, $file, $sql) {
 		$this->info = $info;
@@ -110,7 +110,11 @@ class Mail {
 				if (is_null($parent)) {
 					$imap_part = $imap_count[$cur_depth_parent];
 				} else {
-					$imap_part = $part_info[$parent]['imap-part'].'.'.$imap_count[$cur_depth_parent];
+					$imap_part = $part_info[$parent]['imap-part'];
+					if (substr($imap_part, -4) == 'TEXT') {
+						$imap_part = (string)substr($imap_part, 0, -5); // remove .TEXT
+					}
+					$imap_part .= '.'.$imap_count[$cur_depth_parent];
 				}
 			}
 			$part_info[$part]['imap-part'] = $imap_part;
