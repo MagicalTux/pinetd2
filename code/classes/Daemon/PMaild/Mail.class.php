@@ -395,6 +395,11 @@ class Mail {
 						$p_search = substr($p_search, 0, -7).'.TEXT'; // dirty hack
 					}
 					$part = $this->DAO('mime')->loadByField($this->where()+array('imap_part' => $p_search));
+					if (!$part && (strtoupper(substr($p_search, -5)) == '.TEXT')) {
+						// try without .TEXT
+						$p_search = substr($p_search, 0, -5);
+						$part = $this->DAO('mime')->loadByField($this->where()+array('imap_part' => $p_search));
+					}
 					if ($part) {
 						// partial body request, answer it!
 						$part = $part[0];
