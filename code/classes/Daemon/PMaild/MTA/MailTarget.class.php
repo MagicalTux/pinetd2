@@ -214,6 +214,8 @@ class MailTarget {
 			return $error;
 		}
 
+		$real_target = trim($real_target); // just in case
+
 		// store mail & queue
 		$store = $this->makeUniq('mailqueue');
 		// store file if needed
