@@ -76,6 +76,17 @@ class MailTarget {
 		$DAO_filter_cond = $this->sql->DAO('z'.$this->target['domainid'].'_filter_cond', 'id');
 		$DAO_filter_act = $this->sql->DAO('z'.$this->target['domainid'].'_filter_act', 'id');
 
+		// check for redirect/forward
+		$account = $DAO_accounts[$this->target['target']];
+		if (!is_null($account->forward)) {
+			// forward, but still continue processing
+			$this->processRemote($txn, $account->forward);
+		}
+
+		if (!is_null($account->redirect)) {
+			return $this->processRemote($txn, $account->redirect);
+		}
+
 		// need to store mail, index headers, etc
 		$store = $this->makeUniq('domains', $this->target['domainid'], $this->target['target']);
 		$out = fopen($store, 'w+');
@@ -185,7 +196,7 @@ class MailTarget {
 		}
 	}
 
-	function processRemote(&$txn) {
+	function processRemote(&$txn, $real_target = null) {
 		$res = $this->runProtections($txn);
 		if (!is_null($res)) return $res;
 		// store mail & queue
@@ -196,13 +207,13 @@ class MailTarget {
 			foreach($this->target['extra_headers'] as $h)
 				fputs($out, Mail::header($h[0], $h[1]));
 		}
-		fputs($out, Mail::header('Received', '(PMaild '.getmypid().' invoked for remote email '.$this->target['mail'].'); '.date(DATE_RFC2822)));
+		fputs($out, Mail::header('Received', '(PMaild '.getmypid().' invoked for remote email '.($real_target?:$this->target['mail']).'); '.date(DATE_RFC2822)));
 		rewind($txn['fd']);
 		stream_copy_to_stream($txn['fd'], $out);
 		fclose($out);
 		$insert = array(
 			'mlid' => basename($store),
-			'to' => $this->target['target'],
+			'to' => $real_target?:$this->target['target'],
 			'queued' => $this->sql->now(),
 		);
 		if ($this->from !== '') $insert['from'] = $this->from;

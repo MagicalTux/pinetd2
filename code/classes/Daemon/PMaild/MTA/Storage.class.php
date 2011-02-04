@@ -57,6 +57,7 @@ class Storage {
 			'mail_count' => array('type'=>'BIGINT', 'size'=>20, 'null'=>true, 'unsigned'=>true),
 			'mail_quota' => array('type'=>'BIGINT', 'size'=>20, 'null'=>true, 'unsigned'=>true),
 			'redirect'=>array('type'=>'VARCHAR', 'size'=>255, 'null'=>true, 'default'=>NULL),
+			'forward'=>array('type'=>'VARCHAR', 'size'=>255, 'null'=>true, 'default'=>NULL),
 		),
 		'z%s_alias' => array(
 			'id' => array('type'=>'BIGINT', 'size'=>20, 'null'=>false, 'unsigned'=>true, 'auto_increment'=>true, 'key'=>'PRIMARY'),

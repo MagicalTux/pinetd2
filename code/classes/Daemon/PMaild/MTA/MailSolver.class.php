@@ -150,11 +150,6 @@ class MailSolver {
 		if (is_array($account))
 			$account = $account[0];
 
-		if (!is_null($account->redirect)) {
-			$res['type'] = 'redirect';
-			$res['target'] = $account->redirect;
-			return $res;
-		}
 		$res['type'] = 'local';
 		$res['target'] = $account->id;
 		$res['target_mail'] = $account->user.'@'.$domain->domain;
