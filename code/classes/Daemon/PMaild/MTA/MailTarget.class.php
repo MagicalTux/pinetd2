@@ -197,23 +197,44 @@ class MailTarget {
 	}
 
 	function processRemote(&$txn, $real_target = null) {
+		if (is_null($real_target))
+			$real_target = $this->target['target'];
+
 		$res = $this->runProtections($txn);
 		if (!is_null($res)) return $res;
+
+		// check/handle multiple targets
+		$tmp = explode(',', $real_target);
+		if (count($tmp) > 1) {
+			$error = null;
+			foreach($tmp as $addr) {
+				$x = $this->processRemote($txn, $addr);
+				if (is_null($error) && (!is_null($x))) $error = $x;
+			}
+			return $error;
+		}
+
 		// store mail & queue
 		$store = $this->makeUniq('mailqueue');
-		// store file
-		$out = fopen($store, 'w');
-		if (isset($this->target['extra_headers'])) {
-			foreach($this->target['extra_headers'] as $h)
-				fputs($out, Mail::header($h[0], $h[1]));
+		// store file if needed
+		if (isset($txn['mailstore_'.$this->target['mail']])) {
+			link($txn['mailstore_'.$this->target['mail']], $store);
+		} else {
+			$out = fopen($store, 'w');
+			if (isset($this->target['extra_headers'])) {
+				foreach($this->target['extra_headers'] as $h)
+					fputs($out, Mail::header($h[0], $h[1]));
+			}
+			fputs($out, Mail::header('Received', '(PMaild '.getmypid().' invoked for remote email '.$this->target['mail'].'); '.date(DATE_RFC2822)));
+			rewind($txn['fd']);
+			stream_copy_to_stream($txn['fd'], $out);
+			fclose($out);
+			$txn['mailstore_'.$this->target['mail']] = $store;
 		}
-		fputs($out, Mail::header('Received', '(PMaild '.getmypid().' invoked for remote email '.($real_target?:$this->target['mail']).'); '.date(DATE_RFC2822)));
-		rewind($txn['fd']);
-		stream_copy_to_stream($txn['fd'], $out);
-		fclose($out);
+
 		$insert = array(
 			'mlid' => basename($store),
-			'to' => $real_target?:$this->target['target'],
+			'to' => $real_target,
 			'queued' => $this->sql->now(),
 		);
 		if ($this->from !== '') $insert['from'] = $this->from;
