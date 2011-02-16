@@ -64,6 +64,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		$this->protocol = 'udp';
 		$ip_list = explode(',', $ip);
 		foreach($ip_list as $ip) {
+			if (strpos($ip, ':') !== false) $ip = '['.$ip.']'; // ipv6
 			$socket = @stream_socket_server('udp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND, $context);
 			if (!$socket) {
 				throw new \Exception('Error creating listening socket '.$ip.':'.$this->daemon['Port'].': ['.$errno.'] '.$errstr);
