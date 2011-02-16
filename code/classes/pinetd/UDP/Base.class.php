@@ -82,10 +82,25 @@ abstract class Base extends \pinetd\DaemonBase {
 
 		$this->lastSocket = $sock;
 
+		$pos = strrpos($peer, ':');
+		$port = substr($peer, $pos+1);
+		$ip = substr($peer, 0, $pos);
+		if ($ip[0]=='[')
+			$ip = substr($ip, 1, -2);
+
+		$peer = array($ip, $port);
+
 		$this->handlePacket($pkt, $peer);
 	}
 
 	protected function sendPacket($pkt, $to) {
+		if (is_array($to)) {
+			if (strpos($to[0], ':') !== false) {
+				$to = '['.$to[0].']:'.$to[1];
+			} else {
+				$to = $to[0].':'.$to[1];
+			}
+		}
 		return stream_socket_sendto($this->lastSocket, $pkt, 0, $to);
 	}
 

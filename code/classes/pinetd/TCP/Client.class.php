@@ -35,7 +35,12 @@ class Client extends \pinetd\ProcessChild {
 		if (is_array($peer)) {
 			$this->peer = $peer;
 		} else {
-			$this->peer = explode(':', $peer); // ip:port TODO: handle ipv6
+			$pos = strrpos($peer, ':');
+			$port = substr($peer, $pos+1);
+			$ip = substr($peer, 0, $pos);
+			if ($ip[0] == '[')
+				$ip = substr($ip, 1, -2);
+			$this->peer = array($ip, $port);
 		}
 		$this->protocol = $protocol;
 		$debug = $parent->getDebug();
