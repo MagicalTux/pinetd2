@@ -29,7 +29,7 @@ abstract class Base extends \pinetd\DaemonBase {
 	protected $port;
 	protected $daemon;
 	protected $IPC;
-	protected $socket;
+	protected $socket = array();
 	protected $clients = array();
 	protected $fclients = array(); // forked clients
 	protected $protocol = 'tcp';
@@ -63,11 +63,16 @@ abstract class Base extends \pinetd\DaemonBase {
 		}
 		$cert = $this->IPC->loadCertificate(strtolower($this->daemon['Service']));
 		$this->protocol = $protocol;
-		$this->socket = @stream_socket_server('tcp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
-		if (!$this->socket) {
-			throw new Exception('Error creating listening socket: ['.$errno.'] '.$errstr);
+		$ip_list = explode(',', $ip);
+		foreach($ip_list as $ip) {
+			$socket = @stream_socket_server('tcp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+			if (!$socket) {
+				throw new Exception('Error creating listening socket: ['.$errno.'] '.$errstr);
+			}
+			$this->socket[] = $socket;
+			$this->IPC->registerSocketWait($socket, array(&$this, 'doAccept'), $foo = array(&$socket));
+			unset($socket);
 		}
-		$this->IPC->registerSocketWait($this->socket, array(&$this, 'doAccept'), $foo = array(&$this->socket));
 	}
 
 	public function _ChildIPC_hasTLS() {
@@ -119,7 +124,8 @@ abstract class Base extends \pinetd\DaemonBase {
 			$data['obj']->close();
 			unset($this->clients[$port]);
 		}
-		fclose($this->socket);
+		foreach($this->socket as $socket)
+			fclose($socket);
 	}
 
 	public function quit() {
@@ -166,7 +172,8 @@ abstract class Base extends \pinetd\DaemonBase {
 				SQL::forked();
 				Timer::reset();
 				foreach($this->clients as $c) fclose($c['fd']);
-				fclose($this->socket);
+				foreach($this->socket as $socket)
+					fclose($socket);
 				fclose($pair[0]);
 				$IPC = new IPC($pair[1], true, $foo = null, $bar = null);
 				$IPC->ping(); // wait for parent to be ready

@@ -27,7 +27,7 @@ abstract class Base extends \pinetd\DaemonBase {
 	protected $port;
 	protected $daemon;
 	protected $IPC;
-	private $socket;
+	private $socket = array();
 	private $lastSocket;
 	protected $protocol = 'tcp';
 	protected $TLS = false;
@@ -62,11 +62,16 @@ abstract class Base extends \pinetd\DaemonBase {
 			// ... ?
 		}
 		$this->protocol = 'udp';
-		$this->socket = @stream_socket_server('udp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND, $context);
-		if (!$this->socket) {
-			throw new \Exception('Error creating listening socket '.$ip.':'.$this->daemon['Port'].': ['.$errno.'] '.$errstr);
+		$ip_list = explode(',', $ip);
+		foreach($ip_list as $ip) {
+			$socket = @stream_socket_server('udp://'.$ip.':'.$this->daemon['Port'], $errno, $errstr, STREAM_SERVER_BIND, $context);
+			if (!$socket) {
+				throw new \Exception('Error creating listening socket '.$ip.':'.$this->daemon['Port'].': ['.$errno.'] '.$errstr);
+			}
+			$this->socket[] = $socket;
+			$this->IPC->registerSocketWait($socket, array(&$this, 'doRecv'), $foo = array(&$socket));
+			unset($socket);
 		}
-		$this->IPC->registerSocketWait($this->socket, array(&$this, 'doRecv'), $foo = array(&$this->socket));
 	}
 
 	public function doRecv($sock) {
@@ -84,7 +89,8 @@ abstract class Base extends \pinetd\DaemonBase {
 	}
 
 	public function shutdown() {
-		fclose($this->socket);
+		foreach($this->socket as $socket)
+			fclose($socket);
 	}
 
 	public function quit() {
