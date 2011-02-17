@@ -1009,11 +1009,16 @@ A OK FETCH completed
 
 		for($i = 0; $i < count($param); $i++) {
 			$t = strtoupper($param[$i]);
+			if ($t == 'NOT') {
+				$i++;
+				$t = 'NOT'.strtoupper($param[$i]);
+			}
 			switch($t) {
 				case 'ALL': break;
 				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)=0'; break;
 				case 'ANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)>0'; break;
 				case 'DELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)>0'; break;
+				case 'NOTDELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)==0'; break;
 				case 'DRAFT': $where[] = 'FIND_IN_SET(\'draft\',`flags`)>0'; break;
 				case 'FLAGGED': $where[] = 'FIND_IN_SET(\'flagged\',`flags`)>0'; break;
 				case 'LARGER': $size = (int)$param[++$i]; $where[] = '`size` > '.$size; break;
