@@ -1011,7 +1011,7 @@ A OK FETCH completed
 			$t = strtoupper($param[$i]);
 			if ($t == 'NOT') {
 				$i++;
-				$t = 'NOT'.strtoupper($param[$i]);
+				$t = 'UN'.strtoupper($param[$i]);
 			}
 			if (preg_match('/([0-9]+):([0-9]+)/', $t, $match)) {
 				if ($uid) {
@@ -1021,6 +1021,7 @@ A OK FETCH completed
 					if (!isset($this->reverseMap[(int)$match[2]])) return false;
 					$where[] = '(`mailid` BETWEEN '.($this->reverseMap[(int)$match[1]]).' AND '.($this->reverseMap[(int)$match[2]]).')';
 				}
+				continue;
 			}
 			if (preg_match('/([0-9]+):\\*/', $t, $match)) {
 				if ($uid) {
@@ -1029,6 +1030,7 @@ A OK FETCH completed
 					if (!isset($this->reverseMap[(int)$match[1]])) return false;
 					$where[] = '`mailid` > '.($this->reverseMap[(int)$match[1]]);
 				}
+				continue;
 			}
 			switch($t) {
 				case 'ALL': break;
@@ -1036,7 +1038,6 @@ A OK FETCH completed
 				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)=0'; break;
 				case 'ANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)>0'; break;
 				case 'DELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)>0'; break;
-				case 'NOTDELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)==0'; break;
 				case 'DRAFT': $where[] = 'FIND_IN_SET(\'draft\',`flags`)>0'; break;
 				case 'FLAGGED': $where[] = 'FIND_IN_SET(\'flagged\',`flags`)>0'; break;
 				case 'LARGER': $size = (int)$param[++$i]; $where[] = '`size` > '.$size; break;
