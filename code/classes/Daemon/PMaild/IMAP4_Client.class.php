@@ -1003,7 +1003,7 @@ A OK FETCH completed
 		return;
 	}
 
-	protected function _parseSearchCond(array $param) {
+	protected function _parseSearchCond(array $param, $uid = false) {
 		$param = array_values($param); // just to be sure
 		$where = array();
 
@@ -1015,6 +1015,7 @@ A OK FETCH completed
 			}
 			switch($t) {
 				case 'ALL': break;
+				case '1:*': break; // same as "ALL"
 				case 'UNSEEN': $where[] = 'FIND_IN_SET(\'seen\',`flags`)=0'; break;
 				case 'ANSWERED': $where[] = 'FIND_IN_SET(\'answered\',`flags`)>0'; break;
 				case 'DELETED': $where[] = 'FIND_IN_SET(\'deleted\',`flags`)>0'; break;
@@ -1042,7 +1043,7 @@ A OK FETCH completed
 	protected function _cmd_search($argv, $lin) {
 		array_shift($argv); // "SEARCH"
 		$param = implode(' ', $argv);
-		$param = $this->parseFetchParam($param);
+		$param = $this->parseFetchParam($param, $lin == 'UID');
 		if (strtoupper($param[0]) == 'CHARSET') {
 			array_shift($param); // CHARSET
 			$charset = strtoupper(array_shift($param)); // charset
@@ -1054,6 +1055,7 @@ A OK FETCH completed
 
 		$where = $this->_parseSearchCond($param, $charset);
 		if ($where === false) {
+			var_dump($lin);
 			var_dump($param);
 		} else {
 			$req = 'SELECT `mailid` FROM `z'.$this->info['domainid'].'_mails` WHERE `userid` = '.$this->sql->quote_escape($this->info['account']->id).' AND `folder` = '.$this->sql->quote_escape($this->selectedFolder);
