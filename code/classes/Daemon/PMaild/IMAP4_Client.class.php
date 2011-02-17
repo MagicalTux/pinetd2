@@ -1003,7 +1003,7 @@ A OK FETCH completed
 		return;
 	}
 
-	protected function _parseSearchCond(array $param, $uid = false) {
+	protected function _parseSearchCond(array $param, $charset, $uid = false) {
 		$param = array_values($param); // just to be sure
 		$where = array();
 
@@ -1013,7 +1013,7 @@ A OK FETCH completed
 				$i++;
 				$t = 'UN'.strtoupper($param[$i]);
 			}
-			var_dump($t, $uid);
+			var_dump($t);
 			if (preg_match('/([0-9]+):([0-9]+)/', $t, $match)) {
 				if ($uid) {
 					$where[] = '(`mailid` BETWEEN '.((int)$match[1]).' AND '.((int)$match[2]).')';
@@ -1062,7 +1062,7 @@ A OK FETCH completed
 	protected function _cmd_search($argv, $lin) {
 		array_shift($argv); // "SEARCH"
 		$param = implode(' ', $argv);
-		$param = $this->parseFetchParam($param, $lin == 'UID');
+		$param = $this->parseFetchParam($param);
 		if (strtoupper($param[0]) == 'CHARSET') {
 			array_shift($param); // CHARSET
 			$charset = strtoupper(array_shift($param)); // charset
@@ -1072,7 +1072,7 @@ A OK FETCH completed
 			}
 		}
 
-		$where = $this->_parseSearchCond($param, $charset);
+		$where = $this->_parseSearchCond($param, $charset, $lin == 'UID');
 		if ($where === false) {
 			var_dump($lin);
 			var_dump($param);
