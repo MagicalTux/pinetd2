@@ -39,7 +39,7 @@ class Client extends \pinetd\ProcessChild {
 			$port = substr($peer, $pos+1);
 			$ip = substr($peer, 0, $pos);
 			if ($ip[0] == '[')
-				$ip = substr($ip, 1, -2);
+				$ip = substr($ip, 1, -1);
 			$this->peer = array($ip, $port);
 		}
 		$this->protocol = $protocol;

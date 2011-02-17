@@ -86,7 +86,7 @@ abstract class Base extends \pinetd\DaemonBase {
 		$port = substr($peer, $pos+1);
 		$ip = substr($peer, 0, $pos);
 		if ($ip[0]=='[')
-			$ip = substr($ip, 1, -2);
+			$ip = substr($ip, 1, -1);
 
 		$peer = array($ip, $port);
 
