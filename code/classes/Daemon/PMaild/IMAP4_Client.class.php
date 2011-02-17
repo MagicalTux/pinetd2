@@ -1013,7 +1013,7 @@ A OK FETCH completed
 				$i++;
 				$t = 'UN'.strtoupper($param[$i]);
 			}
-			var_dump($t);
+			var_dump($t, $uid);
 			if (preg_match('/([0-9]+):([0-9]+)/', $t, $match)) {
 				if ($uid) {
 					$where[] = '(`mailid` BETWEEN '.((int)$match[1]).' AND '.((int)$match[2]).')';
