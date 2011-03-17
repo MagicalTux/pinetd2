@@ -542,7 +542,9 @@ class Core {
 			foreach($r as $fd) {
 				switch($this->fdlist[$fd]['type']) {
 					case 'daemon':
-						$this->daemons[$this->fdlist[(int)$fd]['key']]['IPC']->run($this->daemons[$this->fdlist[(int)$fd]['key']], $fd);
+						// added if check for failing pinetd at customer place. TODO Why is this happening?
+						if ($this->daemons[$this->fdlist[(int)$fd]['key']]['IPC'])
+							$this->daemons[$this->fdlist[(int)$fd]['key']]['IPC']->run($this->daemons[$this->fdlist[(int)$fd]['key']], $fd);
 						break;
 					case 'callback':
 						$info = &$this->fdlist[$fd];
