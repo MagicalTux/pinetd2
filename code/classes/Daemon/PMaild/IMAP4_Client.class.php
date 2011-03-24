@@ -1102,7 +1102,8 @@ A OK FETCH completed
 		$param = implode(' ', $argv);
 		// ok, let's parse param
 		$param = $this->parseFetchParam($param, 'fetch');
-		$param[] = 'UID';
+		if (array_search('UID', $param) === false)
+			$param[] = 'UID';
 
 		foreach($this->transformRange($id) as $where) {
 			$this->fetchMailByUid($where, $param);
