@@ -30,6 +30,12 @@ class MySQL {
 		return $this->mysqli->$var;
 	}
 
+	public function query($query) {
+		$res = $this->mysqli->query($query);
+		if (!$res) $res = $this->mysqli->query($query); // retry in case of "gone away"
+		return $res;
+	}
+
 	public function unique() {
 		return $this->unique;
 	}
