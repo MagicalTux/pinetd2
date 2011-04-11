@@ -833,7 +833,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 						$res[] = $mail->getStructure();
 						break;
 					}
-					$this->storeFlags($mail, 'add', 'seen');
+					$this->storeFlags($mail, 'add', array('seen'));
 				case 'BODY.PEEK':
 					$res_body = $mail->fetchBody($item_param);
 					foreach($res_body as $t => $v) {
@@ -1174,6 +1174,73 @@ A OK FETCH completed
 		}
 
 		return $res;
+	}
+
+	protected function _cmd_store($argv) {
+		$id = array_shift($argv); // 1:*
+		$what = strtolower(array_shift($argv));
+
+		$mode = 'set';
+		$silent = false;
+
+		if ($what[0] == '+') {
+			$mode = 'add';
+			$what = substr($what, 1);
+		} else if ($what[0] == '-') {
+			$mode = 'sub';
+			$what = substr($what, 1);
+		}
+
+		if (substr($what, -7) == '.silent') {
+			$what = substr($what, 0, -7);
+			$silent = true;
+		}
+
+		if ($what != 'flags') {
+			$this->sendMsg('BAD Setting '.strtoupper($what).' not supported');
+			return;
+		}
+
+		$argv = implode(' ', $argv);
+		$flags = $this->parseFetchParam($argv);
+
+		while(strlen($id) > 0) {
+			$pos = strpos($id, ':');
+			$pos2 = strpos($id, ',');
+			if ($pos === false) $pos = strlen($id);
+			if ($pos2 === false) $pos2 = strlen($id);
+			if ($pos < $pos2) {
+				// got an interval. NB: 1:3:5 is impossible, must be 1:3,5 or something like that
+				$start = substr($id, 0, $pos);
+				$end = substr($id, $pos+1, $pos2 - $pos - 1);
+				$id = substr($id, $pos2+1);
+				if ($end == '*') {
+					foreach($this->uidmap as $i => $realid) {
+						if ($i < $start) continue;
+						$this->storeFlags(array('mailid' => $realid), $mode, $flags);
+						if (!$silent)
+							$this->fetchMailById($i, array('FLAGS'));
+					}
+					continue;
+				}
+				for($i=$start; $i <= $end; $i++) {
+					if (!isset($this->uidmap[$i])) continue;
+					$this->storeFlags(array('mailid' => $this->uidmap[$i]), $mode, $flags);
+					if (!$silent)
+						$this->fetchMailById($this->uidmap[$i], array('FLAGS'));
+				}
+			} else {
+				$i = substr($id, 0, $pos2);
+				$id = substr($id, $pos2+1);
+				if (isset($this->uidmap[$i])) {
+					$this->storeFlags(array('mailid' => $this->uidmap[$i]), $mode, $flags);
+					if (!$silent)
+						$this->fetchMailById($this->uidmap[$i], array('FLAGS'));
+				}
+			}
+		}
+
+		$this->sendMsg('OK STORE completed');
 	}
 
 	protected function _cmd_uid_store($argv) {
