@@ -1113,7 +1113,7 @@ A OK FETCH completed
 
 	protected function storeFlags($where, $mode, $flags) {
 		if (is_object($where)) {
-			$result = $where->getBean();
+			$result = array($where->getBean());
 		} else {
 			$DAO_mails = $this->sql->DAO('z'.$this->info['domainid'].'_mails', 'mailid');
 			$result = $DAO_mails->loadByField(array('userid' => $this->info['account']->id, 'folder' => $this->selectedFolder)+$where);
