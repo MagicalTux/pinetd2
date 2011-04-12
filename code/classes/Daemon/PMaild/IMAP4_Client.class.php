@@ -1177,6 +1177,7 @@ A OK FETCH completed
 	}
 
 	protected function _cmd_store($argv) {
+		array_shift($argv); // 'STORE'
 		$id = array_shift($argv); // 1:*
 		$what = strtolower(array_shift($argv));
 
