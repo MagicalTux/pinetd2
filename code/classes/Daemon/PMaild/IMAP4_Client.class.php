@@ -1014,14 +1014,22 @@ A OK FETCH completed
 				$t = 'UN'.strtoupper($param[$i]);
 			}
 			if (preg_match('/([0-9]+):([0-9]+)/', $t, $match)) {
-				if (!isset($this->uidmap[(int)$match[1]])) return false;
-				if (!isset($this->uidmap[(int)$match[2]])) return false;
-				$where[] = '(`mailid` BETWEEN '.($this->uidmap[(int)$match[1]]).' AND '.($this->uidmap[(int)$match[2]]).')';
+				if (!$uid) {
+					if (!isset($this->uidmap[(int)$match[1]])) return false;
+					if (!isset($this->uidmap[(int)$match[2]])) return false;
+					$where[] = '(`mailid` BETWEEN '.($this->uidmap[(int)$match[1]]).' AND '.($this->uidmap[(int)$match[2]]).')';
+				} else {
+					$where[] = '(`mailid` BETWEEN '.((int)$match[1]).' AND '.((int)$match[2]).')';
+				}
 				continue;
 			}
 			if (preg_match('/([0-9]+):\\*/', $t, $match)) {
-				if (!isset($this->uidmap[(int)$match[1]])) return false;
-				$where[] = '`mailid` >= '.($this->uidmap[(int)$match[1]]);
+				if (!$uid) {
+					if (!isset($this->uidmap[(int)$match[1]])) return false;
+					$where[] = '`mailid` >= '.($this->uidmap[(int)$match[1]]);
+				} else {
+					$where[] = '`mailid` >= '.((int)$match[1]);
+				}
 				continue;
 			}
 			switch($t) {
