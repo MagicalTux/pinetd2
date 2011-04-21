@@ -1003,6 +1003,14 @@ A OK FETCH completed
 		return;
 	}
 
+	protected function _idtouid_min_mode($id) {
+		if (!isset($this->uidmap[$id])) {
+			if ($id < 1) return 1;
+			$id--;
+		}
+		return $this->uidmap[$id];
+	}
+
 	protected function _parseSearchCond(array $param, $charset, $uid = false) {
 		$param = array_values($param); // just to be sure
 		$where = array();
@@ -1014,22 +1022,11 @@ A OK FETCH completed
 				$t = 'UN'.strtoupper($param[$i]);
 			}
 			if (preg_match('/([0-9]+):([0-9]+)/', $t, $match)) {
-				if (!$uid) {
-					if (!isset($this->uidmap[(int)$match[1]])) return false;
-					if (!isset($this->uidmap[(int)$match[2]])) return false;
-					$where[] = '(`mailid` BETWEEN '.($this->uidmap[(int)$match[1]]).' AND '.($this->uidmap[(int)$match[2]]).')';
-				} else {
-					$where[] = '(`mailid` BETWEEN '.((int)$match[1]).' AND '.((int)$match[2]).')';
-				}
+				$where[] = '(`mailid` BETWEEN '.$this->_idtouid_min_mode((int)$match[1]).' AND '.$this->_idtouid_min_mode((int)$match[2]).')';
 				continue;
 			}
 			if (preg_match('/([0-9]+):\\*/', $t, $match)) {
-				if (!$uid) {
-					if (!isset($this->uidmap[(int)$match[1]])) return false;
-					$where[] = '`mailid` >= '.($this->uidmap[(int)$match[1]]);
-				} else {
-					$where[] = '`mailid` >= '.((int)$match[1]);
-				}
+				$where[] = '`mailid` >= '.$this->_idtouid_min_mode((int)$match[1]);
 				continue;
 			}
 			switch($t) {
