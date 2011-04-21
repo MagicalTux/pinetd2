@@ -1080,6 +1080,9 @@ A OK FETCH completed
 			if ($where) $req.= ' AND '.implode(' AND ', $where);
 			$req.= ' LIMIT 500';
 			$res = $this->sql->query($req);
+			if (!$res) {
+				var_dump($req);
+			} else
 			while($row = $res->fetch_assoc()) {
 				if ($lin == 'UID') {
 					$final[] = $row['mailid'];
