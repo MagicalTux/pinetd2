@@ -1133,7 +1133,7 @@ A OK FETCH completed
 			} else {
 				$tmpfl = explode(',', $mail->flags);
 			}
-			array_flip($tmpfl);
+			$tmpfl = array_flip($tmpfl);
 			switch($mode) {
 				case 'set':
 					$tmpfl = array();
