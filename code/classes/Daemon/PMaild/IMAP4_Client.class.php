@@ -132,7 +132,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 					$string = null;
 					continue;
 				} else {
-					throw new Exception('parse error');
+					throw new \Exception('parse error');
 				}
 			}
 			if (($c == ')') || ($c == ']') || ($c == '>')) {
