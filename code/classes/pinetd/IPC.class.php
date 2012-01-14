@@ -254,7 +254,10 @@ class IPC {
 			if ($this->ischld) exit;
 			return NULL;
 		}
-		stream_set_blocking($this->pipe, false);
+		if (!stream_set_blocking($this->pipe, false)) {
+			if ($this->ischld) exit;
+			return NULL;
+		}
 		$tmp = @fread($this->pipe, 1024);
 		if (($tmp === '') && feof($this->pipe)) return null;
 		if (!is_string($tmp)) return null;
