@@ -93,6 +93,7 @@ class IPC {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
 			pcntl_signal_dispatch();
 			$cmd = $this->readcmd();
+			if (is_null($cmd)) throw new \Exception('Lost remote while running call');
 			if ($cmd[0] == self::RES_CALL_EXCEPT) {
 				throw new \Exception($cmd[1]); // throw exception again in this process
 			} elseif ($cmd[0] != self::RES_CALL) {
@@ -164,6 +165,7 @@ class IPC {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
 			pcntl_signal_dispatch();
 			$cmd = $this->readcmd();
+			if (is_null($cmd)) throw new \Exception('Failed to create port, lost parent');
 			// TODO: handle exceptions too?
 			if ($cmd[0] != self::RES_NEWPORT) {
 				$this->handlecmd($cmd, $foo = null);
@@ -204,6 +206,7 @@ class IPC {
 			@stream_select($r = array($this->pipe), $w = null, $e = null, 1); // wait
 			pcntl_signal_dispatch();
 			$cmd = $this->readcmd();
+			if (is_null($cmd)) break;
 			if ($cmd[0] == self::RES_CALLPORT_EXCEPT) {
 				throw new \Exception($cmd[1][2]);
 			} elseif ($cmd[0] != self::RES_CALLPORT) {
@@ -500,6 +503,7 @@ class IPC {
 		if (!$this->ischld) return true;
 		while(!feof($this->pipe)) {
 			$cmd = $this->readcmd();
+			if (is_null($cmd)) break; // feof
 			if ($cmd[0] != self::RES_PING) {
 				$this->handlecmd($cmd, $foo = null);
 			} else {
