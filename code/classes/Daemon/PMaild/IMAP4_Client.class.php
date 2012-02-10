@@ -400,6 +400,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 
 		parent::sendMsg('+ '.base64_encode('Password')); // avoid tag
 		$res = $this->readLine();
+		if (strlen($res) < 3) $res .= $this->readLine(); // not long enough!
 		if ($res == '*') return $this->sendMsg('BAD AUTHENTICATE cancelled');
 		$pass = base64_decode($res);
 		$this->debug('Pass: '.$pass.' ('.$res.')');
