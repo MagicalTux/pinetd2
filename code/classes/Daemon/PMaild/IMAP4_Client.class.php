@@ -327,7 +327,7 @@ class IMAP4_Client extends \pinetd\TCP\Client {
 	function _cmd_capability() {
 		$secure = true;
 		if ($this->protocol == 'tcp') $secure=false;
-		$this->sendMsg('CAPABILITY IMAP4REV1 '.($secure?'':'STARTTLS ').'X-NETSCAPE NAMESPACE MAILBOX-REFERRALS SCAN SORT THREAD=REFERENCES THREAD=ORDEREDSUBJECT MULTIAPPEND LOGIN-REFERRALS IDLE AUTH='.($secure?'LOGIN':'LOGINDISABLED'), '*');
+		$this->sendMsg('CAPABILITY IMAP4REV1 '.($secure?'':'STARTTLS ').'X-NETSCAPE NAMESPACE MAILBOX-REFERRALS SCAN SORT THREAD=REFERENCES THREAD=ORDEREDSUBJECT MULTIAPPEND LOGIN-REFERRALS AUTH='.($secure?'LOGIN':'LOGINDISABLED'), '*');
 		$this->sendMsg('OK CAPABILITY completed');
 	}
 
