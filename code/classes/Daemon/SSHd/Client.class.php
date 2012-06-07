@@ -808,7 +808,7 @@ class Client extends \pinetd\TCP\Client {
 	}
 
 	protected function handleProtocol($proto) {
-		if (!preg_match('/^SSH-2\\.0-([^ -]+)( .*)?$/', $proto, $matches)) {
+		if (!preg_match('/^SSH-2\\.0-([^ ]+)( .*)?$/', $proto, $matches)) {
 			$this->disconnect(self::SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED, 'could not understand your protocol version');
 			return;
 		}
