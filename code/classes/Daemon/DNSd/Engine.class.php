@@ -138,7 +138,7 @@ class Engine {
 				}
 				if (strpos($row['data'], '$sub') !== false) {
 					// use domain req info
-					$sub = explode('.', $host);
+					$sub = explode('.', $ohost);
 					$row['data'] = preg_replace_callback('/\\$sub\\[([^]]+)\\]/', function($matches) use ($sub) { return $sub[$matches[1]]; }, $row['data']);
 				}
 
