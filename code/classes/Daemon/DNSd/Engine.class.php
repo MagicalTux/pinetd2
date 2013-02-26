@@ -136,6 +136,11 @@ class Engine {
 					$peer = array('ip' => $peer[0], 'port' => $peer[1]);
 					$row['data'] = preg_replace_callback('/\\$peer\\[([^]]+)\\]/', function($matches) use ($peer) { return $peer[$matches[1]]; }, $row['data']);
 				}
+				if (strpos($row['data'], '$sub') !== false) {
+					// use domain req info
+					$sub = explode('.', $host);
+					$row['data'] = preg_replace_callback('/\\$sub\\[([^]]+)\\]/', function($matches) use ($sub) { return $sub[$matches[1]]; }, $row['data']);
+				}
 
 				if (strtolower($row['type']) == 'zone') {
 					// special type: linking to another zone
