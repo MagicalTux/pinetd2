@@ -290,6 +290,7 @@ class Packet {
 			// read qname
 			$qname = $this->decodeLabel($pkt, $offset);
 			// read qtype & qclass
+			if (strlen($pkt) < ($offset+10)) throw new \Exception('Not enough data');
 			$tmp = unpack('ntype/nclass/Nttl/ndlength', substr($pkt, $offset, 10));
 			$tmp['name'] = $qname;
 			$offset += 10;

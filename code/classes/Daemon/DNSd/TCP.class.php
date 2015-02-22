@@ -155,7 +155,8 @@ class TCP extends \pinetd\TCP\Base {
 			Timer::reset();
 			unset($this->clients[(int)$news]);
 			foreach($this->clients as $c) fclose($c['socket']);
-			fclose($this->socket);
+			foreach($this->socket as $socket)
+				fclose($socket);
 			fclose($pair[0]);
 			$this->clients = array();
 

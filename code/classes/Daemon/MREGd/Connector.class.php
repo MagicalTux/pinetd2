@@ -195,6 +195,7 @@ class Connector extends \pinetd\Process {
 				$x .= ($x == ''?'':'&').urlencode(trim(substr($lin, 0, $pos))).'='.urlencode(trim(substr($lin, $pos+1)));
 			}
 			ini_set('magic_quotes_gpc', false);
+			ini_set('max_input_vars', 10000);
 			parse_str($x, $res);
 
 			$reply[] = $res;
