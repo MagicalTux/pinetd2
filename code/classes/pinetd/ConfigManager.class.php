@@ -31,7 +31,7 @@ class ConfigManager {
 	private $config = 'config.xml';
 	private $xml = null;
 
-	public function invoke() {
+	public static function invoke() {
 		if (is_null(self::$self)) {
 			self::$self = new self;
 		}

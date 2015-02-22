@@ -534,7 +534,7 @@ class IPC {
 			if ( (isset($c['timeout'])) && ($c['timeout'] > 0)) {
 				if ($c['last_activity'] < ($now - $c['timeout'])) {
 					$c['last_activity'] = $now;
-					call_user_func_array($c['timeout_callback'], &$c['timeout_data']);
+					call_user_func_array($c['timeout_callback'], $c['timeout_data']);
 				}
 			}
 			$r[] = $c['fd'];
@@ -559,9 +559,9 @@ class IPC {
 			if ( (is_array($info['callback'])) && ($info['callback'][1] == 'run')) {
 				// This function expects one parameter, and by ref
 				$ref = &$info['data'][0];
-				call_user_func($info['callback'], &$ref, $fd);
+				call_user_func_array($info['callback'], [&$ref, $fd]);
 			} else {
-				call_user_func_array($info['callback'], &$info['data']);
+				call_user_func_array($info['callback'], $info['data']);
 			}
 		}
 		foreach($w as $fd) {

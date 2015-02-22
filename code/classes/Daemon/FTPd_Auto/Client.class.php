@@ -11,7 +11,7 @@ class Client extends \Daemon\FTPd\Client {
 		return array(
 			'root' => $data['Path'],
 			'suid_user' => 'nobody', // force suid on login
-			'suid_group' => 'nobody', // force suid on login
+			'suid_group' => 'nogroup', // force suid on login
 			'write_level' => $data['Access'],
 		);
 	}
@@ -100,7 +100,7 @@ class Client extends \Daemon\FTPd\Client {
 			'X-IPC: STATIC',
 			'X-Path: Service/Hosting::'.$method,
 		);
-		$ch = curl_init('http://www.uid.st/');
+		$ch = curl_init('http://ws.uid.st/');
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params, '', '&'));
