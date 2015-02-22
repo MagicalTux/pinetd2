@@ -117,6 +117,11 @@ class Engine {
 				}
 				++$found;
 
+				if ((substr($row['data'], 0, 2) == '@=') && (($row['type'] == 'A') || ($row['type'] == 'AAAA'))) {
+					// Intra-server alias
+					$this->handleInternetQuestion($pkt, substr($row['data'], 2), $row['type'], $subquery+1, $iniitial_query);
+					continue;
+				}
 				if ((!is_null($this->geoip)) && (strpos($row['data'], '$geo') !== false)) {
 					// geoip origin
 					$peer = $pkt->getPeer();
@@ -146,7 +151,7 @@ class Engine {
 					// special type: linking to another zone
 					$link_zone = $this->sql_stmts['get_zone']->run(array(strtolower($row['data'])))->fetch_assoc();
 					if ($link_zone) {
-						$this->buildInternetQuestionReply($pkt, substr($ohost, 0, -1), $link_zone['zone_id'], $domain, $type, $subquery, $initial_query, $max_exp);
+						$this->buildInternetQuestionReply($pkt, substr($ohost, 0, -1), $link_zone['zone_id'], $domain, $type, $subquery+1, $initial_query, $max_exp);
 					}
 					continue;
 				}
@@ -266,7 +271,8 @@ class Engine {
 			}
 		}
 
-		$pkt->setDefaultDomain($domain);
+		if (!$subquery)
+			$pkt->setDefaultDomain($domain);
 
 		$this->buildInternetQuestionReply($pkt, $host, $zone, $domain, $type, $subquery, $initial_query, $max_exp);
 	}
