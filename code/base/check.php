@@ -38,18 +38,16 @@ $required = array(
 	'tokenizer', // used for some analysis
 	'pcre', // pcre is useful
 	'sockets', // what will we do without sockets ?!
-	'SQLite', // storage subclass
+	'SQLite3', // storage subclass
 	'mysqli', // storage subclass
 	'mhash', // mhash are always useful
 	'mbstring', // can do stuff iconv can't do (like decode/encode IMAP UTF-7)
 	'iconv', // convert stuff
 	'hash',
 	'gd', // we may want to generate gfx
-	'filter', // filters (useful to qualify ips)
 	'date', // what will we do without that?
 	'zlib', // zlib might be useful for a bunch of things
 	'bz2', // required by PMaild2 for compression
-	'uuid', // useful to generate stuff
 );
 $list = get_loaded_extensions();
 
