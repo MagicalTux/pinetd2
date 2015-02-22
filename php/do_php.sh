@@ -6,7 +6,7 @@ PHP_ARCHIVE="$PHP_VERSION".tar.bz2
 BUILD_ROOT=`pwd`
 
 if [ ! -f "$PHP_ARCHIVE" ]; then
-	wget http://beta.magicaltux.net/"$PHP_ARCHIVE"
+	wget -O "$PHP_ARCHIVE" "http://php.net/get/$PHP_ARCHIVE/from/this/mirror"
 fi
 
 if [ ! -d "$PHP_VERSION" ]; then
@@ -96,10 +96,10 @@ echo -n "Configuring..."
 ./configure >configure.log 2>&1 --prefix=/usr/local --without-pear --disable-cgi --enable-sigchild \
  --enable-dba --enable-ftp --enable-mbstring \
  --enable-pcntl --disable-session --enable-sockets --enable-sysvmsg --enable-sysvsem --enable-sysvshm \
- --with-gd --with-jpeg-dir=/usr/lib --with-png-dir --with-zlib --enable-gd-native-ttf \
+ --with-gd --with-jpeg-dir=/usr/lib --with-png-dir --with-zlib --enable-gd-native-ttf --with-kerberos \
  --with-mysql="$MYSQLI_DIR" --with-mysqli="$MYSQLI_PATH" --with-mhash --with-config-file-path="$BUILD_ROOT" \
  --enable-libxml --enable-dom --enable-xml --enable-xmlreader --enable-xmlwriter --with-openssl=/usr \
- --with-curl=/usr --with-curlwrappers --with-bz2 --with-uuid --enable-wddx --enable-intl \
+ --with-curl=/usr --with-curlwrappers --with-bz2 --with-uuid --enable-wddx --enable-intl --with-libdir=/lib/x86_64-linux-gnu \
  --with-imap=/usr --with-imap-ssl --enable-proctitle --enable-mailparse --enable-soap --with-mcrypt --with-gmp
 
 if [ x"$?" != x"0" ]; then
