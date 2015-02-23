@@ -169,11 +169,10 @@ class Engine {
 				if ($answer->getType() == Type\RFC1035::TYPE_CNAME) {
 					$aname = $row['data'];
 					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
-					if (strtolower($aname) != strtolower($ohost . $domain. '.')) {
+					if (strtolower($aname) != strtolower($ohost . $domain. '.'))
 						$add_lookup[strtolower($aname)] = $aname;
-						$pkt->addAnswer($initial_query. '.', $answer, $row['ttl']);
-						break; // CNAME can't share space with anyone
-					}
+					$pkt->addAnswer($initial_query. '.', $answer, $row['ttl']);
+					break; // CNAME can't share space with anyone
 				} elseif (($type != Type\RFC1035::TYPE_ANY) && ($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
 					if ($host != '')
 						$pkt->addAuthority($host.'.'. $domain. '.', $answer, $row['ttl']);
