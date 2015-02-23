@@ -119,7 +119,12 @@ class Engine {
 
 				if ((substr($row['data'], 0, 2) == '@=') && (($row['type'] == 'A') || ($row['type'] == 'AAAA'))) {
 					// Intra-server alias
-					$this->handleInternetQuestion($pkt, substr($row['data'], 2), $row['type'], $subquery+1, $iniitial_query);
+					$subquery_value = substr($row['data'], 2);
+					if (substr($subquery_value, -1) != '.') { // within same zone?
+						$this->buildInternetQuestionReply($pkt, $subquery_value, $zone, $domain, $type, $subquery+1, $initial_query, $max_exp);
+					} else {
+						$this->handleInternetQuestion($pkt, $subquery_value, Type::stringToType($row['type']), $subquery+1, $initial_query);
+					}
 					continue;
 				}
 				if ((!is_null($this->geoip)) && (strpos($row['data'], '$geo') !== false)) {
@@ -166,13 +171,14 @@ class Engine {
 					if (substr($aname, -1) != '.') $aname .= '.' . $domain . '.';
 					if (strtolower($aname) != strtolower($ohost . $domain. '.')) {
 						$add_lookup[strtolower($aname)] = $aname;
-						$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
+						$pkt->addAnswer($initial_query. '.', $answer, $row['ttl']);
+						break; // CNAME can't share space with anyone
 					}
 				} elseif (($type != Type\RFC1035::TYPE_ANY) && ($answer->getType() == Type\RFC1035::TYPE_NS) && ($answer->getType() != $type) && ($host[0] != '*')) {
 					if ($host != '')
 						$pkt->addAuthority($host.'.'. $domain. '.', $answer, $row['ttl']);
 				} elseif (($type == Type\RFC1035::TYPE_ANY) || ($answer->getType() == $type)) {
-					$pkt->addAnswer($ohost. $domain. '.', $answer, $row['ttl']);
+					$pkt->addAnswer($initial_query. '.', $answer, $row['ttl']);
 				}
 			}
 			if ($found) break;
