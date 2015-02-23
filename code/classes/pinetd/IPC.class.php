@@ -559,7 +559,7 @@ class IPC {
 			if ( (is_array($info['callback'])) && ($info['callback'][1] == 'run')) {
 				// This function expects one parameter, and by ref
 				$ref = &$info['data'][0];
-				call_user_func_array($info['callback'], [&$ref, $fd]);
+				call_user_func_array($info['callback'], array(&$ref, $fd));
 			} else {
 				call_user_func_array($info['callback'], $info['data']);
 			}

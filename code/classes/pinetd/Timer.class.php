@@ -41,7 +41,7 @@ class Timer {
 	}
 
 	private function _processTimer($timer) {
-		$res = call_user_func_array($timer['callback'], [&$timer['extra']]);
+		$res = call_user_func_array($timer['callback'], array(&$timer['extra']));
 		if (($timer['recurring']) && ($res))
 			$this->_addTimer($timer);
 	}

@@ -21,7 +21,7 @@ abstract class Base extends \pinetd\DaemonBase {
 
 	protected function initMainLoop() {
 		if (defined('PINETD_GOT_PROCTITLE')) {
-			call_user_func_array('Tspt: '.get_class($this));
+			cli_set_process_title('Tspt: '.get_class($this));
 		}
 	}
 }

@@ -51,6 +51,13 @@ $required = array(
 );
 $list = get_loaded_extensions();
 
+if (!function_exists('cli_set_process_title')) {
+	function cli_set_process_title($title) {
+		if (function_exists('setproctitle'))
+			setproctitle($title);
+	}
+}
+
 foreach($list as $ext) {
 	define('PINETD_GOT_'.strtoupper($ext), true);
 }

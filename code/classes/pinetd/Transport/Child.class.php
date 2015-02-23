@@ -26,16 +26,16 @@ abstract class Child {
 		if (!defined('PINETD_GOT_PROCTITLE')) return;
 		if ($this->processBaseName) {
 			if (!$status) {
-				call_user_func_array($this->processBaseName);
+				cli_set_process_title($this->processBaseName);
 			} else {
-				call_user_func_array($this->processBaseName . ' - ' . $status);
+				cli_set_process_title($this->processBaseName . ' - ' . $status);
 			}
 			return;
 		}
 		if (!$status) {
-			call_user_func_array('(pinetd)');
+			cli_set_process_title('(pinetd)');
 		} else {
-			call_user_func_array($status);
+			cli_set_process_title($status);
 		}
 	}
 

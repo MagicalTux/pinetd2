@@ -21,7 +21,7 @@ abstract class Process extends \pinetd\DaemonBase {
 
 	protected function initMainLoop() {
 		if (defined('PINETD_GOT_PROCTITLE')) {
-			call_user_func_array('Proc: '.get_class($this));
+			cli_set_process_title('Proc: '.get_class($this));
 		}
 	}
 }

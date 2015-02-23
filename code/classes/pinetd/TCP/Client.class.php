@@ -220,11 +220,11 @@ class Client extends \pinetd\ProcessChild {
 		if (!$msg) $msg = 'idle';
 
 		if ((isset($this->peer[2])) && ($this->peer[0] != $this->peer[2])) {
-			call_user_func_array('[' . $this->peer[0] . '] ' . get_class($this) . ': ' . $msg . ' (' . $this->peer[2].')');
+			cli_set_process_title('[' . $this->peer[0] . '] ' . get_class($this) . ': ' . $msg . ' (' . $this->peer[2].')');
 			return;
 		}
 
-		call_user_func_array('['.$this->peer[0].'] ' . get_class($this) . ': ' . $msg);
+		cli_set_process_title('['.$this->peer[0].'] ' . get_class($this) . ': ' . $msg);
 	}
 
 	public function mainLoop($IPC) {
