@@ -117,7 +117,7 @@ class Engine {
 				}
 				++$found;
 
-				if ((substr($row['data'], 0, 2) == '@=') && (($row['type'] == 'A') || ($row['type'] == 'AAAA'))) {
+				if ((substr($row['data'], 0, 2) == '@=') && (($row['type'] == 'A') || ($row['type'] == 'AAAA')) && (($row['type'] == $typestr) || ($type == Type\RFC1035::TYPE_ANY))) {
 					// Intra-server alias
 					$subquery_value = substr($row['data'], 2);
 					if (substr($subquery_value, -1) != '.') { // within same zone?
