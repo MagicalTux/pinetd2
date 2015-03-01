@@ -782,6 +782,19 @@ class Client extends \pinetd\TCP\Client {
 		$this->sendMsg('213 '.date('YmdHis', $stat['mtime']));
 	}
 
+	function _cmd_opts($argv) {
+		// for clients using http://tools.ietf.org/html/draft-ietf-ftpext-utf-8-option-00
+		if (strtoupper($argv[1]) != 'UTF-8') {
+			$this->sendMsg('500 Syntax error, command unrecognized.');
+			return;
+		}
+		if (strtoupper($argv[2]) != 'ON') {
+			$this->sendMsg('501 Syntax error in parameters or arguments.');
+			return;
+		}
+		$this->sendMsg('200 Command okay.');
+	}
+
 	function _cmd_feat() {
 		$this->sendMsg('211-Extensions supported:');
 		$this->sendMsg('211-MDTM');
