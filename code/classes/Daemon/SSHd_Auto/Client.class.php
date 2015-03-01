@@ -19,11 +19,12 @@ class Client extends \Daemon\SSHd\Client {
 
 	protected function serverCall($method, array $params) {
 		$params['server'] = $this->IPC->getName();
+		$params['hosting'] = $_ENV['HOSTING_NAME'];
 		$headers = array(
 			'X-IPC: STATIC',
 			'X-Path: Service/Hosting::'.$method,
 		);
-		$ch = curl_init('http://www.uid.st/');
+		$ch = curl_init('http://ws.uid.st/');
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params, '', '&'));

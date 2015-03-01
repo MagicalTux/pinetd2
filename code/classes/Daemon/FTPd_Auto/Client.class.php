@@ -96,6 +96,7 @@ class Client extends \Daemon\FTPd\Client {
 
 	protected function serverCall($method, array $params) {
 		$params['server'] = $this->IPC->getName();
+		$params['hosting'] = $_ENV['HOSTING_NAME'];
 		$headers = array(
 			'X-IPC: STATIC',
 			'X-Path: Service/Hosting::'.$method,
