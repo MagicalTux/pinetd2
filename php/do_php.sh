@@ -126,6 +126,9 @@ if [ -r /proc/cpuinfo ]; then
 	MAKEOPTS="-j$NPROCESS"
 fi
 
+# quick fix for C++
+sed -i 's/EXTRA_LIBS = .*/\0 -lstdc++/' Makefile
+
 make $MAKEOPTS >make.log 2>&1
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
