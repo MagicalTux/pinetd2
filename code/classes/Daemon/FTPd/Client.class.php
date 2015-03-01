@@ -797,11 +797,11 @@ class Client extends \pinetd\TCP\Client {
 
 	function _cmd_feat() {
 		$this->sendMsg('211-Extensions supported:');
-		$this->sendMsg('211-MDTM');
-		$this->sendMsg('211-SIZE');
-		$this->sendMsg('211-REST STREAM');
-		$this->sendMsg('211-PASV');
-		$this->sendMsg('211-UTF8');
+		$this->sendMsg(' MDTM');
+		$this->sendMsg(' SIZE');
+		$this->sendMsg(' REST STREAM');
+		$this->sendMsg(' PASV');
+		$this->sendMsg(' UTF8');
 		$this->sendMsg('211 End.');
 	}
 }
