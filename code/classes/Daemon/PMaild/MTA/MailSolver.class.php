@@ -4,7 +4,7 @@ namespace Daemon\PMaild\MTA;
 use pinetd\SQL;
 
 class MailSolver {
-	static protected function readAlias($SQL, $alias, $res) {
+	static protected function readAlias($SQL, $alias, $res, $user) {
 		$alias->last_transit = $SQL->now();
 		$alias->commit();
 		// determine case
@@ -103,7 +103,7 @@ class MailSolver {
 
 		$alias = $DAO_alias->loadByField(array('user'=>$user));
 		if ($alias) {
-			$aliasres = self::readAlias($SQL, $alias[0], $res);
+			$aliasres = self::readAlias($SQL, $alias[0], $res, $user);
 			if (is_array($aliasres)) return $aliasres;
 			$account = $DAO_accounts[$aliasres];
 			// CONTINUE HERE: load account referenced, and continue to next
@@ -132,7 +132,7 @@ class MailSolver {
 			// check for 'default' alias
 			$alias = $DAO_alias->loadByField(array('user'=>'default'));
 			if ($alias) {
-				$aliasres = self::readAlias($SQL, $alias[0], $res);
+				$aliasres = self::readAlias($SQL, $alias[0], $res, $user);
 				if (is_array($aliasres)) return $aliasres;
 				$account = $DAO_accounts[$aliasres];
 			}
