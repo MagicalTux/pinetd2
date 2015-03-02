@@ -112,24 +112,10 @@ echo "done"
 
 echo -n "Compiling..."
 
-# determine amount of CPU
-MAKEOPTS=-j2
-if [ -r /proc/cpuinfo ]; then
-	NCPU=`grep -c ^processor /proc/cpuinfo`
-	NPROCESS=$[ $NCPU * 2 ]
-	if [ $NPROCESS -ge 2 ]; then
-		NPROCESS=$[ $NPROCESS - 1 ]
-	fi
-	if [ $NPROCESS -le 1 ]; then
-		NPROCESS=1
-	fi
-	MAKEOPTS="-j$NPROCESS"
-fi
-
 # quick fix for C++
 sed -i 's/EXTRA_LIBS = .*/\0 -lstdc++/' Makefile
 
-make $MAKEOPTS >make.log 2>&1
+make >make.log 2>&1
 if [ x"$?" != x"0" ]; then
 	echo "FAILED"
 	cat make.log | grep error | tail
