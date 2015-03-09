@@ -185,19 +185,7 @@ class Connector extends \pinetd\Process {
 		if (!$reply) return;
 
 		if (isset($cmd['command'])) {
-			$x = '';
-			$packet = explode("\n", $packet);
-			foreach($packet as $lin) {
-				$lin = rtrim($lin);
-
-				$pos = strpos($lin, '=');
-				if ($pos === false) continue;
-				$x .= ($x == ''?'':'&').urlencode(trim(substr($lin, 0, $pos))).'='.urlencode(trim(substr($lin, $pos+1)));
-			}
-			ini_set('magic_quotes_gpc', false);
-			ini_set('max_input_vars', 10000);
-			parse_str($x, $res);
-
+			$res = self::parseFmt($packet);
 			$reply[] = $res;
 			$this->IPC->routePortReply($reply);
 
@@ -206,6 +194,26 @@ class Connector extends \pinetd\Process {
 
 		$reply[] = $packet;
 		$this->IPC->routePortReply($reply);
+	}
+
+	public static function parseFmt($data) {
+		$data = explode("\n", $data);
+		$final = [];
+		foreach($data as $lin) {
+			$pos = strpos($lin, '=');
+			if ($pos === false) continue;
+			$key = strtolower(trim(substr($lin, 0, $pos)));
+			$buf = trim(substr($lin, $pos+1));
+			$key = explode('[', $key);
+			$ptr = &$final;
+			foreach($key as $sub) {
+				if (substr($sub, -1) == ']') $sub = substr($sub, 0, -1);
+				if (!isset($ptr[$sub])) $ptr[$sub] = [];
+				$ptr = &$ptr[$sub];
+			}
+			$ptr = $buf;
+		}
+		return $final;
 	}
 
 	public function mregData($id) {
